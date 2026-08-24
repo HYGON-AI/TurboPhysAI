@@ -20,7 +20,7 @@ from .engine.config.loader import (
     load_optimization_config,
 )
 from .engine.config.schema import optimization_config_to_dict
-from .runtime import load_runtime_config, parse_numa_node, prepare_environment
+from .runtime import load_runtime_config, prepare_environment
 
 _PACKAGED_MODEL_ROOT = PACKAGED_OPTIMIZATION_ROOT / "models"
 
@@ -117,17 +117,6 @@ def _parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--set", action="append", default=[], metavar="NAME=VALUE")
     run.add_argument(
-        "--set-rank-affinity", action="append", default=[], metavar="RANK=CPU_LIST"
-    )
-    run.add_argument(
-        "--set-rank-numa", action="append", default=[], metavar="RANK=NODE",
-        help="bind a rank to NUMA node with numactl",
-    )
-    numa_mode = run.add_mutually_exclusive_group()
-    numa_mode.add_argument(
-        "--enable-numa", action="store_true", help="auto-bind ranks by device topology"
-    )
-    numa_mode.add_argument(
         "--disable-numa", action="store_true", help="disable configured NUMA binding"
     )
     run.add_argument("command", nargs=argparse.REMAINDER, help="command after --")
@@ -142,11 +131,6 @@ def _assignments(values, option):
             raise TurboPhysAIError(f"{option} expects NAME=VALUE, got {value!r}")
         result[name] = setting
     return result
-
-
-def _numa_assignments(values):
-    assignments = _assignments(values, "--set-rank-numa")
-    return {rank: parse_numa_node(node) for rank, node in assignments.items()}
 
 
 def _resolve_run_configs(model, optimization_config, runtime_config):
@@ -280,13 +264,7 @@ def main(argv=None) -> int:
             environment = prepare_environment(
                 runtime,
                 overrides=_assignments(args.set, "--set"),
-                rank_affinity_overrides=_assignments(
-                    args.set_rank_affinity, "--set-rank-affinity"
-                ),
-                rank_numa_overrides=_numa_assignments(args.set_rank_numa),
-                numa_auto_override=(
-                    True if args.enable_numa else False if args.disable_numa else None
-                ),
+                numa_auto_override=False if args.disable_numa else None,
             )
             if runtime_path is None:
                 environment.pop("TURBO_PHYSAI_RUNTIME_CONFIG_PATH", None)

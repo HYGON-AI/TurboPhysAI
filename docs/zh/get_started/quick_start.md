@@ -50,8 +50,8 @@ turbo-physai run \
 `--model` 自动选择的配置。
 
 `--nproc-per-node` 是当前节点的训练进程数；设为 `1` 可进行单卡冒烟，设为 `8`
-可启动八卡训练。RuntimeConfig 配置 `process.numa: auto` 时，每个 rank 自动按设备
-拓扑绑定 CPU 与内存 NUMA 节点。
+可启动八卡训练。NUMA 默认开启；不需要绑定时，在 `turbo-physai run` 参数中增加
+`--disable-numa`。
 
 具体模型名称和训练参数以对应模型 README 为准：
 

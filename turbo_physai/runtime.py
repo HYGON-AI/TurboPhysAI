@@ -66,7 +66,7 @@ def parse_numa_node(value: str | int) -> int:
 
 def load_runtime_config(path: str | os.PathLike[str] | None) -> RuntimeConfig:
     if path is None:
-        return RuntimeConfig({}, (), {}, {}, False)
+        return RuntimeConfig({}, (), {}, {}, True)
     source = Path(path).expanduser().resolve()
     try:
         raw = yaml.safe_load(source.read_text(encoding="utf-8"))
@@ -89,7 +89,7 @@ def load_runtime_config(path: str | os.PathLike[str] | None) -> RuntimeConfig:
     unset = environment.get("unset", [])
     affinity = process.get("rank_affinity", {})
     numa = process.get("rank_numa", {})
-    numa_auto = process.get("numa", False)
+    numa_auto = process.get("numa", "auto")
     if not isinstance(values, dict) or not all(isinstance(key, str) for key in values):
         raise RuntimeConfigError("environment.set must map variable names to values")
     if not isinstance(unset, list) or not all(isinstance(key, str) for key in unset):
@@ -136,8 +136,12 @@ def prepare_environment(
     numa.update(rank_numa_overrides)
     for node in numa.values():
         parse_numa_node(node)
+    if numa_auto_override is False:
+        numa.clear()
     if numa:
         env["TURBO_PHYSAI_RANK_NUMA"] = json.dumps(numa, sort_keys=True)
+    else:
+        env.pop("TURBO_PHYSAI_RANK_NUMA", None)
     numa_auto = runtime.numa_auto if numa_auto_override is None else numa_auto_override
     if numa_auto:
         env["TURBO_PHYSAI_NUMA_AUTO"] = "1"

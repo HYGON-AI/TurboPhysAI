@@ -142,6 +142,11 @@ def test_runtime_config_enables_automatic_numa(tmp_path):
     assert environment["TURBO_PHYSAI_NUMA_AUTO"] == "1"
 
 
+def test_runtime_config_defaults_to_automatic_numa():
+    environment = prepare_environment(load_runtime_config(None))
+    assert environment["TURBO_PHYSAI_NUMA_AUTO"] == "1"
+
+
 def test_runner_reexecs_rank_with_numactl(monkeypatch):
     monkeypatch.setenv("TURBO_PHYSAI_RANK_NUMA", '{"1": 3}')
     monkeypatch.setenv("LOCAL_RANK", "1")
@@ -212,7 +217,6 @@ def test_run_cli_passes_torchrun_command_through_unchanged(tmp_path):
             "--runtime-config", str(runtime_path),
             "--force-group", "customer.encoder",
             "--disable-group", "customer.compile", "customer.training",
-            "--set-rank-affinity", "1=2-3", "--set-rank-numa", "1=1", "--enable-numa",
             "--", "torchrun", "--nproc-per-node=2", "tools/train.py", "config.py",
         ])
     command, environment = launch.call_args.args
@@ -228,11 +232,28 @@ def test_run_cli_passes_torchrun_command_through_unchanged(tmp_path):
     assert environment["TURBO_PHYSAI_DISABLE_GROUPS"] == os.pathsep.join(
         ("customer.compile", "customer.training")
     )
-    assert json.loads(environment["TURBO_PHYSAI_RANK_AFFINITY"]) == {
-        "0": "0-1", "1": "2-3"
-    }
-    assert json.loads(environment["TURBO_PHYSAI_RANK_NUMA"]) == {"0": 0, "1": 1}
+    assert json.loads(environment["TURBO_PHYSAI_RANK_AFFINITY"]) == {"0": "0-1"}
+    assert json.loads(environment["TURBO_PHYSAI_RANK_NUMA"]) == {"0": 0}
     assert environment["TURBO_PHYSAI_NUMA_AUTO"] == "1"
+
+
+def test_run_cli_disables_all_numa_binding(tmp_path):
+    runtime_path = tmp_path / "runtime.yaml"
+    runtime_path.write_text(
+        "schema_version: turbophysai/runtime-config/v1\nkind: RuntimeConfig\n"
+        "process:\n  numa: auto\n  rank_numa: {'0': 0}\n",
+        encoding="utf-8",
+    )
+    with patch("turbo_physai.cli._run_training_command", return_value=0) as launch:
+        result = cli_main([
+            "run", "--optimization-config", str(_PACKAGED_CONFIG),
+            "--runtime-config", str(runtime_path), "--disable-numa",
+            "--", "python", "tools/train.py",
+        ])
+    _, environment = launch.call_args.args
+    assert result == 0
+    assert "TURBO_PHYSAI_NUMA_AUTO" not in environment
+    assert "TURBO_PHYSAI_RANK_NUMA" not in environment
     assert environment["TURBO_PHYSAI_RUNTIME_CONFIG_PATH"] == str(
         runtime_path.resolve()
     )

@@ -74,27 +74,15 @@ turbo-physai run \
 
 `--force-group` 只覆盖框架标记为可放行的检查。target 不存在、alias 指向不同对象、签名不兼容和优化组合冲突等结构性问题仍会阻断。正式交付应更新并重新生成 OptimizationConfig。
 
-## 5. NUMA 或 CPU 亲和性失败
+## 5. NUMA 绑定失败
 
-典型错误包括缺少 `numactl`、无法从 `hy-smi --showtopo` 获取 NUMA node、CPU list 格式错误，或 affinity 请求了当前进程不可用的 CPU。
-
-检查命令：
+NUMA 默认开启。若运行环境不支持 NUMA 绑定，可在启动命令中增加 `--disable-numa` 后重试：
 
 ```bash
-numactl --hardware
-hy-smi --showtopo
-taskset -pc $$
+turbo-physai run --disable-numa -- <training-command>
 ```
 
-处理原则：
-
-- 自动 NUMA 要求 `hy-smi` 和 `numactl` 均在 `PATH` 中；
-- `rank_affinity` 和 `rank_numa` 的键均为 `LOCAL_RANK`；
-- 同时使用 NUMA 与 affinity 时，CPU 范围必须位于对应 NUMA node；
-- `--disable-numa` 只关闭自动发现，不删除显式 `rank_numa`；
-- 调度系统限制了 cpuset 时，应在允许范围内重新划分 affinity。
-
-完整字段和覆盖规则见 [RuntimeConfig](runtime_config.md)。
+完整配置说明见 [RuntimeConfig](runtime_config.md)。
 
 ## 6. Runner 不识别训练命令
 

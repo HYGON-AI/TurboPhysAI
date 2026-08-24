@@ -85,21 +85,13 @@ Python 中对 `os.environ` 的赋值和删除会同步到 C 运行时（经 `put
 
 不要用 `torch.cuda.device_count()` 验证设备可见性限制是否生效：该函数会重新读取 `HIP_VISIBLE_DEVICES`，在 HIP 运行时已初始化后会返回与运行时实际持有的设备集合不一致的值。应改用在目标设备上实际分配张量来验证。
 
-### NUMA 内存绑定是例外
-
-CPU 亲和性（`process.rank_affinity`）可以在进程内通过 `os.sched_setaffinity` 设置。NUMA **内存**绑定不行：Linux 的 first-touch 策略在页首次被写入时决定其所属节点，而解释器启动完成时已经导入若干模块并分配、触碰了内存。此后再设置 membind 只影响后续分配，无法迁移已有页。
-
-因此按 rank 绑定 NUMA 节点必须发生在 `exec` 之前，这是 RuntimeConfig 中唯一需要进程边界的配置项。
-
 RuntimeConfig 提供以下配置：
 
 - `environment.set`：设置环境变量；
 - `environment.unset`：移除环境变量；
-- `process.rank_affinity`：按 rank 设置 CPU 亲和性；
-- `process.rank_numa`：按 rank 指定 NUMA 节点；
-- `process.numa: auto`：根据可见设备和设备拓扑自动选择 NUMA 节点。
+- `process.numa`：开启或关闭 NUMA 绑定，默认开启。
 
-启用自动 NUMA 绑定后，每个 rank 的启动钩子根据 `LOCAL_RANK`、`HIP_VISIBLE_DEVICES` 和 `hy-smi --showtopo` 解析本地 NUMA 节点，并在应用 OptimizationConfig 前通过 `numactl` 按原命令行重新执行自身。镜像准备、资源限制和复杂 Shell 控制仍由镜像、作业系统或启动脚本负责。
+用户可通过 `--disable-numa` 关闭本次启动的 NUMA 绑定。
 
 ## 能力边界
 

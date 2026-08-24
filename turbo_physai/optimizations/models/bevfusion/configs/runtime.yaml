@@ -20,6 +20,4 @@ environment:
   unset: []
 
 process:
-  numa: false
-  rank_affinity: {}
-  rank_numa: {}
+  numa: true

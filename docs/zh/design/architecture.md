@@ -60,7 +60,7 @@ Executor 只执行 `PreparedExecution.execution_order` 中的 Group。每个 Gro
 中间进程。
 
 每个训练 rank 的解释器在启动时由标准库 `site` 自动导入 `turbo_physai/bootstrap`
-下的钩子，先完成 CPU/NUMA 绑定和 `apply()`，再执行原训练入口。启动器进程
+下的钩子，先准备运行环境并执行 `apply()`，再进入原训练入口。启动器进程
 （`torchrun` 等）本身不安装 Python Replacement。
 
 ### HCU 实现层

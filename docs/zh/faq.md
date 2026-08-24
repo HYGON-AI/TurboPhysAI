@@ -17,7 +17,7 @@ turbo-physai run \
 
 Runner 自动选择随包交付的 OptimizationConfig 和 RuntimeConfig，并在每个 Python 训练进程中应用优化。原训练代码无需增加 TurboPhysAI 初始化语句。
 
-RuntimeConfig 可以在训练进程启动前设置或清除环境变量，并配置 CPU/NUMA 绑定。复杂 Shell、资源限制和作业调度逻辑仍由模型启动脚本或作业系统负责。
+RuntimeConfig 可以设置或清除环境变量，并控制 NUMA 绑定。复杂 Shell、资源限制和作业调度逻辑仍由模型启动脚本或作业系统负责。
 
 ## 不指定 `--model` 会加载什么配置？
 

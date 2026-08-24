@@ -2,7 +2,7 @@
 
 OptimizationConfig 用于选择一次训练需要启用的 Optimization Group，并保存目标代码的兼容性证据。`turbo-physai run` 在训练进程启动时加载该配置、执行应用前检查，并安装检查通过的优化。
 
-OptimizationConfig 不包含环境变量、CPU 亲和性或 NUMA 配置。这些启动参数由 [RuntimeConfig](runtime_config.md) 管理。
+OptimizationConfig 不包含环境变量或 NUMA 设置。这些启动参数由 [RuntimeConfig](runtime_config.md) 管理。
 
 ## 1. 选择配置
 

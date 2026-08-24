@@ -17,15 +17,7 @@ environment:
     MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
     ENABLE_MIOPEN_DEFORMER_CONV_FP16: "TRUE"
     ENABLE_TORCH_PROFILER: "0"
-  unset:
-    - NCCL_TOPO_FILE
-    - NCCL_RINGS
+  unset: []
 
 process:
-  # Each rank uses HIP_VISIBLE_DEVICES and hy-smi topology to select its NUMA
-  # node, then re-execs itself with numactl CPU and memory binding.
-  numa: auto
-  rank_affinity: {}
-  # Set rank_numa per host (or pass --set-rank-numa). Each rank is re-execed
-  # through numactl --cpunodebind=<node> --membind=<node> before apply().
-  rank_numa: {}
+  numa: true

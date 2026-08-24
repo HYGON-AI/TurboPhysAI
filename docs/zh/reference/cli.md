@@ -83,9 +83,7 @@ turbo-physai run \
   [--force-group GROUP_ID] \
   [--disable-group GROUP_ID] \
   [--set NAME=VALUE] \
-  [--set-rank-affinity RANK=CPU_LIST] \
-  [--set-rank-numa RANK=NODE] \
-  [--enable-numa | --disable-numa] \
+  [--disable-numa] \
   -- <training-command>
 ```
 
@@ -98,10 +96,7 @@ turbo-physai run \
 | `--force-group GROUP_ID` | 对指定且已启用 Group 的可放行检查进行一次性覆盖，可重复 |
 | `--disable-group GROUP_ID` | 本次启动不应用指定 Group；可一次指定多个 Group，也可重复使用 |
 | `--set NAME=VALUE` | 覆盖或增加非空环境变量，可重复 |
-| `--set-rank-affinity RANK=CPU_LIST` | 覆盖指定本地 rank 的 CPU 亲和性，例如 `0=0-7,16-23`，可重复 |
-| `--set-rank-numa RANK=NODE` | 覆盖指定本地 rank 的 NUMA 节点，例如 `0=1`，可重复 |
-| `--enable-numa` | 强制启用自动 NUMA |
-| `--disable-numa` | 强制禁用自动 NUMA |
+| `--disable-numa` | 关闭本次启动的 NUMA 绑定；默认开启 |
 
 命令在 `--` 之后逐字透传，不被解析或改写，因此对启动器没有限制：`torchrun`、
 `torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 以及自有的 Shell 启动
