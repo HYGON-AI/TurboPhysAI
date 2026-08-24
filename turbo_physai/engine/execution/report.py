@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Iterable
 
@@ -146,8 +147,12 @@ def write_report(report: OptimizationReport) -> OptimizationReport:
     markdown_path = Path(report.artifacts.markdown_path)
     try:
         json_path.parent.mkdir(parents=True, exist_ok=True)
-        json_tmp = json_path.with_suffix(json_path.suffix + ".tmp")
-        markdown_tmp = markdown_path.with_suffix(markdown_path.suffix + ".tmp")
+        # A shared run ID makes all rank-0 phases target the same report. Use
+        # process-local temporary files so concurrent helpers cannot corrupt
+        # each other's in-progress writes; the final replacements stay atomic.
+        suffix = f".{os.getpid()}.tmp"
+        json_tmp = json_path.with_name(json_path.name + suffix)
+        markdown_tmp = markdown_path.with_name(markdown_path.name + suffix)
         with json_tmp.open("w", encoding="utf-8") as stream:
             json.dump(
                 to_primitive(report),

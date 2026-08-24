@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import sys
+import uuid
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -25,6 +26,7 @@ BOOTSTRAP_FLAG = "TURBO_PHYSAI_BOOTSTRAP"
 OPTIMIZATION_CONFIG = "TURBO_PHYSAI_OPTIMIZATION_CONFIG"
 RUNTIME_CONFIG_PATH = "TURBO_PHYSAI_RUNTIME_CONFIG_PATH"
 REPORT_DIR = "TURBO_PHYSAI_REPORT_DIR"
+RUN_ID = "TURBO_PHYSAI_RUN_ID"
 FORCE_GROUPS = "TURBO_PHYSAI_FORCE_GROUPS"
 DISABLE_GROUPS = "TURBO_PHYSAI_DISABLE_GROUPS"
 
@@ -157,6 +159,10 @@ def bootstrap_environment(
     prepared[BOOTSTRAP_FLAG] = "1"
     prepared[OPTIMIZATION_CONFIG] = str(optimization_config)
     prepared[REPORT_DIR] = str(report_dir)
+    # One CLI launch can create several Python interpreters (launcher, ranks,
+    # and model-side helper scripts). Give all descendants one identity so
+    # rank 0 updates a single report instead of leaving one report per process.
+    prepared[RUN_ID] = uuid.uuid4().hex
     if force_groups:
         prepared[FORCE_GROUPS] = os.pathsep.join(force_groups)
     else:

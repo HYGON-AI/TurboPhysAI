@@ -24,6 +24,8 @@ turbophysai_reports/
 └── optimization_report-<run-id>.md
 ```
 
+同一次 `turbo-physai run` 启动链路共用一个 Run ID。启动链路包含多个 Python 阶段时，后续阶段更新同一组文件，不会为每个阶段重复保留报告。
+
 - JSON 保存完整结构化数据，适用于自动检查、归档和进一步分析；
 - Markdown 展示主要配置、异常检查、Group 决策和执行结果，适用于人工查看。
 

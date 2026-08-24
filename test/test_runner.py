@@ -10,6 +10,8 @@ from unittest.mock import patch
 
 from turbo_physai.bootstrap import (
     ACTIVATION_FAILURE_EXIT_CODE,
+    RUN_ID,
+    RUNTIME_CONFIG_PATH,
     SITE_DIR,
     bootstrap_environment,
     isolation_flags,
@@ -292,6 +294,8 @@ def test_bootstrap_environment_preserves_existing_pythonpath():
         report_dir="reports",
     )
     assert environment["PYTHONPATH"] == f"{SITE_DIR}{os.pathsep}/opt/user"
+    assert len(environment[RUN_ID]) == 32
+    assert set(environment[RUN_ID]) <= set("0123456789abcdef")
     assert "TURBO_PHYSAI_FORCE_GROUPS" not in environment
     assert "TURBO_PHYSAI_DISABLE_GROUPS" not in environment
 
@@ -349,6 +353,37 @@ def test_bootstrap_makes_the_training_working_directory_importable(tmp_path):
     )
     assert completed.returncode == 0, completed.stderr
     assert "MODEL_PROJECT=available" in completed.stdout
+
+
+def test_bootstrap_descendants_update_one_shared_report(tmp_path):
+    scripts = []
+    for name in ("prepare.py", "train.py"):
+        script = tmp_path / name
+        script.write_text(f"print({name!r})\n", encoding="utf-8")
+        scripts.append(script)
+    report_dir = tmp_path / "reports"
+    environment = _bootstrap_env(report_dir=str(report_dir))
+
+    for script in scripts:
+        phase_environment = dict(environment)
+        phase_environment[RUNTIME_CONFIG_PATH] = f"/{script.stem}/runtime.yaml"
+        completed = subprocess.run(
+            [sys.executable, str(script)],
+            env=phase_environment,
+            cwd=tmp_path,
+            text=True,
+            capture_output=True,
+        )
+        assert completed.returncode == 0, completed.stderr
+
+    json_reports = list(report_dir.glob("optimization_report-*.json"))
+    markdown_reports = list(report_dir.glob("optimization_report-*.md"))
+    assert len(json_reports) == 1
+    assert len(markdown_reports) == 1
+    assert environment[RUN_ID] in json_reports[0].name
+    report = json.loads(json_reports[0].read_text(encoding="utf-8"))
+    assert report["runtime_config_path"] == "/train/runtime.yaml"
+    assert not list(report_dir.glob("*.tmp"))
 
 
 def test_bootstrap_aborts_instead_of_training_unoptimized(tmp_path):

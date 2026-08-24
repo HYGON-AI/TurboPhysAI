@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 import uuid
 from dataclasses import replace as dataclass_replace
@@ -58,6 +59,21 @@ _IMPORT_COMPATIBILITY_MECHANISMS = {
 
 _apply_lock = Lock()
 _apply_called = False
+_RUN_ID_ENV = "TURBO_PHYSAI_RUN_ID"
+_RUN_ID_PATTERN = re.compile(r"[0-9a-f]{32}")
+
+
+def _resolve_run_id() -> str:
+    """Return the shared CLI-launch ID or create one for direct API use."""
+
+    configured = os.environ.get(_RUN_ID_ENV)
+    if configured is None:
+        return uuid.uuid4().hex
+    if _RUN_ID_PATTERN.fullmatch(configured) is None:
+        raise OptimizationConfigError(
+            f"{_RUN_ID_ENV} must be a 32-character lowercase hexadecimal ID"
+        )
+    return configured
 
 
 def _claim_apply() -> None:
@@ -188,7 +204,7 @@ def _resolve(
     before_modules = dict(sys.modules) if restore_imports else {}
     compatibility_outcome = ExecutionOutcome(())
     try:
-        run_id = uuid.uuid4().hex
+        run_id = _resolve_run_id()
         compatibility_entries = []
         regular_entries = []
         compatibility_ids = set()
