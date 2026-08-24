@@ -9,27 +9,12 @@ ROOT = Path(__file__).resolve().parents[1]
 APACHE_FILES = {
     "turbo_physai/optimizations/common/mmcv/msda.py",
     *{
-        f"turbo_physai/optimizations/common/mmdet3d/{name}.py"
-        for name in (
-            "bev_pool",
-            "gaussian",
-            "sparse_conv",
-            "sparse_tensor",
-            "voxelization",
-        )
+        f"turbo_physai/optimizations/models/bevformer/{name}.py"
+        for name in ("backbone", "data", "geometry_sca", "grid_mask", "mdc", "msda", "training", "tsa")
     },
     *{
-        f"turbo_physai/optimizations/models/bevformer/{name}.py"
-        for name in (
-            "backbone",
-            "data",
-            "geometry_sca",
-            "grid_mask",
-            "mdc",
-            "msda",
-            "training",
-            "tsa",
-        )
+        f"turbo_physai/optimizations/models/bevfusion/{name}.py"
+        for name in ("backbone", "bev_pool", "depth", "gaussian", "indice", "sparse", "training", "transfusion", "transfusion_bbox_coder", "transfusion_bbox_coder_runtime", "voxel")
     },
 }
 APACHE_DIRECTORIES = ("kernel/bev_pool", "kernel/voxelization")
