@@ -169,6 +169,18 @@ def bootstrap_environment(
 
 
 def _activate() -> None:
+    # A script launched as ``python tools/train.py`` normally places
+    # ``tools/`` rather than the repository root at ``sys.path[0]``. Model
+    # repositories commonly expose project modules from that root, and
+    # TurboPhysAI must resolve the same modules before training imports begin.
+    working_directory = str(Path.cwd())
+    sys.path[:] = [
+        entry
+        for entry in sys.path
+        if not entry or str(Path(entry).resolve()) != working_directory
+    ]
+    sys.path.insert(0, working_directory)
+
     from .. import apply
     from ..runner import (
         _print_optimization_result,

@@ -432,9 +432,9 @@ setup(
     include_package_data=True,
     package_data={
         "turbo_physai": [
-            # framework-level configs live in optimizations/common/<framework>/,
-            # which the previous two globs did not reach.
-            "optimizations/**/configs/*.yaml",
+            "optimizations/common/configs/*.yaml",
+            "optimizations/common/*/configs/*.yaml",
+            "optimizations/models/*/configs/*.yaml",
             # _sitedir is deliberately not a package: it must contribute
             # sitecustomize.py to PYTHONPATH without being importable itself.
             "bootstrap/_sitedir/sitecustomize.py",

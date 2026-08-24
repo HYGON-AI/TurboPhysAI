@@ -327,6 +327,30 @@ def test_bootstrap_applies_before_the_training_script_runs(tmp_path):
     assert applied < started, completed.stdout
 
 
+def test_bootstrap_makes_the_training_working_directory_importable(tmp_path):
+    package = tmp_path / "model_project"
+    package.mkdir()
+    (package / "__init__.py").write_text("VALUE = 'available'\n", encoding="utf-8")
+    scripts = tmp_path / "tools"
+    scripts.mkdir()
+    script = scripts / "train.py"
+    script.write_text(
+        "import model_project\n"
+        "print('MODEL_PROJECT=%s' % model_project.VALUE)\n",
+        encoding="utf-8",
+    )
+    environment = _bootstrap_env(report_dir=str(tmp_path / "reports"))
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        env=environment,
+        cwd=tmp_path,
+        text=True,
+        capture_output=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "MODEL_PROJECT=available" in completed.stdout
+
+
 def test_bootstrap_aborts_instead_of_training_unoptimized(tmp_path):
     """site.execsitecustomize swallows exceptions; activation must not rely on them."""
 
