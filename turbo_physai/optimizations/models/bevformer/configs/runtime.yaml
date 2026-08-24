@@ -1,0 +1,31 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+# Machine-independent defaults for the validated BW1100 eight-card recipe.
+# Network interface, master address/port, and CPU placement stay deployer
+# overrides because they differ between nodes and schedulers.
+environment:
+  set:
+    HIP_VISIBLE_DEVICES: "0,1,2,3,4,5,6,7"
+    NCCL_ALGO: Ring
+    TORCHINDUCTOR_MAX_AUTOTUNE_CONV_BACKENDS: ATEN
+    PYTORCH_MIOPEN_SUGGEST_NHWC: "1"
+    MIOPEN_FIND_MODE: "1"
+    MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
+    ENABLE_MIOPEN_DEFORMER_CONV_FP16: "TRUE"
+    ENABLE_TORCH_PROFILER: "0"
+  unset:
+    - NCCL_TOPO_FILE
+    - NCCL_RINGS
+
+process:
+  # Each rank uses HIP_VISIBLE_DEVICES and hy-smi topology to select its NUMA
+  # node, then re-execs itself with numactl CPU and memory binding.
+  numa: auto
+  rank_affinity: {}
+  # Set rank_numa per host (or pass --set-rank-numa). Each rank is re-execed
+  # through numactl --cpunodebind=<node> --membind=<node> before apply().
+  rank_numa: {}

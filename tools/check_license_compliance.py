@@ -18,6 +18,19 @@ APACHE_FILES = {
             "voxelization",
         )
     },
+    *{
+        f"turbo_physai/optimizations/models/bevformer/{name}.py"
+        for name in (
+            "backbone",
+            "data",
+            "geometry_sca",
+            "grid_mask",
+            "mdc",
+            "msda",
+            "training",
+            "tsa",
+        )
+    },
 }
 APACHE_DIRECTORIES = ("kernel/bev_pool", "kernel/voxelization")
 
