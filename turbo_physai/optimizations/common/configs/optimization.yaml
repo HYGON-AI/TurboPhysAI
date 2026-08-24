@@ -1,0 +1,13 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: common.hcu.base
+  version: "0.1.0"
+  description: Default public HCU optimization collection
+
+extends:
+  - framework.mmcv.hcu
+  - framework.mmdet3d.hcu
