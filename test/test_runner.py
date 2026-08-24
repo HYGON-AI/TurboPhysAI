@@ -61,7 +61,8 @@ def test_runner_applies_optimization_before_executing_target(tmp_path, monkeypat
         {
             "optimization_config_path": "config.yaml",
             "report_dir": "reports",
-            "force_groups": (),
+            "force_groups": [],
+            "disable_groups": [],
         }
     ]
     assert result.read_text(encoding="utf-8") == f"{target}|--optimization-config|config.py"
@@ -89,6 +90,44 @@ def test_builtin_optimization_config_catalog_ignores_appledouble_metadata(tmp_pa
     (config_dir / "._optimization.yaml").write_bytes(b"\x00\xa3appledouble")
     monkeypatch.setattr(loader, "PACKAGED_OPTIMIZATION_ROOT", tmp_path)
     assert loader.OptimizationConfigCatalog.from_builtin_files().get("common.hcu.base") is not None
+
+
+def test_python_api_resolves_packaged_model_optimization_config(tmp_path, monkeypatch):
+    model_config = tmp_path / "bevformer" / "configs" / "optimization.yaml"
+    model_config.parent.mkdir(parents=True)
+    model_config.write_text("placeholder", encoding="utf-8")
+    monkeypatch.setattr(loader, "PACKAGED_MODEL_OPTIMIZATION_ROOT", tmp_path)
+
+    assert loader.resolve_optimization_config_path(model="BEVFormer") == model_config.resolve()
+
+
+def test_python_api_model_takes_priority_over_environment_config(tmp_path, monkeypatch):
+    model_config = tmp_path / "models" / "bevformer" / "configs" / "optimization.yaml"
+    model_config.parent.mkdir(parents=True)
+    model_config.write_text("placeholder", encoding="utf-8")
+    environment_config = tmp_path / "environment.yaml"
+    environment_config.write_text("placeholder", encoding="utf-8")
+    monkeypatch.setattr(
+        loader,
+        "PACKAGED_MODEL_OPTIMIZATION_ROOT",
+        tmp_path / "models",
+    )
+    monkeypatch.setenv(
+        "TURBO_PHYSAI_OPTIMIZATION_CONFIG",
+        str(environment_config),
+    )
+
+    assert loader.resolve_optimization_config_path(model="bevformer") == model_config.resolve()
+
+
+def test_explicit_optimization_config_takes_priority_over_model(tmp_path):
+    explicit = tmp_path / "custom.yaml"
+    explicit.write_text("placeholder", encoding="utf-8")
+
+    assert loader.resolve_optimization_config_path(
+        explicit,
+        model="unknown-model",
+    ) == explicit.resolve()
 
 
 def test_runtime_config_sets_environment_and_affinity(tmp_path, monkeypatch):
@@ -183,7 +222,8 @@ def test_run_cli_rewrites_torchrun_and_prepares_runtime(tmp_path):
     with patch("turbo_physai.cli._run_training_command", return_value=17) as launch:
         result = cli_main([
             "run", "--optimization-config", str(optimization_config_path), "--runtime-config", str(runtime_path),
-            "--force-group", "customer.encoder",
+            "--force-group", "customer.encoder", "customer.decoder",
+            "--disable-group", "customer.compile", "customer.training",
             "--set-rank-affinity", "1=2-3", "--set-rank-numa", "1=1", "--enable-numa", "--", "torchrun",
             "--nproc-per-node=2", "tools/train.py", "config.py",
         ])
@@ -192,6 +232,9 @@ def test_run_cli_rewrites_torchrun_and_prepares_runtime(tmp_path):
     assert command[:2] == ["torchrun", "--nproc-per-node=2"]
     assert command[2:5] == ["-m", "turbo_physai.runner", "--optimization-config"]
     assert command[command.index("--force-group") + 1] == "customer.encoder"
+    assert command[command.index("--disable-group") + 1 : command.index("--")] == [
+        "customer.compile", "customer.training"
+    ]
     assert command[-3:] == ["--", "tools/train.py", "config.py"]
     assert environment["FEATURE"] == "enabled"
     assert json.loads(environment["TURBO_PHYSAI_RANK_AFFINITY"]) == {

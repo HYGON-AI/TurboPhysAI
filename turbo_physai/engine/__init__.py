@@ -9,7 +9,7 @@ import uuid
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
 from threading import Lock
-from typing import Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from .checking.context import detect_context
 from .errors import (
@@ -73,27 +73,83 @@ def _claim_apply() -> None:
         _apply_called = True
 
 
-def _validate_force_groups(
+def _validate_group_ids(
     config: OptimizationConfig,
-    force_groups: Sequence[str],
+    values: Sequence[str],
+    *,
+    name: str,
 ) -> Tuple[str, ...]:
-    if isinstance(force_groups, str):
-        raise OptimizationConfigError(
-            "force_groups must be a sequence of Group IDs"
-        )
-    normalized = tuple(dict.fromkeys(force_groups))
+    if isinstance(values, str):
+        raise OptimizationConfigError(f"{name} must be a sequence of Group IDs")
+    normalized = tuple(dict.fromkeys(values))
     if any(not isinstance(group_id, str) or not group_id for group_id in normalized):
         raise OptimizationConfigError(
-            "force_groups must contain non-empty Group IDs"
+            f"{name} must contain non-empty Group IDs"
         )
     enabled = {entry.id for entry in config.optimization_groups if entry.enabled}
     unavailable = tuple(group_id for group_id in normalized if group_id not in enabled)
     if unavailable:
         raise OptimizationConfigError(
-            "force_groups must reference enabled OptimizationGroups: "
+            f"{name} must reference enabled OptimizationGroups: "
             + ", ".join(unavailable)
         )
     return normalized
+
+
+def _apply_group_overrides(
+    config: OptimizationConfig,
+    registry: Registry,
+    force_groups: Sequence[str],
+    disable_groups: Sequence[str],
+) -> Tuple[OptimizationConfig, Tuple[str, ...], Dict[str, str]]:
+    forced = _validate_group_ids(config, force_groups, name="force_groups")
+    disabled = _validate_group_ids(config, disable_groups, name="disable_groups")
+    overlap = tuple(group_id for group_id in forced if group_id in disabled)
+    if overlap:
+        raise OptimizationConfigError(
+            "OptimizationGroups cannot be both forced and disabled: "
+            + ", ".join(overlap)
+        )
+
+    disabled_reasons: Dict[str, str] = {
+        group_id: "disabled_by_user" for group_id in disabled
+    }
+    enabled_ids = {
+        entry.id for entry in config.optimization_groups if entry.enabled
+    }
+    changed = True
+    while changed:
+        changed = False
+        for group_id in enabled_ids:
+            if group_id in disabled_reasons:
+                continue
+            definition = registry.get_group(group_id)
+            if definition and any(
+                dependency in disabled_reasons
+                for dependency in definition.depends_on
+            ):
+                disabled_reasons[group_id] = "dependency_disabled"
+                changed = True
+
+    unavailable_forced = tuple(
+        group_id for group_id in forced if group_id in disabled_reasons
+    )
+    if unavailable_forced:
+        raise OptimizationConfigError(
+            "force_groups depend on disabled OptimizationGroups: "
+            + ", ".join(unavailable_forced)
+        )
+
+    effective = dataclass_replace(
+        config,
+        optimization_groups=tuple(
+            dataclass_replace(entry, enabled=False)
+            if entry.id in disabled_reasons
+            else entry
+            for entry in config.optimization_groups
+        ),
+    )
+    return effective, forced, disabled_reasons
 
 
 def _resolve(
@@ -101,7 +157,9 @@ def _resolve(
     optimization_config_path: Optional[PathLike],
     registry: Optional[Registry],
     catalog: Optional[OptimizationConfigCatalog],
+    model: Optional[str],
     force_groups: Sequence[str],
+    disable_groups: Sequence[str],
     restore_imports: bool,
 ) -> Tuple[
     OptimizationConfig,
@@ -112,7 +170,8 @@ def _resolve(
     PreparedExecution,
 ]:
     resolved_config_path = resolve_optimization_config_path(
-        optimization_config_path
+        optimization_config_path,
+        model=model,
     )
     config = load_optimization_config(resolved_config_path, catalog=catalog)
     dependencies = config.compatibility.get("dependencies", {})
@@ -120,7 +179,12 @@ def _resolve(
     context = detect_context(dependency_names=dependency_names)
     active_registry = registry or _default_registry
     handlers = default_handlers()
-    forced = _validate_force_groups(config, force_groups)
+    config, forced, disabled_reasons = _apply_group_overrides(
+        config,
+        active_registry,
+        force_groups,
+        disable_groups,
+    )
     before_modules = dict(sys.modules) if restore_imports else {}
     compatibility_outcome = ExecutionOutcome(())
     try:
@@ -176,6 +240,7 @@ def _resolve(
                 force_groups=tuple(
                     group_id for group_id in forced if group_id in compatibility_ids
                 ),
+                disabled_reasons=disabled_reasons,
                 import_missing=True,
             )
             compatibility_runtime = compatibility_preparation.prepared_groups
@@ -207,6 +272,7 @@ def _resolve(
                 force_groups=tuple(
                     group_id for group_id in forced if group_id not in compatibility_ids
                 ),
+                disabled_reasons=disabled_reasons,
                 import_missing=True,
             )
         else:
@@ -292,12 +358,17 @@ def _resolve(
 def check(
     *,
     optimization_config_path: Optional[PathLike] = None,
+    model: Optional[str] = None,
     registry: Optional[Registry] = None,
     catalog: Optional[OptimizationConfigCatalog] = None,
     force_groups: Sequence[str] = (),
+    disable_groups: Sequence[str] = (),
 ) -> PreparedExecution:
     """Check applicability and resolve decisions without installing replacements.
 
+    ``model`` selects a packaged model OptimizationConfig when no explicit path is
+    provided. ``disable_groups`` skips the named Groups and their dependents for
+    this call only.
     ``force_groups`` accepts only failed checks explicitly marked overrideable;
     structural errors remain blocked and are still included in the result.
 
@@ -312,7 +383,9 @@ def check(
         optimization_config_path=optimization_config_path,
         registry=registry,
         catalog=catalog,
+        model=model,
         force_groups=force_groups,
+        disable_groups=disable_groups,
         restore_imports=True,
     )
     return prepared_execution
@@ -321,14 +394,19 @@ def check(
 def apply(
     *,
     optimization_config_path: Optional[PathLike] = None,
+    model: Optional[str] = None,
     report_dir: PathLike = "turbophysai_reports",
     registry: Optional[Registry] = None,
     catalog: Optional[OptimizationConfigCatalog] = None,
     force_groups: Sequence[str] = (),
+    disable_groups: Sequence[str] = (),
 ) -> OptimizationReport:
     """Apply one OptimizationConfig during process startup and write its report.
 
     Call this entry point once per process, before importing the target model.
+    ``model`` selects a packaged model OptimizationConfig when no explicit path is
+    provided. ``disable_groups`` skips the named Groups and their dependents for
+    this call only.
     Repeated application and in-process retry are intentionally unsupported.
     Blocked or successfully rolled-back Groups are isolated together with their
     dependents; unrelated Groups continue.  A rollback failure is terminal.
@@ -348,7 +426,9 @@ def apply(
         optimization_config_path=optimization_config_path,
         registry=registry,
         catalog=catalog,
+        model=model,
         force_groups=force_groups,
+        disable_groups=disable_groups,
         restore_imports=False,
     )
     artifacts = (

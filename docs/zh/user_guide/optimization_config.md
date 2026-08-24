@@ -155,17 +155,27 @@ OptimizationConfig 的创建和生成流程见[优化配置生成](../developer_
 import turbo_physai
 
 report = turbo_physai.apply(
-    optimization_config_path="./configs/optimization.yaml",
+    model="bevformer",
+    disable_groups=["bevformer.compile", "bevformer.grid_mask"],
     report_dir="./turbophysai_reports",
 )
 ```
 
 每个训练进程只能调用一次 `apply()`，且应在导入目标模型前执行。多进程训练推荐使用 `turbo-physai run`，由 Runner 在每个训练 rank 中完成调用。
 
-未显式传入 `optimization_config_path` 时，`apply()` 依次检查：
+配置选择顺序如下：
 
-1. `TURBO_PHYSAI_OPTIMIZATION_CONFIG` 环境变量；
-2. 当前工作目录下的 `turbophysai_configs/default/optimization.yaml`；
-3. 随包交付的公共 OptimizationConfig。
+1. 显式传入的 `optimization_config_path`；
+2. `model` 对应的随包 OptimizationConfig；
+3. `TURBO_PHYSAI_OPTIMIZATION_CONFIG` 环境变量指定的配置；
+4. 当前工作目录下的 `turbophysai_configs/default/optimization.yaml`；
+5. 随包交付的公共 OptimizationConfig。
 
-`turbo_physai.check()` 可返回应用前的 Group 决策，但不会安装 Replacement。该接口会导入 target 和 Replacement 模块；`wrap()` 声明还会执行 Wrapper 构造函数，因此适用于开发和问题排查，不替代独立进程中的正式训练验证。
+`disable_groups` 接收 Group ID 列表，只影响本次调用。被显式禁用的 Group
+记录为 `disabled_by_user`；依赖该 Group 的其他 Group 记录为
+`dependency_disabled`。`force_groups` 与 `disable_groups` 不能包含同一个 Group。
+
+`turbo_physai.check()` 支持相同的 `model`、`force_groups` 和
+`disable_groups` 参数，可返回应用前的 Group 决策，但不会安装 Replacement。
+该接口会导入 target 和 Replacement 模块；`wrap()` 声明还会执行 Wrapper
+构造函数，因此适用于开发和问题排查，不替代独立进程中的正式训练验证。

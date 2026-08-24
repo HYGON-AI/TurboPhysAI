@@ -67,10 +67,12 @@ class Preparation:
         config: OptimizationConfig,
         environment: EnvironmentSnapshot,
         force_groups: Sequence[str] = (),
+        disabled_reasons: Mapping[str, str] | None = None,
         import_missing: bool = True,
     ) -> PreparedExecution:
         self.checker.prepared_groups.clear()
         forced = frozenset(force_groups)
+        disabled_reasons = disabled_reasons or {}
         config_checks = self.checker.check_environment(
             environment, config.compatibility
         )
@@ -98,11 +100,11 @@ class Preparation:
             if not entry.enabled:
                 prepared_groups[entry.id] = PreparedGroup(
                     entry.id,
-                    (),
-                    (),
+                    group.depends_on if group else (),
+                    group.members if group else (),
                     (),
                     Decision.SKIP,
-                    "group_disabled",
+                    disabled_reasons.get(entry.id, "group_disabled"),
                 )
                 continue
             if group is None:

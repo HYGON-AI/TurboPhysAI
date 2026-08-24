@@ -80,7 +80,8 @@ turbo-physai run \
   [--optimization-config <model-optimization-config.yaml>] \
   [--runtime-config <runtime.yaml>] \
   [--report-dir <directory>] \
-  [--force-group GROUP_ID] \
+  [--force-group GROUP_ID [GROUP_ID ...]] \
+  [--disable-group GROUP_ID [GROUP_ID ...]] \
   [--set NAME=VALUE] \
   [--set-rank-affinity RANK=CPU_LIST] \
   [--set-rank-numa RANK=NODE] \
@@ -94,7 +95,8 @@ turbo-physai run \
 | `--optimization-config` | 显式 OptimizationConfig 路径；优先于 `--model` 选择结果 |
 | `--runtime-config` | 显式 RuntimeConfig 路径；优先于 `--model` 选择结果 |
 | `--report-dir` | 报告目录，默认 `turbophysai_reports` |
-| `--force-group GROUP_ID` | 对指定且已启用 Group 的可放行检查进行一次性覆盖，可重复 |
+| `--force-group GROUP_ID [GROUP_ID ...]` | 对一个或多个已启用 Group 的可放行检查进行一次性覆盖 |
+| `--disable-group GROUP_ID [GROUP_ID ...]` | 在本次运行中禁用一个或多个已启用 Group |
 | `--set NAME=VALUE` | 覆盖或增加非空环境变量，可重复 |
 | `--set-rank-affinity RANK=CPU_LIST` | 覆盖指定本地 rank 的 CPU 亲和性，例如 `0=0-7,16-23`，可重复 |
 | `--set-rank-numa RANK=NODE` | 覆盖指定本地 rank 的 NUMA 节点，例如 `0=1`，可重复 |
@@ -132,6 +134,10 @@ turbo-physai run \
 ```
 
 `--force-group` 仅对本次启动有效，且 Group 必须已被当前 OptimizationConfig 启用。该参数只能覆盖框架明确标记为可放行的证据类检查。目标不存在、Alias 身份冲突、签名不兼容和优化冲突等结构性问题仍会阻断。
+
+`--disable-group` 仅对本次启动有效，不修改 OptimizationConfig。依赖被禁用
+Group 的其他 Group 同时跳过。报告分别使用 `disabled_by_user` 和
+`dependency_disabled` 记录两类原因。同一 Group 不能同时强制放行和禁用。
 
 首次收到 `SIGINT` 或 `SIGTERM` 时，启动器把信号转发给完整训练进程组。等待 30 秒后仍未退出则发送 `SIGTERM`，再等待 5 秒后发送 `SIGKILL`。
 

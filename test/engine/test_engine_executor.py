@@ -154,6 +154,80 @@ class EngineExecutorTest(unittest.TestCase):
                     force_groups=("other.group",),
                 )
 
+    def test_disable_groups_skip_named_group_for_current_call(self):
+        registry = self.registry()
+        with tempfile.TemporaryDirectory() as directory:
+            optimization_config_path = Path(directory) / "config.yaml"
+            write_optimization_config(optimization_config_path)
+            prepared = turbo_physai.check(
+                optimization_config_path=optimization_config_path,
+                registry=registry,
+                disable_groups=["demo.group"],
+            )
+
+        self.assertEqual(prepared.groups[0].decision, Decision.SKIP)
+        self.assertEqual(prepared.groups[0].reason, "disabled_by_user")
+        self.assertEqual(prepared.execution_order, ())
+
+    def test_disable_groups_skip_dependent_groups(self):
+        registry = self.registry()
+        registry.register_spec(
+            ReplacementSpec(
+                "dependent.replacement",
+                Mechanism.REPLACE,
+                "engine_fake.alias",
+                "engine_fake.replacement",
+            )
+        )
+        registry.register_group(
+            OptimizationGroup(
+                "dependent.group",
+                ("dependent.replacement",),
+                depends_on=("demo.group",),
+            )
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            optimization_config_path = Path(directory) / "config.yaml"
+            optimization_config_path.write_text(
+                textwrap.dedent(
+                    """
+                    schema_version: turbophysai/optimization-config/v1
+                    kind: OptimizationConfig
+                    metadata: {id: demo, version: "1"}
+                    optimization_groups:
+                      - id: demo.group
+                      - id: dependent.group
+                    """
+                ),
+                encoding="utf-8",
+            )
+            prepared = turbo_physai.check(
+                optimization_config_path=optimization_config_path,
+                registry=registry,
+                disable_groups=["demo.group"],
+            )
+
+        reasons = {group.group_id: group.reason for group in prepared.groups}
+        self.assertEqual(reasons["demo.group"], "disabled_by_user")
+        self.assertEqual(reasons["dependent.group"], "dependency_disabled")
+        self.assertEqual(prepared.execution_order, ())
+
+    def test_group_cannot_be_forced_and_disabled(self):
+        registry = self.registry()
+        with tempfile.TemporaryDirectory() as directory:
+            optimization_config_path = Path(directory) / "config.yaml"
+            write_optimization_config(optimization_config_path)
+            with self.assertRaisesRegex(
+                OptimizationConfigError,
+                "cannot be both forced and disabled",
+            ):
+                turbo_physai.check(
+                    optimization_config_path=optimization_config_path,
+                    registry=registry,
+                    force_groups=["demo.group"],
+                    disable_groups=["demo.group"],
+                )
+
     def test_apply_changes_target_and_writes_report(self):
         registry = self.registry()
         with tempfile.TemporaryDirectory() as directory:

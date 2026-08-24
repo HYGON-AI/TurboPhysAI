@@ -65,6 +65,7 @@ def _runner_arguments(
     *,
     module: bool = False,
     force_groups: Sequence[str] = (),
+    disable_groups: Sequence[str] = (),
 ) -> list[str]:
     command = [
         "-m",
@@ -74,8 +75,10 @@ def _runner_arguments(
         "--report-dir",
         str(Path(report_dir).resolve()),
     ]
-    for group_id in force_groups:
-        command.extend(["--force-group", group_id])
+    if force_groups:
+        command.extend(["--force-group", *force_groups])
+    if disable_groups:
+        command.extend(["--disable-group", *disable_groups])
     if module:
         return command + ["--module", entry, "--", *train_args]
     return command + ["--", entry, *train_args]
@@ -146,6 +149,7 @@ class LauncherAdapter(ABC):
         optimization_config: str,
         report_dir: str,
         force_groups: Sequence[str],
+        disable_groups: Sequence[str],
     ) -> list[str]:
         raise NotImplementedError
 
@@ -160,6 +164,7 @@ class PythonAdapter(LauncherAdapter):
         optimization_config: str,
         report_dir: str,
         force_groups: Sequence[str],
+        disable_groups: Sequence[str],
     ) -> list[str]:
         interpreter, options, entry, train_args, module = _parse_python_command(
             command
@@ -174,6 +179,7 @@ class PythonAdapter(LauncherAdapter):
                 train_args,
                 module=module,
                 force_groups=force_groups,
+                disable_groups=disable_groups,
             ),
         ]
 
@@ -188,6 +194,7 @@ class TorchrunAdapter(LauncherAdapter):
         optimization_config: str,
         report_dir: str,
         force_groups: Sequence[str],
+        disable_groups: Sequence[str],
     ) -> list[str]:
         index = 1
         while index < len(command):
@@ -219,6 +226,7 @@ class TorchrunAdapter(LauncherAdapter):
                 command[entry_index + 1 :],
                 module=module,
                 force_groups=force_groups,
+                disable_groups=disable_groups,
             ),
         ]
 
@@ -236,6 +244,7 @@ class TorchPackAdapter(LauncherAdapter):
         optimization_config: str,
         report_dir: str,
         force_groups: Sequence[str],
+        disable_groups: Sequence[str],
     ) -> list[str]:
         python_index = next(
             (
@@ -263,6 +272,7 @@ class TorchPackAdapter(LauncherAdapter):
                 train_args,
                 module=module,
                 force_groups=force_groups,
+                disable_groups=disable_groups,
             ),
         ]
 
@@ -275,6 +285,7 @@ def rewrite_command(
     optimization_config: str,
     report_dir: str,
     force_groups: Sequence[str] = (),
+    disable_groups: Sequence[str] = (),
 ) -> list[str]:
     if command[:1] == ["--"]:
         command = command[1:]
@@ -285,6 +296,7 @@ def rewrite_command(
                 optimization_config,
                 report_dir,
                 force_groups,
+                disable_groups,
             )
     raise TurboPhysAIError(
         "run supports only Python, torchrun, and torchpack dist-run commands"

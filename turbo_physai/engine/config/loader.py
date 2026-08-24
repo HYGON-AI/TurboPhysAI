@@ -16,6 +16,7 @@ from .schema import optimization_config_from_dict
 
 
 PACKAGED_OPTIMIZATION_ROOT = Path(__file__).resolve().parents[2] / "optimizations"
+PACKAGED_MODEL_OPTIMIZATION_ROOT = PACKAGED_OPTIMIZATION_ROOT / "models"
 PACKAGED_DEFAULT_OPTIMIZATION_CONFIG = (
     PACKAGED_OPTIMIZATION_ROOT / "common" / "configs" / "optimization.yaml"
 )
@@ -52,9 +53,45 @@ class OptimizationConfigCatalog:
         return catalog
 
 
-def resolve_optimization_config_path(optimization_config_path: Optional[os.PathLike] = None) -> Path:
+def _packaged_model_optimization_config(model: str) -> Path:
+    model_name = model.strip().lower().replace("-", "_")
+    if not model_name or any(
+        character not in "abcdefghijklmnopqrstuvwxyz0123456789_"
+        for character in model_name
+    ):
+        raise OptimizationConfigError(f"invalid model name: {model!r}")
+    candidate = (
+        PACKAGED_MODEL_OPTIMIZATION_ROOT
+        / model_name
+        / "configs"
+        / "optimization.yaml"
+    )
+    if not candidate.is_file():
+        available = (
+            sorted(
+                path.name
+                for path in PACKAGED_MODEL_OPTIMIZATION_ROOT.iterdir()
+                if (path / "configs" / "optimization.yaml").is_file()
+            )
+            if PACKAGED_MODEL_OPTIMIZATION_ROOT.is_dir()
+            else []
+        )
+        choices = ", ".join(available) if available else "none"
+        raise OptimizationConfigNotFoundError(
+            f"unknown built-in model {model!r}; available models: {choices}"
+        )
+    return candidate
+
+
+def resolve_optimization_config_path(
+    optimization_config_path: Optional[os.PathLike] = None,
+    *,
+    model: Optional[str] = None,
+) -> Path:
     if optimization_config_path is not None:
         candidate = Path(optimization_config_path)
+    elif model is not None:
+        candidate = _packaged_model_optimization_config(model)
     elif os.environ.get("TURBO_PHYSAI_OPTIMIZATION_CONFIG"):
         candidate = Path(os.environ["TURBO_PHYSAI_OPTIMIZATION_CONFIG"])
     else:

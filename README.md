@@ -50,6 +50,23 @@ turbo-physai run \
   python tools/train.py path/to/config.py
 ```
 
+### 临时调整 Optimization Group
+
+启动训练时，可通过 `--force-group` 临时放行一个或多个 Group 的可放行检查，通过 `--disable-group` 临时禁用一个或多个 Group。以下命令以 BEVFormer 为例：
+
+```bash
+turbo-physai run \
+  --model bevformer \
+  --force-group bevformer.mdc bevformer.msda \
+  --disable-group bevformer.compile bevformer.grid_mask \
+  -- \
+  torchrun --nproc-per-node=8 tools/train.py \
+    ./projects/configs/bevformer/bevformer_base.py \
+    --launcher pytorch
+```
+
+这两个参数只影响本次运行，不修改 OptimizationConfig。`--force-group` 只能覆盖框架标记为可放行的检查；结构性错误仍会阻断。禁用 Group 后，依赖该 Group 的其他 Group 同时跳过。执行决策及原因记录在 OptimizationReport 中。
+
 ### 高级用法：Python API
 
 能够修改训练入口时，可以在导入模型相关模块之前调用一次 `apply()`。无参数调用应用默认公共优化：
@@ -58,6 +75,14 @@ turbo-physai run \
 import turbo_physai
 
 turbo_physai.apply()
+```
+
+指定已支持的模型时，自动选择随包交付的模型优化配置：
+
+```python
+import turbo_physai
+
+turbo_physai.apply(model="bevformer")
 ```
 
 指定自定义优化配置：
@@ -69,6 +94,20 @@ turbo_physai.apply(
     optimization_config_path="./optimization.yaml",
 )
 ```
+
+临时放行或禁用一个或多个 Optimization Group：
+
+```python
+import turbo_physai
+
+turbo_physai.apply(
+    model="bevformer",
+    force_groups=["bevformer.mdc", "bevformer.msda"],
+    disable_groups=["bevformer.compile", "bevformer.grid_mask"],
+)
+```
+
+`force_groups` 与 `disable_groups` 的约束和报告行为与 Runner 参数一致。
 
 环境准备和完整操作见[安装指南](docs/zh/get_started/installation.md)与[快速开始](docs/zh/get_started/quick_start.md)。具体配置和训练命令见[模型应用说明](model_examples/README.md)。
 

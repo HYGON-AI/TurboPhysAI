@@ -159,10 +159,19 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--report-dir", default="turbophysai_reports")
     run.add_argument(
         "--force-group",
-        action="append",
+        nargs="+",
+        action="extend",
         default=[],
         metavar="GROUP_ID",
-        help="force an overrideable check for this Group in the current run",
+        help="force overrideable checks for one or more Groups in the current run",
+    )
+    run.add_argument(
+        "--disable-group",
+        nargs="+",
+        action="extend",
+        default=[],
+        metavar="GROUP_ID",
+        help="disable one or more Groups in the current run",
     )
     run.add_argument("--set", action="append", default=[], metavar="NAME=VALUE")
     run.add_argument(
@@ -348,6 +357,7 @@ def main(argv=None) -> int:
                 optimization_config_path,
                 args.report_dir,
                 force_groups=tuple(args.force_group),
+                disable_groups=tuple(args.disable_group),
             )
             return _run_training_command(command, environment)
     except TurboPhysAIError as exc:

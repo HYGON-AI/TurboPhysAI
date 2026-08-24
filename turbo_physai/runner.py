@@ -46,10 +46,19 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--force-group",
-        action="append",
+        nargs="+",
+        action="extend",
         default=[],
         metavar="GROUP_ID",
-        help="force an overrideable check for this Group in the current run",
+        help="force overrideable checks for one or more Groups in the current run",
+    )
+    parser.add_argument(
+        "--disable-group",
+        nargs="+",
+        action="extend",
+        default=[],
+        metavar="GROUP_ID",
+        help="disable one or more Groups in the current run",
     )
     parser.add_argument(
         "script_and_args",
@@ -67,6 +76,7 @@ def run(
     optimization_config_path: str | None = None,
     report_dir: str = "turbophysai_reports",
     force_groups: Sequence[str] = (),
+    disable_groups: Sequence[str] = (),
     apply_optimization: Callable[..., object] = apply,
 ) -> None:
     """Apply an OptimizationConfig once and execute ``script`` as ``__main__``."""
@@ -81,7 +91,8 @@ def run(
     report = apply_optimization(
         optimization_config_path=optimization_config_path,
         report_dir=report_dir,
-        force_groups=tuple(force_groups),
+        force_groups=list(force_groups),
+        disable_groups=list(disable_groups),
     )
     _print_optimization_result(report)
 
@@ -221,7 +232,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = apply(
             optimization_config_path=args.optimization_config,
             report_dir=args.report_dir,
-            force_groups=tuple(args.force_group),
+            force_groups=list(args.force_group),
+            disable_groups=list(args.disable_group),
         )
         _print_optimization_result(report)
         sys.argv = [args.module, *command]
@@ -234,7 +246,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         command[1:],
         optimization_config_path=args.optimization_config,
         report_dir=args.report_dir,
-        force_groups=tuple(args.force_group),
+        force_groups=list(args.force_group),
+        disable_groups=list(args.disable_group),
     )
     return 0
 
