@@ -7,11 +7,11 @@ import argparse
 import difflib
 import json
 import os
-import signal
 import subprocess
 import sys
 from pathlib import Path
 
+from .bootstrap import bootstrap_environment, isolation_flags
 from .engine.errors import TurboPhysAIError
 from .engine.contracts import to_primitive
 from .engine.config.loader import (
@@ -20,86 +20,28 @@ from .engine.config.loader import (
     load_optimization_config,
 )
 from .engine.config.schema import optimization_config_to_dict
-from .launchers import rewrite_command as _rewrite_command
 from .runtime import load_runtime_config, parse_numa_node, prepare_environment
 
-_INTERRUPT_GRACE_SECONDS = 30
-_TERMINATE_GRACE_SECONDS = 5
 _PACKAGED_MODEL_ROOT = PACKAGED_OPTIMIZATION_ROOT / "models"
 
 
-class _LaunchSignal(Exception):
-    def __init__(self, signum: int):
-        super().__init__(signum)
-        self.signum = signum
-
-
-def _signal_process_group(process, signum: int) -> None:
-    """Signal the complete training process tree started by this CLI."""
-
-    if process.poll() is not None:
-        return
-    try:
-        os.killpg(process.pid, signum)
-    except ProcessLookupError:
-        return
-
-
-def _wait_after_signal(process, signum: int) -> int:
-    """Stop a training process group in stages and return a shell exit code."""
-
-    _signal_process_group(process, signum)
-    print(
-        f"turbo-physai: forwarded {signal.Signals(signum).name} to training; "
-        f"waiting up to {_INTERRUPT_GRACE_SECONDS}s",
-        file=sys.stderr,
-        flush=True,
-    )
-    try:
-        process.wait(timeout=_INTERRUPT_GRACE_SECONDS)
-    except (_LaunchSignal, subprocess.TimeoutExpired):
-        _signal_process_group(process, signal.SIGTERM)
-        print(
-            "turbo-physai: training did not stop cleanly; forwarded SIGTERM",
-            file=sys.stderr,
-            flush=True,
-        )
-        try:
-            process.wait(timeout=_TERMINATE_GRACE_SECONDS)
-        except (_LaunchSignal, subprocess.TimeoutExpired):
-            _signal_process_group(process, signal.SIGKILL)
-            print(
-                "turbo-physai: training still running; forwarded SIGKILL",
-                file=sys.stderr,
-                flush=True,
-            )
-            process.wait()
-    return 128 + signum
-
-
 def _run_training_command(command, environment) -> int:
-    """Launch training and reliably forward terminal stop signals."""
+    """Replace this process with the training command.
 
-    process = subprocess.Popen(
-        command,
-        env=environment,
-        start_new_session=True,
-    )
-    previous_handlers = {}
+    ``execvpe`` keeps TurboPhysAI out of the process tree entirely, so the
+    training process inherits the terminal, the job scheduler's process
+    identity and its signal handling directly. Nothing needs forwarding.
+    """
 
-    def receive_signal(signum, _frame):
-        raise _LaunchSignal(signum)
-
-    for signum in (signal.SIGINT, signal.SIGTERM):
-        previous_handlers[signum] = signal.signal(signum, receive_signal)
+    if not command:
+        raise TurboPhysAIError("a training command is required after --")
     try:
-        try:
-            return process.wait()
-        except _LaunchSignal as received:
-            return _wait_after_signal(process, received.signum)
-    finally:
-        for signum, handler in previous_handlers.items():
-            signal.signal(signum, handler)
+        os.execvpe(command[0], list(command), environment)
+    except OSError as exc:
+        raise TurboPhysAIError(
+            f"failed to execute training command {command[0]!r}: {exc}"
+        ) from exc
+    raise AssertionError("unreachable: execvpe replaces this process")
 
 
 def _json(value) -> str:
@@ -352,13 +294,26 @@ def main(argv=None) -> int:
                 environment["TURBO_PHYSAI_RUNTIME_CONFIG_PATH"] = str(
                     runtime_path.resolve()
                 )
-            command = _rewrite_command(
-                args.command,
-                optimization_config_path,
-                args.report_dir,
+            command = list(args.command)
+            if command[:1] == ["--"]:
+                command = command[1:]
+            if not command:
+                raise TurboPhysAIError("a training command is required after --")
+            isolated = isolation_flags(command)
+            if isolated:
+                raise TurboPhysAIError(
+                    f"cannot optimize a command using {' '.join(isolated)}: these "
+                    "flags stop the interpreter from loading TurboPhysAI at "
+                    "startup, which would silently run training unoptimized"
+                )
+            environment = bootstrap_environment(
+                environment,
+                optimization_config=str(optimization_config_path),
+                report_dir=args.report_dir,
                 force_groups=tuple(args.force_group),
                 disable_groups=tuple(args.disable_group),
             )
+
             return _run_training_command(command, environment)
     except TurboPhysAIError as exc:
         print(str(exc), file=sys.stderr)

@@ -80,8 +80,8 @@ turbo-physai run \
   [--optimization-config <model-optimization-config.yaml>] \
   [--runtime-config <runtime.yaml>] \
   [--report-dir <directory>] \
-  [--force-group GROUP_ID [GROUP_ID ...]] \
-  [--disable-group GROUP_ID [GROUP_ID ...]] \
+  [--force-group GROUP_ID] \
+  [--disable-group GROUP_ID] \
   [--set NAME=VALUE] \
   [--set-rank-affinity RANK=CPU_LIST] \
   [--set-rank-numa RANK=NODE] \
@@ -95,18 +95,23 @@ turbo-physai run \
 | `--optimization-config` | 显式 OptimizationConfig 路径；优先于 `--model` 选择结果 |
 | `--runtime-config` | 显式 RuntimeConfig 路径；优先于 `--model` 选择结果 |
 | `--report-dir` | 报告目录，默认 `turbophysai_reports` |
-| `--force-group GROUP_ID [GROUP_ID ...]` | 对一个或多个已启用 Group 的可放行检查进行一次性覆盖 |
-| `--disable-group GROUP_ID [GROUP_ID ...]` | 在本次运行中禁用一个或多个已启用 Group |
+| `--force-group GROUP_ID` | 对指定且已启用 Group 的可放行检查进行一次性覆盖，可重复 |
+| `--disable-group GROUP_ID` | 本次启动不应用指定 Group；可一次指定多个 Group，也可重复使用 |
 | `--set NAME=VALUE` | 覆盖或增加非空环境变量，可重复 |
 | `--set-rank-affinity RANK=CPU_LIST` | 覆盖指定本地 rank 的 CPU 亲和性，例如 `0=0-7,16-23`，可重复 |
 | `--set-rank-numa RANK=NODE` | 覆盖指定本地 rank 的 NUMA 节点，例如 `0=1`，可重复 |
 | `--enable-numa` | 强制启用自动 NUMA |
 | `--disable-numa` | 强制禁用自动 NUMA |
 
-支持 Python、Torchrun 和 `torchpack dist-run` 启动的 Python 训练入口。Python
-启动参数支持 `-I`、`-u`、`-B`、`-O/-OO`、`-X`、`-W` 和 `-m` 等明确形式。
-TorchPack 启动参数原样传递，框架只识别其后的 Python 训练入口。不解析任意
-Shell 命令，也不支持 `torchrun --no-python`。完整字段和覆盖规则见
+命令在 `--` 之后逐字透传，不被解析或改写，因此对启动器没有限制：`torchrun`、
+`torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 以及自有的 Shell 启动
+脚本都可直接使用。每个训练 rank 的解释器在启动时自动激活优化。
+
+例外是 `python -E`、`-I`、`-S`：这三个标志会使启动钩子不被加载，命令中出现它们时
+`turbo-physai run` 直接报错，而不是让训练以未优化状态运行。
+
+Shell 语法本身仍不由 `turbo-physai run` 解析。`source`、`ulimit`、管道和条件分支应
+保留在作业脚本中，由该脚本调用 `turbo-physai run`。完整字段和覆盖规则见
 [RuntimeConfig 使用指南](../user_guide/runtime_config.md)。
 
 配置选择顺序如下：
@@ -135,19 +140,17 @@ turbo-physai run \
 
 `--force-group` 仅对本次启动有效，且 Group 必须已被当前 OptimizationConfig 启用。该参数只能覆盖框架明确标记为可放行的证据类检查。目标不存在、Alias 身份冲突、签名不兼容和优化冲突等结构性问题仍会阻断。
 
-`--disable-group` 仅对本次启动有效，不修改 OptimizationConfig。依赖被禁用
-Group 的其他 Group 同时跳过。报告分别使用 `disabled_by_user` 和
-`dependency_disabled` 记录两类原因。同一 Group 不能同时强制放行和禁用。
+`--disable-group` 仅对本次启动有效，不修改 OptimizationConfig。依赖被禁用 Group 的其他 Group 同时跳过。报告分别使用 `disabled_by_user` 和 `dependency_disabled` 记录两类原因。同一 Group 不能同时强制放行和禁用。
 
-首次收到 `SIGINT` 或 `SIGTERM` 时，启动器把信号转发给完整训练进程组。等待 30 秒后仍未退出则发送 `SIGTERM`，再等待 5 秒后发送 `SIGKILL`。
+`run` 用 `exec` 替换自身执行训练命令，进程树中不留中间进程。`SIGINT`、`SIGTERM` 等信号由训练进程直接接收，不经过转发。
 
 ## 返回码
 
 | 返回码 | 含义 |
 | --- | --- |
-| `0` | 命令成功，或训练子进程正常退出 |
-| `2` | 训练进程启动前发生参数、OptimizationConfig、RuntimeConfig、生成检查或覆盖策略错误 |
-| 训练子进程返回码 | `run` 启动训练后，原样返回训练子进程的退出码，包括 `1`、`2` 等非零值 |
-| `128 + signal` | 启动器收到终止信号后返回，例如 `SIGINT` 对应 `130` |
+| `0` | 命令成功，或训练进程正常退出 |
+| `2` | 训练进程执行前发生参数、OptimizationConfig、RuntimeConfig、生成检查或覆盖策略错误 |
+| `91` | 某个 rank 无法应用 OptimizationConfig，主动终止而不是以未优化状态继续训练 |
+| 训练进程返回码 | `run` 执行训练后，退出码即训练进程自身的退出码，包括信号导致的 `128 + signal` |
 
-非 `run` 命令的具体错误原因写入标准错误输出。`run` 启动成功后，训练日志和异常由子进程直接输出。
+非 `run` 命令的具体错误原因写入标准错误输出。`run` 执行训练后，训练日志和异常由训练进程直接输出。

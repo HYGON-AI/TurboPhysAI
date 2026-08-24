@@ -57,11 +57,39 @@ TurboPhysAI 不从磁盘重新加载原实现，也不沿 `__wrapped__` 链移�
 
 默认的 `turbo-physai run` 在每个训练 rank 中先应用 OptimizationConfig，再执行 Python 训练入口。如果第三方组件在训练入口执行期间再次修改同一 target，其修改发生在 TurboPhysAI 之后，框架无法自动恢复 TurboPhysAI 实现。此类组合需要通过固定初始化顺序或专用启动入口处理。
 
-`turbo-physai run` 支持 Python、Torchrun 和 `torchpack dist-run ... python ...` 启动形式。启动器参数由对应适配器转发。包含 `source`、`ulimit`、管道、条件语句或 `torchrun --no-python` 的 Shell 流程仍由外部启动脚本编排，并由脚本调用 `turbo-physai run`。
+`turbo-physai run` 不解析用户命令，命令逐字透传给 `exec`，因此对启动器没有限制：
+`torchrun`、`torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 以及自有的
+Shell 启动脚本都可直接使用。激活由解释器启动钩子在每个 rank 内完成。
+
+例外是 `python -E`、`-I`、`-S`：这三个标志分别忽略 `PYTHONPATH`、启用隔离模式、跳过
+`site`，会使启动钩子不被加载。`turbo-physai run` 检测到它们时直接报错，而不是让训练
+以未优化状态运行。
 
 ## 启动环境配置
 
-必须在 Python 启动、`import torch`、通信初始化或设备上下文创建前生效的环境变量，属于 RuntimeConfig 的职责。OptimizationConfig 只描述优化选择与目标证据，`turbo_physai.apply()` 不设置或恢复启动环境。
+影响运行时行为、但不由 target 替换表达的环境变量，属于 RuntimeConfig 的职责。OptimizationConfig 只描述优化选择与目标证据，`turbo_physai.apply()` 不设置或恢复启动环境。
+
+### 生效时机
+
+环境变量没有统一的"必须在进程启动前设置"要求。每个变量由**读取它的那一方**决定截止点，而这些截止点普遍晚于进程启动：
+
+| 截止点 | 变量 | 读取方与原因 |
+| --- | --- | --- |
+| 首次 HIP 调用前 | `HIP_VISIBLE_DEVICES` | HIP 运行时在首次调用时初始化并固定可见设备集合 |
+| `import torch._inductor.config` 前 | `TORCHINDUCTOR_*` | 该模块在 import 时把环境变量读入模块级配置；Torch 2.10 下 `import torch` 不会触发它 |
+| 首次使用前 | `MIOPEN_*`、`NCCL_*` 等原生库变量 | 各库在自身初始化时调用 `getenv` |
+
+Python 中对 `os.environ` 的赋值和删除会同步到 C 运行时（经 `putenv`/`unsetenv`），因此原生库随后调用 `getenv` 能读到修改后的值。这意味着**在训练进程内、早于上述截止点设置这些变量，与由父进程设置等效**，不需要额外的启动器进程来注入。
+
+`turbo_physai` 的注入点早于训练脚本的任何 import，因此上述全部截止点都能满足。
+
+不要用 `torch.cuda.device_count()` 验证设备可见性限制是否生效：该函数会重新读取 `HIP_VISIBLE_DEVICES`，在 HIP 运行时已初始化后会返回与运行时实际持有的设备集合不一致的值。应改用在目标设备上实际分配张量来验证。
+
+### NUMA 内存绑定是例外
+
+CPU 亲和性（`process.rank_affinity`）可以在进程内通过 `os.sched_setaffinity` 设置。NUMA **内存**绑定不行：Linux 的 first-touch 策略在页首次被写入时决定其所属节点，而解释器启动完成时已经导入若干模块并分配、触碰了内存。此后再设置 membind 只影响后续分配，无法迁移已有页。
+
+因此按 rank 绑定 NUMA 节点必须发生在 `exec` 之前，这是 RuntimeConfig 中唯一需要进程边界的配置项。
 
 RuntimeConfig 提供以下配置：
 
@@ -71,7 +99,7 @@ RuntimeConfig 提供以下配置：
 - `process.rank_numa`：按 rank 指定 NUMA 节点；
 - `process.numa: auto`：根据可见设备和设备拓扑自动选择 NUMA 节点。
 
-启用自动 NUMA 绑定后，每个 rank 的 Runner 根据 `LOCAL_RANK`、`HIP_VISIBLE_DEVICES` 和 `hy-smi --showtopo` 解析本地 NUMA 节点，并在应用 OptimizationConfig 前通过 `numactl` 重新执行自身。镜像准备、资源限制和复杂 Shell 控制仍由镜像、作业系统或启动脚本负责。
+启用自动 NUMA 绑定后，每个 rank 的启动钩子根据 `LOCAL_RANK`、`HIP_VISIBLE_DEVICES` 和 `hy-smi --showtopo` 解析本地 NUMA 节点，并在应用 OptimizationConfig 前通过 `numactl` 按原命令行重新执行自身。镜像准备、资源限制和复杂 Shell 控制仍由镜像、作业系统或启动脚本负责。
 
 ## 能力边界
 

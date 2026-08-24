@@ -156,29 +156,29 @@ turbo-physai run \
 
 ## 6. 支持的训练命令
 
-`turbo-physai run` 支持以下启动形式：
+`turbo-physai run` 的命令在 `--` 之后逐字透传给 `exec`，不被解析或改写，因此启动形式不受限制：
 
 ```text
 python script.py [参数]
-python -I script.py [参数]
 python -m package.module [参数]
 torchrun [torchrun 参数] script.py [参数]
-torchrun [torchrun 参数] -m package.module [参数]
-torchpack dist-run [TorchPack 参数] python [Python 参数] script.py [参数]
-torchpack dist-run [TorchPack 参数] python [Python 参数] -m package.module [参数]
+torchpack dist-run [TorchPack 参数] python script.py [参数]
+deepspeed [DeepSpeed 参数] script.py [参数]
+accelerate launch [参数] script.py [参数]
+srun / mpirun [参数] python script.py [参数]
+bash train.sh
 ```
 
-Runner 保留原启动器参数，只将训练入口改写为 `turbo_physai.runner`。每个训练 rank 先准备 NUMA 和 CPU affinity、应用 OptimizationConfig，再通过 `runpy` 在同一 Python 进程执行原训练脚本或模块。
+每个训练 rank 的解释器在启动时由标准库 `site` 自动导入 TurboPhysAI 的启动钩子，先准备 NUMA 和 CPU affinity、应用 OptimizationConfig，再执行原训练入口。启动器进程本身不应用优化。
 
-当前支持的 Python 选项包括 `-I`、`-u`、`-B`、`-O/-OO`、`-X`、`-W` 和 `-m`。不支持 `python -c`、`torchrun --no-python` 或无法确定 Python 训练入口的命令。
+例外是 `python -E`、`-I`、`-S`：这三个标志分别忽略 `PYTHONPATH`、启用隔离模式、跳过 `site`，会使启动钩子不被加载。命令中出现它们时 `turbo-physai run` 直接报错。
 
-Shell 语法不由 Runner 解析。`source`、`ulimit`、管道、条件分支和其他系统编排应继续保留在作业脚本中，并由该脚本调用 `turbo-physai run`。
+Shell 语法本身不被解析。`source`、`ulimit`、管道、条件分支和其他系统编排应继续保留在作业脚本中，并由该脚本调用 `turbo-physai run`。
 
 ## 7. 失败与停止
 
 - RuntimeConfig 格式错误、CPU list 无效、NUMA node 无效或缺少必要系统命令时，训练在入口执行前失败；
-- 首次 `Ctrl+C` 会将 `SIGINT` 转发给训练进程组，并等待最多 30 秒；
-- 训练未退出时，Runner 自动发送 `SIGTERM`；继续等待 5 秒仍未退出时发送 `SIGKILL`；
-- 等待期间再次按 `Ctrl+C` 会提前进入下一停止阶段，正常停止不要求重复操作。
+- rank 无法应用 OptimizationConfig 时以退出码 `91` 终止，而不是以未优化状态继续训练；
+- `turbo-physai run` 用 `exec` 替换自身，进程树中没有中间进程，`Ctrl+C` 和作业系统的信号直接送达训练进程，停止行为与不使用 `turbo-physai run` 时完全一致。
 
 RuntimeConfig 的修改可能影响通信、CPU 调度和算子选择。交付前应在目标机器上重新验证训练正确性和稳定性能。

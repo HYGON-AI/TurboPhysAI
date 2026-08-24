@@ -55,11 +55,13 @@ Executor 只执行 `PreparedExecution.execution_order` 中的 Group。每个 Gro
 
 ### 启动层
 
-`turbo-physai run` 的父进程加载 RuntimeConfig、准备环境变量并启动训练命令。
-Python、Torchrun 和 TorchPack 适配器将原 Python 训练入口改写为
-`turbo_physai.runner`。每个训练 rank 先完成 CPU/NUMA 绑定和 `apply()`，再使用
-`runpy.run_path()` 或 `runpy.run_module()` 在同一 Python 进程执行原训练入口。
-父进程不安装 Python Replacement。
+`turbo-physai run` 加载 RuntimeConfig、准备环境变量与启动钩子，然后用 `exec` 替换
+自身执行训练命令。命令不被解析也不被改写，因此不限制启动器形式，且进程树中不留
+中间进程。
+
+每个训练 rank 的解释器在启动时由标准库 `site` 自动导入 `turbo_physai/bootstrap`
+下的钩子，先完成 CPU/NUMA 绑定和 `apply()`，再执行原训练入口。启动器进程
+（`torchrun` 等）本身不安装 Python Replacement。
 
 ### HCU 实现层
 
@@ -105,7 +107,7 @@ turbo_physai/
 │   │   └── errors.py               # Engine 异常
 │   ├── development/                # 外部优化工程初始化
 │   ├── compatibility.py            # 兼容性补丁声明接口
-│   ├── launchers.py                # Python、Torchrun、TorchPack 启动适配
+│   ├── bootstrap/                  # 解释器启动钩子，在 rank 内自动激活
 │   ├── runner.py                   # rank 内应用 OptimizationConfig 并执行训练入口
 │   ├── runtime.py                  # RuntimeConfig 加载与进程环境准备
 │   └── cli.py                      # 命令行入口

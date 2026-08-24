@@ -2,12 +2,19 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import json
-import signal
+import os
 import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
 
+from turbo_physai.bootstrap import (
+    ACTIVATION_FAILURE_EXIT_CODE,
+    SITE_DIR,
+    bootstrap_environment,
+    isolation_flags,
+    should_activate,
+)
 from turbo_physai.cli import (
     _resolve_run_configs,
     _run_training_command,
@@ -22,7 +29,11 @@ from turbo_physai.runner import (
 from turbo_physai.runtime import load_runtime_config, prepare_environment
 from turbo_physai.engine.config import loader
 from turbo_physai.engine.errors import TurboPhysAIError
-from turbo_physai.launchers import rewrite_command
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_PACKAGED_CONFIG = (
+    _REPO_ROOT / "turbo_physai/optimizations/common/configs/optimization.yaml"
+)
 
 
 class _Report:
@@ -92,44 +103,6 @@ def test_builtin_optimization_config_catalog_ignores_appledouble_metadata(tmp_pa
     assert loader.OptimizationConfigCatalog.from_builtin_files().get("common.hcu.base") is not None
 
 
-def test_python_api_resolves_packaged_model_optimization_config(tmp_path, monkeypatch):
-    model_config = tmp_path / "bevformer" / "configs" / "optimization.yaml"
-    model_config.parent.mkdir(parents=True)
-    model_config.write_text("placeholder", encoding="utf-8")
-    monkeypatch.setattr(loader, "PACKAGED_MODEL_OPTIMIZATION_ROOT", tmp_path)
-
-    assert loader.resolve_optimization_config_path(model="BEVFormer") == model_config.resolve()
-
-
-def test_python_api_model_takes_priority_over_environment_config(tmp_path, monkeypatch):
-    model_config = tmp_path / "models" / "bevformer" / "configs" / "optimization.yaml"
-    model_config.parent.mkdir(parents=True)
-    model_config.write_text("placeholder", encoding="utf-8")
-    environment_config = tmp_path / "environment.yaml"
-    environment_config.write_text("placeholder", encoding="utf-8")
-    monkeypatch.setattr(
-        loader,
-        "PACKAGED_MODEL_OPTIMIZATION_ROOT",
-        tmp_path / "models",
-    )
-    monkeypatch.setenv(
-        "TURBO_PHYSAI_OPTIMIZATION_CONFIG",
-        str(environment_config),
-    )
-
-    assert loader.resolve_optimization_config_path(model="bevformer") == model_config.resolve()
-
-
-def test_explicit_optimization_config_takes_priority_over_model(tmp_path):
-    explicit = tmp_path / "custom.yaml"
-    explicit.write_text("placeholder", encoding="utf-8")
-
-    assert loader.resolve_optimization_config_path(
-        explicit,
-        model="unknown-model",
-    ) == explicit.resolve()
-
-
 def test_runtime_config_sets_environment_and_affinity(tmp_path, monkeypatch):
     runtime_path = tmp_path / "runtime.yaml"
     runtime_path.write_text(
@@ -180,6 +153,20 @@ def test_runner_reexecs_rank_with_numactl(monkeypatch):
     assert environment["TURBO_PHYSAI_NUMA_BOUND"] == "1"
 
 
+def test_runner_replays_the_original_command_when_reexecing(monkeypatch):
+    """The bootstrap channel must not rewrite the user's command to bind NUMA."""
+
+    monkeypatch.setenv("TURBO_PHYSAI_RANK_NUMA", '{"0": 2}')
+    monkeypatch.setattr("turbo_physai.runner.shutil.which", lambda _: "/usr/bin/numactl")
+    original = ["python", "-u", "tools/train.py", "config.py"]
+    with patch("turbo_physai.runner.os.execvpe") as execvpe:
+        _set_rank_numa_binding(reexec_command=original)
+    _, command, _ = execvpe.call_args.args
+    assert command == [
+        "/usr/bin/numactl", "--cpunodebind=2", "--membind=2", *original
+    ]
+
+
 def test_runner_discovers_rank_numa_from_hy_smi(monkeypatch):
     monkeypatch.setenv("HIP_VISIBLE_DEVICES", "4,5")
     monkeypatch.setattr("turbo_physai.runner.shutil.which", lambda _: "/usr/bin/hy-smi")
@@ -209,34 +196,36 @@ def test_runner_starts_training_when_an_independent_group_is_blocked(tmp_path):
     assert result.read_text(encoding="utf-8") == "ran"
 
 
-def test_run_cli_rewrites_torchrun_and_prepares_runtime(tmp_path):
+def test_run_cli_passes_torchrun_command_through_unchanged(tmp_path):
     runtime_path = tmp_path / "runtime.yaml"
-    optimization_config_path = tmp_path / "config.yaml"
     runtime_path.write_text(
         "schema_version: turbophysai/runtime-config/v1\nkind: RuntimeConfig\n"
         "environment:\n  set: {FEATURE: enabled}\n"
         "process:\n  rank_affinity: {'0': 0-1}\n  rank_numa: {'0': 0}\n",
         encoding="utf-8",
     )
-    optimization_config_path.write_text("placeholder", encoding="utf-8")
     with patch("turbo_physai.cli._run_training_command", return_value=17) as launch:
         result = cli_main([
-            "run", "--optimization-config", str(optimization_config_path), "--runtime-config", str(runtime_path),
-            "--force-group", "customer.encoder", "customer.decoder",
+            "run", "--optimization-config", str(_PACKAGED_CONFIG),
+            "--runtime-config", str(runtime_path),
+            "--force-group", "customer.encoder",
             "--disable-group", "customer.compile", "customer.training",
-            "--set-rank-affinity", "1=2-3", "--set-rank-numa", "1=1", "--enable-numa", "--", "torchrun",
-            "--nproc-per-node=2", "tools/train.py", "config.py",
+            "--set-rank-affinity", "1=2-3", "--set-rank-numa", "1=1", "--enable-numa",
+            "--", "torchrun", "--nproc-per-node=2", "tools/train.py", "config.py",
         ])
     command, environment = launch.call_args.args
     assert result == 17
-    assert command[:2] == ["torchrun", "--nproc-per-node=2"]
-    assert command[2:5] == ["-m", "turbo_physai.runner", "--optimization-config"]
-    assert command[command.index("--force-group") + 1] == "customer.encoder"
-    assert command[command.index("--disable-group") + 1 : command.index("--")] == [
-        "customer.compile", "customer.training"
+    assert command == [
+        "torchrun", "--nproc-per-node=2", "tools/train.py", "config.py"
     ]
-    assert command[-3:] == ["--", "tools/train.py", "config.py"]
     assert environment["FEATURE"] == "enabled"
+    assert environment["TURBO_PHYSAI_BOOTSTRAP"] == "1"
+    assert environment["PYTHONPATH"].split(os.pathsep)[0] == str(SITE_DIR)
+    assert environment["TURBO_PHYSAI_OPTIMIZATION_CONFIG"] == str(_PACKAGED_CONFIG)
+    assert environment["TURBO_PHYSAI_FORCE_GROUPS"] == "customer.encoder"
+    assert environment["TURBO_PHYSAI_DISABLE_GROUPS"] == os.pathsep.join(
+        ("customer.compile", "customer.training")
+    )
     assert json.loads(environment["TURBO_PHYSAI_RANK_AFFINITY"]) == {
         "0": "0-1", "1": "2-3"
     }
@@ -247,107 +236,145 @@ def test_run_cli_rewrites_torchrun_and_prepares_runtime(tmp_path):
     )
 
 
-def test_python_launcher_preserves_isolated_mode(tmp_path):
-    optimization = tmp_path / "optimization.yaml"
-    rewritten = rewrite_command(
-        ["python", "-I", "-u", "tools/train.py", "config.py"],
-        str(optimization),
-        "reports",
+def test_run_cli_accepts_launchers_the_rewrite_channel_rejected(tmp_path):
+    """Commands the launcher grammar could not parse now pass through verbatim."""
+
+    for command in (
+        ["deepspeed", "--num_gpus=8", "tools/train.py"],
+        ["accelerate", "launch", "tools/train.py"],
+        ["bash", "scripts/train.sh"],
+        ["srun", "--ntasks=8", "python", "tools/train.py"],
+        ["torchrun", "--no-python", "./train_wrapper"],
+    ):
+        with patch("turbo_physai.cli._run_training_command", return_value=0) as launch:
+            assert cli_main([
+                "run", "--optimization-config", str(_PACKAGED_CONFIG), "--", *command
+            ]) == 0
+        assert launch.call_args.args[0] == command
+
+
+def test_run_cli_rejects_commands_that_would_silently_skip_the_bootstrap(capsys):
+    for flag in ("-E", "-I", "-S"):
+        assert cli_main([
+            "run", "--optimization-config", str(_PACKAGED_CONFIG),
+            "--", "python", flag, "tools/train.py",
+        ]) == 2
+        assert "silently run training unoptimized" in capsys.readouterr().err
+
+
+def test_isolation_flags_ignores_training_arguments():
+    assert isolation_flags(["python", "-I", "-u", "train.py"]) == ("-I",)
+    assert isolation_flags(["python", "-ES", "train.py"]) == ("-E", "-S")
+    # --seed and -Iou are not interpreter flag clusters.
+    assert isolation_flags(["python", "train.py", "--seed", "1", "-Iou"]) == ()
+
+
+def test_bootstrap_activates_only_in_training_ranks():
+    active = {"TURBO_PHYSAI_BOOTSTRAP": "1"}
+    assert should_activate(["python", "tools/train.py", "cfg.py"], active) is True
+    assert should_activate(["python", "-u", "tools/train.py"], active) is True
+    assert should_activate(["python", "-m", "customer.train"], active) is True
+    # Launchers are Python too, but they must not apply.
+    assert should_activate(["python", "/usr/bin/torchrun", "-n", "2"], active) is False
+    assert should_activate(["python", "-m", "torch.distributed.run"], active) is False
+    assert should_activate(["python", "-m", "deepspeed.launcher.runner"], active) is False
+    # multiprocessing spawn helpers and interactive shells.
+    assert should_activate(["python", "-c", "pass"], active) is False
+    assert should_activate(["python"], active) is False
+    # Without the flag nothing activates, even for a training entry point.
+    assert should_activate(["python", "tools/train.py"], {}) is False
+
+
+def test_bootstrap_environment_preserves_existing_pythonpath():
+    environment = bootstrap_environment(
+        {"PYTHONPATH": "/opt/user"},
+        optimization_config="/cfg.yaml",
+        report_dir="reports",
     )
-
-    assert rewritten[:5] == [
-        "python",
-        "-I",
-        "-u",
-        "-m",
-        "turbo_physai.runner",
-    ]
-    assert rewritten[-3:] == ["--", "tools/train.py", "config.py"]
+    assert environment["PYTHONPATH"] == f"{SITE_DIR}{os.pathsep}/opt/user"
+    assert "TURBO_PHYSAI_FORCE_GROUPS" not in environment
+    assert "TURBO_PHYSAI_DISABLE_GROUPS" not in environment
 
 
-def test_torchpack_launcher_preserves_launcher_and_python_options(tmp_path):
-    optimization = tmp_path / "optimization.yaml"
-    rewritten = rewrite_command(
-        [
-            "torchpack",
-            "dist-run",
-            "-np",
-            "8",
-            "--hostfile",
-            "hosts",
-            "python",
-            "-I",
-            "tools/train.py",
-            "config.py",
-        ],
-        str(optimization),
-        "reports",
-        ("bevfusion.compile",),
+def _bootstrap_env(**extra):
+    environment = bootstrap_environment(
+        os.environ,
+        optimization_config=str(_PACKAGED_CONFIG),
+        report_dir=str(Path(extra.pop("report_dir", "turbophysai_reports"))),
     )
-
-    assert rewritten[:8] == [
-        "torchpack",
-        "dist-run",
-        "-np",
-        "8",
-        "--hostfile",
-        "hosts",
-        "python",
-        "-I",
-    ]
-    assert rewritten[8:10] == ["-m", "turbo_physai.runner"]
-    assert rewritten[rewritten.index("--force-group") + 1] == "bevfusion.compile"
-    assert rewritten[-3:] == ["--", "tools/train.py", "config.py"]
-
-
-def test_torchpack_launcher_supports_python_module(tmp_path):
-    rewritten = rewrite_command(
-        [
-            "torchpack",
-            "dist-run",
-            "-np",
-            "8",
-            "python3.10",
-            "-I",
-            "-m",
-            "customer.train",
-            "--epochs",
-            "1",
-        ],
-        str(tmp_path / "optimization.yaml"),
-        "reports",
+    environment["PYTHONPATH"] = os.pathsep.join(
+        [environment["PYTHONPATH"], str(_REPO_ROOT)]
     )
-
-    assert rewritten[:7] == [
-        "torchpack",
-        "dist-run",
-        "-np",
-        "8",
-        "python3.10",
-        "-I",
-        "-m",
-    ]
-    assert rewritten[7] == "turbo_physai.runner"
-    assert rewritten[-5:] == [
-        "--module",
-        "customer.train",
-        "--",
-        "--epochs",
-        "1",
-    ]
+    environment.update(extra)
+    return environment
 
 
-def test_torchpack_launcher_rejects_non_python_entry(tmp_path):
-    try:
-        rewrite_command(
-            ["torchpack", "dist-run", "-np", "8", "bash", "train.sh"],
-            str(tmp_path / "optimization.yaml"),
-            "reports",
-        )
-    except TurboPhysAIError as error:
-        assert "requires a supported Python command" in str(error)
-    else:
-        raise AssertionError("non-Python TorchPack command was accepted")
+def test_bootstrap_applies_before_the_training_script_runs(tmp_path):
+    script = tmp_path / "train.py"
+    script.write_text(
+        "import sys\n"
+        "print('TRAIN_STARTED patched=%s' % ('turbo_physai' in sys.modules))\n",
+        encoding="utf-8",
+    )
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        env=_bootstrap_env(report_dir=str(tmp_path / "reports")),
+        cwd=tmp_path, text=True, capture_output=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    applied = completed.stdout.index("TURBO_PHYSAI_OPTIMIZATION_COMPLETED")
+    started = completed.stdout.index("TRAIN_STARTED")
+    assert applied < started, completed.stdout
+
+
+def test_bootstrap_aborts_instead_of_training_unoptimized(tmp_path):
+    """site.execsitecustomize swallows exceptions; activation must not rely on them."""
+
+    script = tmp_path / "train.py"
+    script.write_text("print('TRAIN_STARTED')\n", encoding="utf-8")
+    environment = _bootstrap_env(report_dir=str(tmp_path / "reports"))
+    environment["TURBO_PHYSAI_OPTIMIZATION_CONFIG"] = str(tmp_path / "missing.yaml")
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        env=environment, cwd=tmp_path, text=True, capture_output=True,
+    )
+    assert completed.returncode == ACTIVATION_FAILURE_EXIT_CODE
+    assert "TRAIN_STARTED" not in completed.stdout
+    assert "aborting instead of training unoptimized" in completed.stderr
+
+
+def test_bootstrap_does_not_activate_in_launcher_processes(tmp_path):
+    launcher = tmp_path / "torchrun"
+    launcher.write_text("print('LAUNCHER_RAN')\n", encoding="utf-8")
+    completed = subprocess.run(
+        [sys.executable, str(launcher)],
+        env=_bootstrap_env(report_dir=str(tmp_path / "reports")),
+        cwd=tmp_path, text=True, capture_output=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "LAUNCHER_RAN" in completed.stdout
+    assert "TURBO_PHYSAI_OPTIMIZATION_COMPLETED" not in completed.stdout
+
+
+def test_bootstrap_chains_to_an_existing_user_sitecustomize(tmp_path):
+    user_site = tmp_path / "usersite"
+    user_site.mkdir()
+    (user_site / "sitecustomize.py").write_text(
+        "print('USER_SITECUSTOMIZE_RAN')\n", encoding="utf-8"
+    )
+    script = tmp_path / "train.py"
+    script.write_text("print('TRAIN_STARTED')\n", encoding="utf-8")
+    environment = _bootstrap_env(report_dir=str(tmp_path / "reports"))
+    environment["PYTHONPATH"] = os.pathsep.join(
+        [environment["PYTHONPATH"], str(user_site)]
+    )
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        env=environment, cwd=tmp_path, text=True, capture_output=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "USER_SITECUSTOMIZE_RAN" in completed.stdout
+    assert "TURBO_PHYSAI_OPTIMIZATION_COMPLETED" in completed.stdout
 
 
 def test_run_config_defaults_to_common_optimization():
@@ -403,74 +430,32 @@ def test_run_cli_uses_builtin_model_configs():
 
     command, environment = launch.call_args.args
     assert result == 0
-    assert "optimizations/models/bevformer/configs/optimization.yaml" in "/".join(
-        command
-    )
+    assert command == ["python", "tools/train.py"]
+    assert "optimizations/models/bevformer/configs/optimization.yaml" in environment[
+        "TURBO_PHYSAI_OPTIMIZATION_CONFIG"
+    ]
     assert environment["NCCL_ALGO"] == "Ring"
 
 
-def test_run_training_command_creates_process_group():
-    process = type("Process", (), {"wait": lambda self: 0})()
-    with patch("turbo_physai.cli.subprocess.Popen", return_value=process) as popen:
-        assert _run_training_command(["torchrun"], {"FEATURE": "1"}) == 0
-    assert popen.call_args.kwargs["start_new_session"] is True
+def test_run_training_command_replaces_this_process():
+    """execvpe leaves no TurboPhysAI process in the tree to forward signals."""
+
+    with patch("turbo_physai.cli.os.execvpe") as execvpe:
+        try:
+            _run_training_command(["torchrun", "-n", "2"], {"FEATURE": "1"})
+        except AssertionError:
+            pass  # execvpe is mocked, so it returns instead of replacing us
+    executable, command, environment = execvpe.call_args.args
+    assert executable == "torchrun"
+    assert command == ["torchrun", "-n", "2"]
+    assert environment == {"FEATURE": "1"}
 
 
-def test_run_training_command_forwards_interrupt_to_process_group():
-    class Process:
-        pid = 321
-
-        def __init__(self):
-            self.waits = 0
-
-        def wait(self, timeout=None):
-            self.waits += 1
-            if self.waits == 1:
-                from turbo_physai.cli import _LaunchSignal
-
-                raise _LaunchSignal(signal.SIGINT)
-            return -signal.SIGINT
-
-        def poll(self):
-            return None
-
-    process = Process()
-    with (
-        patch("turbo_physai.cli.subprocess.Popen", return_value=process),
-        patch("turbo_physai.cli.os.killpg") as killpg,
-    ):
-        assert _run_training_command(["torchrun"], {}) == 130
-    killpg.assert_called_once_with(321, signal.SIGINT)
-
-
-def test_run_training_command_escalates_when_process_does_not_stop():
-    class Process:
-        pid = 654
-
-        def __init__(self):
-            self.waits = 0
-
-        def wait(self, timeout=None):
-            self.waits += 1
-            if self.waits == 1:
-                from turbo_physai.cli import _LaunchSignal
-
-                raise _LaunchSignal(signal.SIGINT)
-            if self.waits in {2, 3}:
-                raise subprocess.TimeoutExpired("torchrun", timeout)
-            return -signal.SIGKILL
-
-        def poll(self):
-            return None
-
-    process = Process()
-    with (
-        patch("turbo_physai.cli.subprocess.Popen", return_value=process),
-        patch("turbo_physai.cli.os.killpg") as killpg,
-    ):
-        assert _run_training_command(["torchrun"], {}) == 130
-    assert [call.args for call in killpg.call_args_list] == [
-        (654, signal.SIGINT),
-        (654, signal.SIGTERM),
-        (654, signal.SIGKILL),
-    ]
+def test_run_training_command_reports_a_missing_executable():
+    with patch("turbo_physai.cli.os.execvpe", side_effect=FileNotFoundError("nope")):
+        try:
+            _run_training_command(["definitely-not-a-command"], {})
+        except TurboPhysAIError as error:
+            assert "failed to execute training command" in str(error)
+        else:
+            raise AssertionError("a missing executable was not reported")

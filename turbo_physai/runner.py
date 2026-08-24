@@ -144,8 +144,18 @@ def _print_optimization_result(report: object) -> None:
     )
 
 
-def _set_rank_numa_binding() -> None:
-    """Re-exec this rank through numactl before importing training code."""
+def _set_rank_numa_binding(*, reexec_command: Sequence[str] | None = None) -> None:
+    """Re-exec this rank through numactl before importing training code.
+
+    NUMA *memory* binding cannot be set from inside the process: Linux places a
+    page on the node that first touches it, and the interpreter has already
+    allocated before any user code runs. CPU affinity has no such constraint
+    and is handled in-process by :func:`_set_rank_affinity`.
+
+    ``reexec_command`` replays the caller's own command line verbatim. Without
+    it the rank is assumed to have been launched as ``python -m
+    turbo_physai.runner``.
+    """
 
     if os.environ.get("TURBO_PHYSAI_NUMA_BOUND") == "1":
         return
@@ -164,14 +174,16 @@ def _set_rank_numa_binding() -> None:
         raise RuntimeError("rank NUMA binding requires numactl in PATH")
     environment = os.environ.copy()
     environment["TURBO_PHYSAI_NUMA_BOUND"] = "1"
+    replayed = (
+        list(reexec_command)
+        if reexec_command is not None
+        else [sys.executable, "-m", "turbo_physai.runner", *sys.argv[1:]]
+    )
     command = [
         numactl,
         f"--cpunodebind={node}",
         f"--membind={node}",
-        sys.executable,
-        "-m",
-        "turbo_physai.runner",
-        *sys.argv[1:],
+        *replayed,
     ]
     os.execvpe(numactl, command, environment)
 
