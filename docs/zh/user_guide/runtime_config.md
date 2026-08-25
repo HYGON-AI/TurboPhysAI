@@ -80,31 +80,11 @@ turbo-physai run \
 
 未加载 RuntimeConfig 不影响 common OptimizationConfig 的选择。两类配置由 Runner 独立解析。
 
-## 5. 支持的训练命令
+## 5. 与训练命令的关系
 
-`turbo-physai run` 的命令在 `--` 之后逐字透传给 `exec`，不被解析或改写，因此启动形式不受限制：
+Runner 在执行原训练命令前，将 RuntimeConfig 中的设置写入训练环境。启动链路创建的
+后续进程继承该环境。RuntimeConfig 加载或应用失败时，原训练命令不会启动。
 
-```text
-python script.py [参数]
-python -m package.module [参数]
-torchrun [torchrun 参数] script.py [参数]
-torchpack dist-run [TorchPack 参数] python script.py [参数]
-deepspeed [DeepSpeed 参数] script.py [参数]
-accelerate launch [参数] script.py [参数]
-srun / mpirun [参数] python script.py [参数]
-bash train.sh
-```
-
-每个训练 rank 的解释器在启动时由标准库 `site` 自动导入 TurboPhysAI 的启动钩子，完成运行设置并应用 OptimizationConfig，再执行原训练入口。启动器进程本身不应用优化。
-
-例外是 `python -E`、`-I`、`-S`：这三个标志分别忽略 `PYTHONPATH`、启用隔离模式、跳过 `site`，会使启动钩子不被加载。命令中出现它们时 `turbo-physai run` 直接报错。
-
-Shell 语法本身不被解析。`source`、`ulimit`、管道、条件分支和其他系统编排应继续保留在作业脚本中，并由该脚本调用 `turbo-physai run`。
-
-## 6. 失败与停止
-
-- RuntimeConfig 加载或应用失败时，训练在入口执行前失败；
-- rank 无法应用 OptimizationConfig 时以退出码 `91` 终止，而不是以未优化状态继续训练；
-- `turbo-physai run` 用 `exec` 替换自身，进程树中没有中间进程，`Ctrl+C` 和作业系统的信号直接送达训练进程，停止行为与不使用 `turbo-physai run` 时完全一致。
-
-RuntimeConfig 的修改可能影响通信、CPU 调度和算子选择。交付前应在目标机器上重新验证训练正确性和稳定性能。
+训练命令的透传规则、启动条件、参数和返回码见 [CLI 参考](../reference/cli.md)。
+RuntimeConfig 的修改可能影响通信、CPU 调度和算子选择，交付前应在目标环境中验证训练
+正确性和稳定性能。

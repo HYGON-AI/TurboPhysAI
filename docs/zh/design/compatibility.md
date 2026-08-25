@@ -57,41 +57,8 @@ TurboPhysAI 不从磁盘重新加载原实现，也不沿 `__wrapped__` 链移�
 
 默认的 `turbo-physai run` 在每个训练 rank 中先应用 OptimizationConfig，再执行 Python 训练入口。如果第三方组件在训练入口执行期间再次修改同一 target，其修改发生在 TurboPhysAI 之后，框架无法自动恢复 TurboPhysAI 实现。此类组合需要通过固定初始化顺序或专用启动入口处理。
 
-`turbo-physai run` 不解析用户命令，命令逐字透传给 `exec`，因此对启动器没有限制：
-`torchrun`、`torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 以及自有的
-Shell 启动脚本都可直接使用。激活由解释器启动钩子在每个 rank 内完成。
-
-例外是 `python -E`、`-I`、`-S`：这三个标志分别忽略 `PYTHONPATH`、启用隔离模式、跳过
-`site`，会使启动钩子不被加载。`turbo-physai run` 检测到它们时直接报错，而不是让训练
-以未优化状态运行。
-
-## 启动环境配置
-
-影响运行时行为、但不由 target 替换表达的环境变量，属于 RuntimeConfig 的职责。OptimizationConfig 只描述优化选择与目标证据，`turbo_physai.apply()` 不设置或恢复启动环境。
-
-### 生效时机
-
-环境变量没有统一的"必须在进程启动前设置"要求。每个变量由**读取它的那一方**决定截止点，而这些截止点普遍晚于进程启动：
-
-| 截止点 | 变量 | 读取方与原因 |
-| --- | --- | --- |
-| 首次 HIP 调用前 | `HIP_VISIBLE_DEVICES` | HIP 运行时在首次调用时初始化并固定可见设备集合 |
-| `import torch._inductor.config` 前 | `TORCHINDUCTOR_*` | 该模块在 import 时把环境变量读入模块级配置；Torch 2.10 下 `import torch` 不会触发它 |
-| 首次使用前 | `MIOPEN_*`、`NCCL_*` 等原生库变量 | 各库在自身初始化时调用 `getenv` |
-
-Python 中对 `os.environ` 的赋值和删除会同步到 C 运行时（经 `putenv`/`unsetenv`），因此原生库随后调用 `getenv` 能读到修改后的值。这意味着**在训练进程内、早于上述截止点设置这些变量，与由父进程设置等效**，不需要额外的启动器进程来注入。
-
-`turbo_physai` 的注入点早于训练脚本的任何 import，因此上述全部截止点都能满足。
-
-不要用 `torch.cuda.device_count()` 验证设备可见性限制是否生效：该函数会重新读取 `HIP_VISIBLE_DEVICES`，在 HIP 运行时已初始化后会返回与运行时实际持有的设备集合不一致的值。应改用在目标设备上实际分配张量来验证。
-
-RuntimeConfig 提供以下配置：
-
-- `environment.set`：设置环境变量；
-- `environment.unset`：移除环境变量；
-- `process.numa`：开启或关闭 NUMA 绑定，默认开启。
-
-用户可通过 `--disable-numa` 关闭本次启动的 NUMA 绑定。
+训练命令的支持条件和参数规则见 [CLI 参考](../reference/cli.md)，启动环境的配置与覆盖关系见
+[RuntimeConfig 使用指南](../user_guide/runtime_config.md)。
 
 ## 能力边界
 

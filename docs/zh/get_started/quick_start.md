@@ -1,6 +1,6 @@
 # 快速开始
 
-本指南从已安装 TurboPhysAI 开始，说明如何对一个已能正常训练的模型启用优化。TurboPhysAI 不负责下载模型、预处理数据集或准备预训练权重。
+本指南从已安装 TurboPhysAI 开始，说明如何对模型启用优化。
 
 ![TurboPhysAI 快速开始流程](../../assets/turbophysai-workflow.svg)
 
@@ -18,16 +18,15 @@
 
 ## 2. 选择模型
 
-每个内置模型均随包提供经过验证的 OptimizationConfig 和 RuntimeConfig。通过
+每个内置模型均随包提供优化配置（OptimizationConfig）和运行配置（RuntimeConfig）。通过
 `--model <模型名>` 选择模型后，Runner 自动加载对应配置，无需查找包内文件路径。
 
-请从[模型支持清单](../models/support_list.md)进入对应模型说明，不要手写或修改最终 OptimizationConfig 中的 Hash 证据。
+请从[模型支持清单](../models/support_list.md)进入对应模型说明。
 
 ## 3. 启动训练
 
-`turbo-physai run` 是训练用户的默认入口。该命令选择 OptimizationConfig 和
-RuntimeConfig，并改写受支持的 Python、`torchrun` 或 TorchPack 启动命令。每个 Python
-训练进程在导入原训练入口前应用一次 OptimizationConfig。
+`turbo-physai run` 是训练用户的默认入口。该命令根据 `--model` 或显式配置路径选择
+OptimizationConfig 和 RuntimeConfig，然后执行 `--` 后的原训练命令。
 
 ```bash
 turbo-physai run \

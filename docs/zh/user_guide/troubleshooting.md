@@ -84,17 +84,19 @@ turbo-physai run --disable-numa -- <training-command>
 
 完整配置说明见 [RuntimeConfig](runtime_config.md)。
 
-## 6. Runner 不识别训练命令
+## 6. 训练进程未加载优化
 
-`turbo-physai run` 只处理能够明确定位 Python 训练入口的命令。目前支持 Python、`torchrun` 和 `torchpack dist-run`。
+训练已经启动，但没有输出 `TURBO_PHYSAI_OPTIMIZATION_COMPLETED`，或报告中没有预期的
+训练 rank 时，按以下顺序检查：
 
-以下形式不受支持：
+1. 确认启动格式为 `turbo-physai run [参数] -- <原训练命令>`；
+2. 确认启动链路最终创建 Python 训练进程，而不是只执行非 Python 程序；
+3. 确认 Python 命令未使用 `-E`、`-I` 或 `-S`；
+4. 使用 Shell 脚本或调度系统时，确认其启动的训练进程继承 Runner 准备的环境；
+5. 在训练 rank 的输出和 OptimizationReport 中确认结果，不以启动器父进程是否应用优化为判断依据。
 
-- `python -c`；
-- `torchrun --no-python`；
-- 将 `bash -c`、管道、条件分支或其他 Shell 语法直接放在 `--` 后。
-
-复杂作业编排应保留在 Shell 脚本或调度系统中，并在原 Python、`torchrun` 或 TorchPack 启动命令外层调用 `turbo-physai run`。
+`--` 后的命令由 Runner 逐字执行。Shell 脚本可以作为原训练命令，但脚本最终必须启动
+符合上述条件的 Python 训练进程。完整规则见 [CLI 参考](../reference/cli.md)。
 
 ## 7. Replacement 在训练运行时报错
 

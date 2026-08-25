@@ -98,9 +98,9 @@ turbo-physai run \
 | `--set NAME=VALUE` | 覆盖或增加非空环境变量，可重复 |
 | `--disable-numa` | 关闭本次启动的 NUMA 绑定；默认开启 |
 
-命令在 `--` 之后逐字透传，不被解析或改写，因此对启动器没有限制：`torchrun`、
-`torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 以及自有的 Shell 启动
-脚本都可直接使用。每个训练 rank 的解释器在启动时自动激活优化。
+命令在 `--` 之后逐字透传，不解析或改写启动器参数。可以使用 `torchrun`、
+`torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 或 Shell 启动脚本，
+TurboPhysAI 会在每个 Python 训练 rank 中自动应用 OptimizationConfig。
 
 例外是 `python -E`、`-I`、`-S`：这三个标志会使启动钩子不被加载，命令中出现它们时
 `turbo-physai run` 直接报错，而不是让训练以未优化状态运行。

@@ -1,6 +1,8 @@
 # 组件架构
 
-本文面向框架维护人员和需要深入理解执行过程的优化开发者。训练用户无需先阅读本章。
+TurboPhysAI 基于 Python 运行时替换（Monkey Patch）应用优化。为降低优化接入成本，
+并保证替换过程可检查、可回滚、可追溯，组件围绕优化声明、配置管理、应用前检查、
+冲突分析、分组执行和结果记录构建了如下架构。
 
 ![TurboPhysAI 组件架构](../../assets/turbophysai-component-framework.png)
 
@@ -56,8 +58,8 @@ Executor 只执行 `PreparedExecution.execution_order` 中的 Group。每个 Gro
 ### 启动层
 
 `turbo-physai run` 加载 RuntimeConfig、准备环境变量与启动钩子，然后用 `exec` 替换
-自身执行训练命令。命令不被解析也不被改写，因此不限制启动器形式，且进程树中不留
-中间进程。
+自身执行训练命令。Runner 不解析或改写启动器参数，且进程树中不留中间进程。启动链路
+最终需要创建启用标准库 `site` 的 Python 训练进程。
 
 每个训练 rank 的解释器在启动时由标准库 `site` 自动导入 `turbo_physai/bootstrap`
 下的钩子，先准备运行环境并执行 `apply()`，再进入原训练入口。启动器进程
