@@ -1,6 +1,7 @@
 # 定义优化与组织优化组
 
-本文说明优化开发人员如何使用 `group`、`replace`、`wrap` 和导入兼容接口声明优化能力，以及 Group 的依赖、检查、执行和冲突规则。
+本文说明优化开发人员如何使用 `group`、`replace`、`wrap` 和导入兼容接口声明优化能力，
+并定义 Group 边界、依赖和适用条件。
 
 普通优化声明从 `turbo_physai` 导入：
 
@@ -47,7 +48,7 @@ MSDA = group(
 )
 ```
 
-该 Group 同时替换 MSDA 的 Forward 和 Backward。执行前，Engine 会保存 Group 内全部目标的快照；任一成员应用失败时，已应用成员按逆序恢复。
+该 Group 同时替换 MSDA 的 Forward 和 Backward，两者共同构成一项完整优化。
 
 Group ID 是 OptimizationConfig 引用优化能力的稳定标识。修改实现代码时不应随意更改 Group ID。
 
@@ -259,9 +260,8 @@ IMPORT_COMPATIBILITY = group(
 
 以上四种机制可以组成同一个导入兼容 Group，但不能与普通 `replace` 或 `wrap` 混入同一 Group。导入兼容 Group 之间的依赖也只能指向其他导入兼容 Group。
 
-Engine 先检查并应用导入兼容 Group，再解析普通优化目标。某个导入兼容 Group 失败且成功回滚后，其他导入兼容 Group 仍可继续；只要存在未成功应用的导入兼容 Group，普通优化 Group 就会被阻断。回滚失败属于终止性错误。
-
-`check()` 会临时应用导入兼容 Group 以完成模型模块解析，检查结束后恢复相关状态。Python 模块自身在导入时产生的任意外部副作用不在该恢复范围内。
+导入兼容 Group 先于普通优化 Group 生效。完整检查和恢复规则见
+[优化检查、执行与回滚](../design/execution.md)。
 
 ## 6. aliases
 
@@ -354,7 +354,8 @@ GAUSSIAN = group(
 )
 ```
 
-依赖关系在 Catalog 中声明。生成 OptimizationConfig 时，Generator 自动补齐依赖闭包并进行稳定拓扑排序；没有依赖关系的 Group 保持配置中的声明顺序。依赖 Group 未成功应用时，当前 Group 的执行状态为 `not_started`。
+依赖关系在 Catalog 中声明。Generator 根据 `depends_on` 补齐依赖 Group 并确定执行顺序。
+完整生成规则见[生成和检查 OptimizationConfig](optimization_config_generation.md)。
 
 ### 8.2 compatibility_check
 
@@ -403,37 +404,9 @@ OptimizationConfig 可以为 Group 提供 `options`。`wrap` 的 Wrapper Factory
 
 只有 Replacement 明确定义可配置行为时才应增加 `options`，并在对应模型或优化文档中说明字段、类型和默认值。
 
-## 9. 优化检查、执行与回滚
+## 9. 相关规则
 
-Engine 在安装优化前完成目标解析、类型、签名、源码证据、Alias 身份、依赖和组合冲突检查。检查通过只表示该 Group 可以进入执行阶段，不等同于完成数值或性能验证。
-
-执行规则如下：
-
-1. 在 Group 第一次修改前保存全部成员及 Alias 的快照；
-2. 按声明顺序应用 Group 成员；
-3. 任一成员失败时，按逆序恢复整个 Group；
-4. 回滚成功后，其他无依赖关系的 Group 可以继续执行；
-5. 依赖失败 Group 的后续 Group 不执行；
-6. 回滚失败时停止后续执行并报告终止性错误。
-
-Group 的功能边界由开发人员声明。Engine 可以检查明确的目标重叠和 `depends_on`，不能从任意函数体中推断隐藏的语义依赖。因此，Group 划分与依赖声明必须通过功能测试验证。
-
-## 10. 冲突规则
-
-`group()` 会在登记前检查 Group 内部目标；Generator 会展开 `extends` 和 `depends_on`，再检查最终选中的全部 Group。以下问题必须在生成 OptimizationConfig 前解决：
-
-- 同一 Group 的不同成员命中相同 target 或 Alias；
-- 不同 Group 命中相同 target 或 Alias；
-- `replace_import` 的模块路径与其他目标路径发生父子重叠；
-- Group 依赖缺失、被禁用或形成循环；
-- 模型 Replacement 直接引用继承的公共 Replacement。
-
-即使目标和 Replacement 完全相同，跨 Group 的重复声明仍会报告 `target.group_duplicate`，不会自动合并。开发人员应删除重复选择或重新划分 Group。
-
-模型优化继承公共优化时，应继续调用公共优化声明的标准 target，不应直接导入公共 Replacement。Generator 的静态检查可以识别：
-
-- 直接导入及导入别名；
-- 简单变量赋值；
-- 标准 `importlib.import_module()` 和 `__import__()` 字符串导入。
-
-静态检查不判断两段实现是否语义等价，也不能识别复制、内联或自定义反射工具隐藏的调用关系。这些情况需要通过代码审阅和 CI 测试控制。
+- Group 的检查、决策、事务执行和回滚规则见
+  [优化检查、执行与回滚](../design/execution.md)；
+- 依赖展开、组合冲突和 Replacement 引用检查见
+  [生成和检查 OptimizationConfig](optimization_config_generation.md)。
