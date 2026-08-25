@@ -31,12 +31,14 @@ TURBO_PHYSAI_OPTIMIZATION_COMPLETED rank=<rank> applied=... blocked=... failed=.
 
 如果 `blocked`、`failed`、`rolled_back` 或 `not_started` 不为 0，应查看 OptimizationReport：
 
-- `Preparation` 中的 `block`：应用前条件未满足；
-- `Execution` 中的 `rolled_back`：Group 应用失败，但已恢复应用前状态；
-- `Execution` 中的 `failed`：快照失败，或应用失败后未能完整恢复；
-- `Execution` 中的 `not_started`：依赖 Group 未成功应用，或此前出现终止性错误。
+1. 在 `Preparation` 中找到对应 Group。决策为 `block` 时，根据 `Reason` 确认失败的检查项；
+2. 在 `Execution` 中确认 Group 是否进入执行阶段。`rolled_back` 表示应用失败但已恢复，`failed` 表示快照或恢复过程失败；
+3. 状态为 `not_started` 时，检查该 Group 的依赖项以及此前是否出现终止性错误；
+4. 根据报告中的 target、`expected`、`actual` 和错误信息修正配置、依赖或 Replacement，再使用新进程验证。
 
 独立 Group 的阻断或成功回滚不会阻止其他 Group 和训练入口继续运行，因此不能仅根据训练是否启动判断全部优化均已生效。
+
+决策、依赖传播和失败处理规则见[优化检查、执行与回滚](../design/execution.md)。
 
 ## 3. target、alias 或 Hash 检查失败
 
@@ -60,6 +62,8 @@ turbo-physai optimization check /path/to/optimization.yaml \
 
 `project.commit = warning` 表示仓库 HEAD 与配置记录不同，但该差异本身不阻断应用。是否可以应用仍以 target Hash、签名和其他检查结果为准。
 
+存在第三方运行时替换组件时，还应确认各组件的初始化顺序和同一 target 的最终实现来源。对象证据和加载顺序的处理规则见[兼容性管理](../design/compatibility.md)。
+
 ## 4. 需要临时放行检查差异
 
 开发人员确认差异安全后，可以仅对本次启动指定 Group：
@@ -73,6 +77,8 @@ turbo-physai run \
 ```
 
 `--force-group` 只覆盖框架标记为可放行的检查。target 不存在、alias 指向不同对象、签名不兼容和优化组合冲突等结构性问题仍会阻断。正式交付应更新并重新生成 OptimizationConfig。
+
+临时放行不会改变组件加载顺序，也不会阻止其他组件在之后覆盖同一 target。
 
 ## 5. NUMA 绑定失败
 

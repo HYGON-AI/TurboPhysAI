@@ -41,9 +41,9 @@ Runner 加载内置 common OptimizationConfig，其中只包含与具体模型�
 
 ## Group 被阻断会停止其他优化吗？
 
-普通运行时 Group 的决策为 `block` 时，该 Group 不执行；依赖它的下游 Group 记为 `not_started`，其他独立 Group 继续执行。Group 应用失败但成功回滚时，其他独立 Group 也可以继续。
+通常不会。被阻断的 Group 及其下游依赖不会执行，其他独立 Group 继续处理；Group 应用失败但成功回滚时，其他独立 Group 也可以继续。
 
-导入兼容 Group 用于建立模型模块的可导入条件。该类 Group 失败时，后续运行时优化无法安全解析目标，因此会被阻断。回滚失败表示进程状态无法可靠恢复，框架将停止后续执行并抛出异常。
+回滚失败表示进程状态无法可靠恢复，此时框架会停止后续执行。具体排查方法见[问题排查：Group 未应用](user_guide/troubleshooting.md#2-group-未应用)，处理规则见[优化检查、执行与回滚](design/execution.md)。
 
 ## 模型 commit 变化但 `target` Hash 相同，可以应用吗？
 
@@ -63,13 +63,9 @@ commit 不一致本身只会使 OptimizationReport 中的 `project.commit` 检�
 
 ## TurboPhysAI 能与第三方运行时替换组件共存吗？
 
-TurboPhysAI 会检查应用时解析到的实际对象，但不能控制未知第三方组件的加载顺序和内部行为。
+可以，但需要固定组件版本和加载顺序。同一目标被多个组件修改时，TurboPhysAI 可能因对象证据不一致而阻断对应 Group，也可能在自身应用后被其他组件再次覆盖。
 
-- 第三方组件先修改同一 `target`：对象证据不一致时，TurboPhysAI 默认阻断对应 Group。开发人员确认变更安全后，只能对框架标记为可放行的检查临时使用 `force_groups`；
-- 第三方组件在 TurboPhysAI 之后修改同一 `target`：后一次赋值会覆盖 TurboPhysAI 的修改，`force_groups` 不能改变该加载顺序；
-- 正式交付：应固定组件版本和初始化顺序，并基于最终组合重新生成 OptimizationConfig、验证数值和性能。
-
-详细规则见[兼容性管理](design/compatibility.md)。
+正式交付前应基于最终组合重新生成 OptimizationConfig，并验证数值和性能。检查失败的处理方法见[问题排查](user_guide/troubleshooting.md#3-targetalias-或-hash-检查失败)，加载顺序和覆盖规则见[兼容性管理](design/compatibility.md)。
 
 ## 能接入自定义原生算子吗？
 
