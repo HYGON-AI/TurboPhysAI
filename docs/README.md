@@ -11,7 +11,6 @@
 - [安装指南](zh/get_started/installation.md)
 - [快速开始](zh/get_started/quick_start.md)
 - [模型支持清单](zh/models/support_list.md)
-- [模型应用说明](../model_examples/README.md)
 
 ## 训练用户指南
 

@@ -36,7 +36,7 @@ turbo-physai run --model bevformer -- \
 
 | 角色 | 典型场景 | 文档入口 |
 | --- | --- | --- |
-| 训练用户 | 在已支持的模型上启用优化，确认优化生效并排查问题 | [安装指南](docs/zh/get_started/installation.md) → [快速开始](docs/zh/get_started/quick_start.md) → [模型应用说明](model_examples/README.md) |
+| 训练用户 | 在已支持的模型上启用优化，确认优化生效并排查问题 | [安装指南](docs/zh/get_started/installation.md) → [快速开始](docs/zh/get_started/quick_start.md) → [模型支持清单](docs/zh/models/support_list.md) |
 | 优化开发人员 | 为新模型或新算子实现优化，生成配置并完成验证交付 | [优化开发与接入流程](docs/zh/developer_guide/optimization_workflow.md) → [优化验证与交付](docs/zh/developer_guide/validation.md) |
 | 框架维护人员 | 维护优化引擎、评审优化接入、扩展框架能力 | [组件架构](docs/zh/design/architecture.md) → [优化检查、执行与回滚](docs/zh/design/execution.md) → [兼容性管理](docs/zh/design/compatibility.md) → [贡献指南](CONTRIBUTING.md) |
 

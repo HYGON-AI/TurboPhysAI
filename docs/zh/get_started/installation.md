@@ -5,7 +5,7 @@ TurboPhysAI 支持以下两种部署方式：
 - **产品镜像**：面向模型训练用户，镜像内已安装 TurboPhysAI 及匹配的 HCU 软件环境；
 - **源码安装**：面向组件开发、优化接入和问题调试，在已准备好的 HCU 开发环境中构建并安装 TurboPhysAI。
 
-模型源码、数据集和权重不随 TurboPhysAI 产品镜像交付。具体镜像、挂载目录和训练命令以对应的[模型应用说明](../../../model_examples/README.md)为准。
+模型源码、数据集和权重不随 TurboPhysAI 产品镜像交付。具体镜像、挂载目录和训练命令见[模型支持清单](../models/support_list.md)中的对应模型说明。
 
 ## 使用产品镜像
 

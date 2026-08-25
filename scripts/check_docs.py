@@ -101,7 +101,6 @@ def main() -> int:
         ROOT / "docs/README.md",
         ROOT / "docs/zh/get_started/quick_start.md",
         ROOT / "docs/zh/models/support_list.md",
-        ROOT / "model_examples/README.md",
     )
     for path in required:
         if not path.exists():
