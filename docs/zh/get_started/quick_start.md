@@ -76,11 +76,11 @@ turbophysai_reports/
 - 训练日志中没有因 Replacement 导致的运行时异常；
 - 数值、梯度和性能仍需通过真实训练验证。
 
-优化成功安装不等于训练执行一定正确。详细解释见 [OptimizationReport](../user_guide/report.md)。
+优化成功安装不等于训练执行一定正确。详细解释见 [优化应用报告](../user_guide/report.md)。
 
 ## 5. 后续阅读
 
 - RuntimeConfig 字段和覆盖关系：[RuntimeConfig 使用指南](../user_guide/runtime_config.md)
 - OptimizationConfig 字段和选择规则：[OptimizationConfig 使用指南](../user_guide/optimization_config.md)
 - 完整 CLI 参数：[CLI 参考](../reference/cli.md)
-- 报告字段和故障含义：[OptimizationReport](../user_guide/report.md)
+- 报告字段和故障含义：[优化应用报告](../user_guide/report.md)

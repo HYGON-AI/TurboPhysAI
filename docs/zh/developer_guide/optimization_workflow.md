@@ -1,4 +1,4 @@
-# 优化接入流程
+# 优化开发与接入流程
 
 本文面向开发模型或后端算子优化的人员。优化应先在外部工程完成，再提交 TurboPhysAI 维护人员评审，不直接在框架仓库中试验业务实现。
 
@@ -120,7 +120,7 @@ ENCODER = group(
 )
 ```
 
-如果缺少任一成员就会导致功能不正确或不完整，这些成员必须属于同一 Group。详细规则见 [优化声明与 Group 设计](optimization_declarations.md)。
+如果缺少任一成员就会导致功能不正确或不完整，这些成员必须属于同一 Group。详细规则见 [定义优化与组织优化组](optimization_declarations.md)。
 
 框架对每个 Group 执行统一的 target、Replacement、alias、签名和 Hash 基础检查。只有优化存在额外的依赖版本、模型 commit 或实现约束时，开发者才需要为 Group 增加 `compatibility_check`。输入 shape、Tensor layout 等随调用变化的条件使用 `runtime_condition`，不要写入启动期兼容条件。
 
@@ -189,7 +189,7 @@ turbo-physai run \
 
 ![优化从单元测试到交付验收的分级验证链路](../../assets/optimization-validation-flow.svg)
 
-详细要求见[优化验证与交付验收](validation.md)。OptimizationReport 中的 `applied` 只能证明 Group 已成功安装，不能代替数值、精度和性能验收。
+详细要求见[优化验证与交付](validation.md)。OptimizationReport 中的 `applied` 只能证明 Group 已成功安装，不能代替数值、精度和性能验收。
 
 ## 9. 提交评审
 

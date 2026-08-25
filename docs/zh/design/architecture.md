@@ -1,8 +1,8 @@
-# 框架架构
+# 组件架构
 
 本文面向框架维护人员和需要深入理解执行过程的优化开发者。训练用户无需先阅读本章。
 
-![TurboPhysAI 组件框架架构](../../assets/turbophysai-component-framework.png)
+![TurboPhysAI 组件架构](../../assets/turbophysai-component-framework.png)
 
 ## 设计目标
 

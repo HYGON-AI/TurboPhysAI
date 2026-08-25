@@ -30,6 +30,6 @@ TurboPhysAI 提供四类能力：
 1. 按模型官方说明准备仓库、数据集、权重和可运行的训练环境；
 2. 安装与当前 HCU 软件环境匹配的 TurboPhysAI；
 3. 在原训练命令前使用 `turbo-physai run` 启用对应模型的优化；
-4. 查看执行报告，并完成模型精度和性能验证。
+4. 查看优化应用报告，并完成模型精度和性能验证。
 
 开始使用请阅读[安装指南](get_started/installation.md)和[快速开始](get_started/quick_start.md)。当前支持范围见[模型支持清单](models/support_list.md)。

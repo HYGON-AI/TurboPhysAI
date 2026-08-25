@@ -178,7 +178,7 @@ turbo-physai run \
 
 ## 9. 如何判断成功
 
-### 9.1 OptimizationReport
+### 9.1 优化应用报告
 
 rank 0 的 `turbophysai_reports/` 下会生成：
 
@@ -196,7 +196,7 @@ rolled_back = 0
 not_started = 0
 ```
 
-以 JSON 文件为结构化事实来源。详细字段见 [OptimizationReport](../../docs/zh/user_guide/report.md)。
+以 JSON 文件为结构化事实来源。详细字段见 [优化应用报告](../../docs/zh/user_guide/report.md)。
 
 ### 9.2 训练日志
 

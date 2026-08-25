@@ -10,7 +10,7 @@
 4. 提供正向结果、必要梯度、真实训练、性能和报告证据。
 5. 通过评审后再迁入 TurboPhysAI 长期维护目录。
 
-详细流程见[优化接入流程](docs/zh/developer_guide/optimization_workflow.md)。
+详细流程见[优化开发与接入流程](docs/zh/developer_guide/optimization_workflow.md)。
 
 ## 修改框架
 

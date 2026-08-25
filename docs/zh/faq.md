@@ -37,7 +37,7 @@ Runner 加载内置 common OptimizationConfig，其中只包含与具体模型�
 - Execution 中状态为 `applied` 的 Group 已完成安装；
 - `block`、`rolled_back`、`failed` 或 `not_started` 表示对应优化未完整生效。
 
-报告结构和状态定义见[OptimizationReport](user_guide/report.md)。
+报告结构和状态定义见[优化应用报告](user_guide/report.md)。
 
 ## Group 被阻断会停止其他优化吗？
 
@@ -69,7 +69,7 @@ TurboPhysAI 会检查应用时解析到的实际对象，但不能控制未知�
 - 第三方组件在 TurboPhysAI 之后修改同一 `target`：后一次赋值会覆盖 TurboPhysAI 的修改，`force_groups` 不能改变该加载顺序；
 - 正式交付：应固定组件版本和初始化顺序，并基于最终组合重新生成 OptimizationConfig、验证数值和性能。
 
-详细规则见[兼容性与第三方组件共存](design/compatibility.md)。
+详细规则见[兼容性管理](design/compatibility.md)。
 
 ## 能接入自定义原生算子吗？
 

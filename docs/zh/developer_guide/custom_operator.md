@@ -2,7 +2,7 @@
 
 本文说明如何将自定义算子源码接入 TurboPhysAI 的统一扩展，并将算子能力提供给 Python API 或优化 Group。适用对象为算子开发人员和模型优化开发人员。
 
-开始接入前，应先完成算子的数值、梯度和性能验证。优化 Group 的声明方式参见 [优化声明与 Group 设计](optimization_declarations.md)。
+开始接入前，应先完成算子的数值、梯度和性能验证。优化 Group 的声明方式参见 [定义优化与组织优化组](optimization_declarations.md)。
 
 ## 统一扩展
 

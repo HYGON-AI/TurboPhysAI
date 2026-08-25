@@ -25,7 +25,7 @@ turbo-physai run --model bevformer -- \
 ```
 
 组件加载该模型随包交付的优化配置和运行配置，在每个训练进程启动时应用一次，
-并生成执行报告用于确认优化是否生效。`--model` 的可选值、接入基线和使用说明见
+并生成优化应用报告用于确认优化是否生效。`--model` 的可选值、接入基线和使用说明见
 [模型支持清单](docs/zh/models/support_list.md)。
 
 前置条件（安装组件、模型仓库 commit、数据集与权重）见[安装指南](docs/zh/get_started/installation.md)。
@@ -37,10 +37,10 @@ turbo-physai run --model bevformer -- \
 | 角色 | 典型场景 | 文档入口 |
 | --- | --- | --- |
 | 训练用户 | 在已支持的模型上启用优化，确认优化生效并排查问题 | [安装指南](docs/zh/get_started/installation.md) → [快速开始](docs/zh/get_started/quick_start.md) → [模型应用说明](model_examples/README.md) |
-| 优化开发人员 | 为新模型或新算子实现优化，生成配置并完成验证交付 | [优化接入流程](docs/zh/developer_guide/optimization_workflow.md) → [优化声明与 Group 设计](docs/zh/developer_guide/optimization_declarations.md) → [验证清单](docs/zh/developer_guide/validation.md) |
-| 框架维护人员 | 维护优化引擎、评审优化接入、扩展框架能力 | [框架架构](docs/zh/design/architecture.md) → [执行与恢复](docs/zh/design/execution.md) → [兼容性与共存](docs/zh/design/compatibility.md) → [贡献指南](CONTRIBUTING.md) |
+| 优化开发人员 | 为新模型或新算子实现优化，生成配置并完成验证交付 | [优化开发与接入流程](docs/zh/developer_guide/optimization_workflow.md) → [优化验证与交付](docs/zh/developer_guide/validation.md) |
+| 框架维护人员 | 维护优化引擎、评审优化接入、扩展框架能力 | [组件架构](docs/zh/design/architecture.md) → [优化检查、执行与回滚](docs/zh/design/execution.md) → [兼容性管理](docs/zh/design/compatibility.md) → [贡献指南](CONTRIBUTING.md) |
 
-日常查询：[CLI 参考](docs/zh/reference/cli.md) · [执行报告](docs/zh/user_guide/report.md) ·
+日常查询：[CLI 参考](docs/zh/reference/cli.md) · [优化应用报告](docs/zh/user_guide/report.md) ·
 [问题排查](docs/zh/user_guide/troubleshooting.md) · [FAQ](docs/zh/faq.md)。
 完整目录见[文档中心](docs/README.md)。
 
@@ -55,13 +55,13 @@ TurboPhysAI/
 └── test/              算子与框架测试
 ```
 
-各层职责和完整工程目录见[框架架构](docs/zh/design/architecture.md)。
+各层职责和完整工程目录见[组件架构](docs/zh/design/architecture.md)。
 
 ## 参与开发
 
 优化开发者先用 `turbo-physai optimization init` 在仓库外创建独立开发工程，
 完成实现、正确性测试和真实模型验证后再提交长期集成。
-贡献要求见 [CONTRIBUTING.md](CONTRIBUTING.md)，流程见[优化接入流程](docs/zh/developer_guide/optimization_workflow.md)。
+贡献要求见 [CONTRIBUTING.md](CONTRIBUTING.md)，流程见[优化开发与接入流程](docs/zh/developer_guide/optimization_workflow.md)。
 
 版本记录：[RELEASE_NOTES.md](RELEASE_NOTES.md) · 安全问题：[SECURITY.md](SECURITY.md) ·
 问题和需求：通过仓库 Issue 或 Merge Request 反馈。

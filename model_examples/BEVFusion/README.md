@@ -205,7 +205,7 @@ turbo-physai run \
 
 ## 10. 如何判断成功
 
-### 10.1 OptimizationReport
+### 10.1 优化应用报告
 
 rank 0 的报告目录下会生成：
 
@@ -224,7 +224,7 @@ not_started = 0
 ```
 
 以 JSON 文件为结构化事实来源。详细字段见
-[OptimizationReport](../../docs/zh/user_guide/report.md)。
+[优化应用报告](../../docs/zh/user_guide/report.md)。
 
 ### 10.2 训练日志
 
