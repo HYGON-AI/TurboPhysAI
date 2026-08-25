@@ -1,6 +1,6 @@
 # 兼容性管理
 
-本文说明 TurboPhysAI 判断优化适用性的依据，以及与第三方源码修改、运行时替换和启动配置共存时的处理规则。
+本文说明 TurboPhysAI 判断优化适用性的依据，以及与第三方源码修改和运行时替换共存时的处理规则。
 
 ## 兼容性检查依据
 
@@ -51,14 +51,17 @@ from framework.ops import original_op
 
 TurboPhysAI 不从磁盘重新加载原实现，也不沿 `__wrapped__` 链移除已有 Wrapper。因此，最终调用链由各组件的实际应用顺序决定。
 
-### 应用顺序
+### 加载顺序
 
-同一 target 存在多个运行时修改时，最后一次赋值决定该入口最终指向的对象。需要 TurboPhysAI 覆盖第三方实现时，必须在第三方修改完成后调用 `turbo_physai.apply()`，并保证后续初始化不再修改该入口。
+多个组件修改同一 target 时，加载顺序决定检查结果和最终调用链：
 
-默认的 `turbo-physai run` 在每个训练 rank 中先应用 OptimizationConfig，再执行 Python 训练入口。如果第三方组件在训练入口执行期间再次修改同一 target，其修改发生在 TurboPhysAI 之后，框架无法自动恢复 TurboPhysAI 实现。此类组合需要通过固定初始化顺序或专用启动入口处理。
+| 加载顺序 | 结果 |
+| --- | --- |
+| 第三方组件 → TurboPhysAI | TurboPhysAI 读取到第三方修改后的对象，基线证据通常不匹配，默认阻断。人工确认并通过 `force_groups` 放行后，`replace` 覆盖第三方实现，`wrap` 包装第三方实现。 |
+| TurboPhysAI → 第三方组件 | TurboPhysAI 按基线完成检查和应用。第三方组件随后执行 `replace` 时会覆盖 TurboPhysAI；执行 Wrapper 时可能包装 TurboPhysAI 的实现。 |
 
-训练命令的支持条件和参数规则见 [CLI 参考](../reference/cli.md)，启动环境的配置与覆盖关系见
-[RuntimeConfig 使用指南](../user_guide/runtime_config.md)。
+第三方组件在 TurboPhysAI 之后执行的修改不经过 TurboPhysAI 检查。两个组件修改不同
+target 时，加载顺序通常不影响彼此。
 
 ## 能力边界
 
