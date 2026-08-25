@@ -77,29 +77,51 @@ replace(
 
 ### 2.1 函数和方法替换
 
-MMCV MSDA 公共优化直接替换底层 PyBind 入口：
+以 MMDetection3D Gaussian 公共优化为例，Replacement 实现位于
+`turbo_physai/optimizations/common/mmdet3d/gaussian.py`：
 
 ```python
-MSDA = group(
-    "mmcv.msda",
+def gaussian_2d(shape, sigma=1, device=None, dtype=None):
+    import torch
+
+    if dtype is None:
+        dtype = torch.float32
+    middle_y, middle_x = [(size - 1.0) / 2.0 for size in shape]
+    y = torch.arange(
+        -middle_y, middle_y + 1, device=device, dtype=dtype
+    ).unsqueeze(1)
+    x = torch.arange(
+        -middle_x, middle_x + 1, device=device, dtype=dtype
+    ).unsqueeze(0)
+    heatmap = torch.exp(
+        -(x.square() + y.square()) / (2 * sigma * sigma)
+    )
+    return torch.where(
+        heatmap < torch.finfo(heatmap.dtype).eps * heatmap.max(),
+        0,
+        heatmap,
+    )
+```
+
+Catalog 通过可导入路径关联目标对象与 Replacement：
+
+```python
+from turbo_physai import group, replace
+
+
+GAUSSIAN = group(
+    "mmdet3d.gaussian",
     replace(
-        target="mmcv._ext.ms_deform_attn_forward",
+        target="mmdet3d.core.utils.gaussian.gaussian_2d",
         replacement=(
-            "turbo_physai.optimizations.common.mmcv.msda."
-            "ms_deform_attn_forward"
-        ),
-    ),
-    replace(
-        target="mmcv._ext.ms_deform_attn_backward",
-        replacement=(
-            "turbo_physai.optimizations.common.mmcv.msda."
-            "ms_deform_attn_backward"
+            "turbo_physai.optimizations.common.mmdet3d.gaussian."
+            "gaussian_2d"
         ),
     ),
 )
 ```
 
-Replacement 应保持目标对象的外部调用契约，包括参数、返回值、Tensor Shape、`dtype`、`device` 和训练所需梯度。
+应用该 Group 后，原目标路径上的 `gaussian_2d` 指向上述实现。Replacement 应保持目标对象的外部调用契约，包括参数、返回值、Tensor Shape、`dtype`、`device` 和训练所需梯度。
 
 ### 2.2 Property 替换
 

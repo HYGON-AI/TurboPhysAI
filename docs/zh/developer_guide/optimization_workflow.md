@@ -1,29 +1,29 @@
 # 优化开发与接入流程
 
-本文面向开发模型或后端算子优化的人员。优化应先在外部工程完成，再提交 TurboPhysAI 维护人员评审，不直接在框架仓库中试验业务实现。
+本文面向开发模型或后端算子优化的人员。新优化可先在外部工程中独立开发和验证；准备合入 TurboPhysAI 时，再迁移至公共优化或模型专用优化目录。
 
-## 角色边界
+## 开发主线
 
-| 角色 | 负责内容 |
-| --- | --- |
-| 优化开发人员 | 分析性能、实现优化、划分 Group、生成 OptimizationConfig、验证数值和性能 |
-| 框架维护人员 | 评审公共边界、框架能力和测试，将稳定优化纳入长期交付 |
-| 训练用户 | 选择受支持模型并启动训练、查看报告；使用自定义交付时显式指定配置文件 |
+```text
+准备基线 → 创建外部工程 → 实现与声明优化 → 生成配置 → 验证 → 提交评审
+```
 
-## 1. 固定开发上下文
+## 1. 准备基线
 
-开始前记录：
+开始开发前，应在未启用 TurboPhysAI 优化的条件下完成一次可复现的基线运行，并记录：
 
-- 未修改的模型基线仓库和 commit；
-- 优化参考代码或明确的性能目标；
-- HCU、PyTorch、依赖版本和容器；
-- 单卡、多卡启动命令；
-- 数据集、权重、配置和基线结果；
-- 正向、反向和训练中实际需要保持的语义。
+- 模型仓库、接入 commit 和工作区状态；
+- 硬件、软件版本、训练配置和启动命令；
+- 数据集、预训练权重及其准备方式；
+- 基线精度、性能、显存和稳定性结果；
+- 待优化入口的参数、返回值、Tensor 形状、数据类型、设备及梯度契约。
 
-模型基线仓库应保持干净。优化实现与模型基线分离维护，确保每项代码变更、Optimization Group 和验证结果可以对应。
+后续数值、训练和性能验证应使用同一基线与测试条件。
+基线确认后，再创建与模型源码分离的优化开发工程。
 
 ## 2. 创建外部工程
+
+使用 `optimization init` 在 TurboPhysAI 仓库外创建独立的优化开发与测试工程：
 
 ```bash
 turbo-physai optimization init customer_model \
@@ -36,173 +36,67 @@ python -m pip install -e .
 
 ```text
 customer_model_optimization/
-├── README.md
-├── pyproject.toml
+├── README.md                         # 开发说明
+├── pyproject.toml                    # Python 包配置
 ├── customer_model_optimization/
 │   ├── __init__.py
-│   ├── catalog.py
-│   └── replacements.py
+│   ├── catalog.py                    # 声明 Optimization Group
+│   └── replacements.py               # 实现 Replacement
 ├── configs/
-│   └── recipe.yaml
+│   └── recipe.yaml                   # 选择生成配置所需的 Group
 └── tests/
-    └── test_catalog.py
+    └── test_catalog.py               # Catalog 导入与优化单元测试
 ```
 
-Catalog 只声明 Group、目标和 Replacement。Torch、HCU、hipDNN、LightOp 和模型依赖由 Replacement 实现及交付环境提供，不在 Catalog 导入阶段初始化运行时资源。
+该工程分别保存优化实现、优化声明、配置配方和测试。完成初始化后，即可根据第一步确定的目标入口实现优化。
 
-## 3. 建立优化映射
+## 3. 实现与声明优化
 
-每项修改至少记录：
+在 `replacements.py` 中实现优化对象，并保持原目标的参数、返回值、Tensor 形状、数据类型、设备和梯度契约。在 `catalog.py` 中使用 `replace` 或 `wrap` 关联目标入口与 Replacement，再使用 `group` 将共同构成一项完整优化的成员组织为 Optimization Group。
 
-| 项目 | 内容 |
-| --- | --- |
-| 原始入口 | 完整 Python target 路径 |
-| Replacement | 完整 Python 路径 |
-| 外部契约 | 参数、返回值、shape、dtype、device 和梯度 |
-| aliases | 其他模块已保存的同一原对象引用 |
-| 功能边界 | 缺少哪些成员会使优化不完整 |
-| 运行要求 | 环境变量、原生扩展、编译缓存和启动顺序 |
-| 验证证据 | 单元、模型、性能和报告结果 |
+每个 Group 应具有清晰的功能边界，并能够独立检查、应用和回滚。目标对象存在其他导入路径时声明 Alias；优化只适用于部分运行时输入时声明运行条件。实现和声明完成后，应在 `tests/` 中增加对应的导入、数值及必要的梯度测试。
 
-公共优化面向与具体模型上下文无关、入口稳定且能够独立验证的算子替换。模型 Forward、数据链路、张量布局、编译区域和训练过程优化归入模型专用优化。
+接口、参数和真实示例见[定义优化与组织优化组](optimization_declarations.md)；涉及原生算子时参见[自定义算子接入](custom_operator.md)。完成声明后，将需要交付的 Group ID 写入 `configs/recipe.yaml`，进入配置生成阶段。
 
-## 4. 实现 Replacement
+## 4. 生成配置
 
-完整替换使用具名函数或类，并保持原目标的参数、返回值、shape、dtype、device 和梯度契约。
-
-以下代码节选自仓库中的 MMDetection3D Gaussian 公共优化：
-
-```python
-def gaussian_2d(shape, sigma=1, device=None, dtype=None):
-    import torch
-
-    if dtype is None:
-        dtype = torch.float32
-    middle_y, middle_x = [(size - 1.0) / 2.0 for size in shape]
-    y = torch.arange(
-        -middle_y, middle_y + 1, device=device, dtype=dtype
-    ).unsqueeze(1)
-    x = torch.arange(
-        -middle_x, middle_x + 1, device=device, dtype=dtype
-    ).unsqueeze(0)
-    heatmap = torch.exp(-(x.square() + y.square()) / (2 * sigma * sigma))
-    return torch.where(
-        heatmap < torch.finfo(heatmap.dtype).eps * heatmap.max(),
-        0,
-        heatmap,
-    )
-```
-
-该实现保持原有调用方式和返回值形式，将坐标与 Gaussian 计算直接放在输入 Tensor 所在设备执行。对应声明见
-[`turbo_physai/optimizations/common/mmdet3d/catalog.py`](../../../turbo_physai/optimizations/common/mmdet3d/catalog.py)，实现见
-[`turbo_physai/optimizations/common/mmdet3d/gaussian.py`](../../../turbo_physai/optimizations/common/mmdet3d/gaussian.py)。
-
-Replacement 调用的底层接口与原目标参数不一致时，由 Replacement 完成参数适配，但不得丢弃底层实现实际需要的参数。适配后仍需保持原目标的外部调用契约，并通过数值与梯度测试证明一致性。
-
-不要捕获优化异常后静默调用原实现。运行错误应直接暴露具名 Replacement 的 Python Traceback。若公共优化只支持部分输入，可显式声明 `runtime_condition`；条件为 `False` 时调用原实现，条件函数或 Replacement 抛出的异常仍直接向上传播。
-
-## 5. 声明原子优化
-
-开发者只声明“替换谁、由谁替换、哪些成员属于一项优化”：
-
-```python
-from turbo_physai import group, replace
-
-
-ENCODER = group(
-    "customer.encoder",
-    replace(
-        target="customer_model.encoder.Encoder.forward",
-        replacement=(
-            "customer_model_optimization.replacements.optimized_forward"
-        ),
-    ),
-)
-```
-
-如果缺少任一成员就会导致功能不正确或不完整，这些成员必须属于同一 Group。详细规则见 [定义优化与组织优化组](optimization_declarations.md)。
-
-框架对每个 Group 执行统一的 target、Replacement、alias、签名和 Hash 基础检查。只有优化存在额外的依赖版本、模型 commit 或实现约束时，开发者才需要为 Group 增加 `compatibility_check`。输入 shape、Tensor layout 等随调用变化的条件使用 `runtime_condition`，不要写入启动期兼容条件。
-
-## 6. 选择 Group 并生成最终 YAML
-
-最小配方只维护 OptimizationConfig 身份、外部 Catalog、公共基础 OptimizationConfig 和选中的 Group：
-
-```yaml
-schema_version: turbophysai/optimization-config/v1
-kind: OptimizationConfig
-metadata:
-  id: model.customer.development.hcu
-  version: "0.1.0"
-model:
-  name: CustomerModel
-optimization_modules:
-  - customer_model_optimization.catalog
-extends:
-  - common.hcu.base
-compatibility: {}
-optimization_groups:
-  - id: customer.encoder
-    enabled: true
-```
-
-在干净模型仓库上生成最终 OptimizationConfig：
+Recipe 记录需要启用的 Group，并可继承公共基础优化。在干净的模型仓库和确定的接入 commit 上执行：
 
 ```bash
 turbo-physai optimization generate \
   --recipe configs/recipe.yaml \
-  --repo /path/to/CustomerModel \
+  --repo /path/to/model/repository \
   --commit <validated_commit> \
   --output configs/optimization.yaml
 ```
 
-Generator 在写出 OptimizationConfig 前检查 Group 依赖、目标重叠和公共 Replacement 引用。检查失败时，应修改 Group 边界、配方选择或 Replacement 后重新生成配置。
+生成过程会加载 Catalog，展开 Group 依赖，检查目标冲突和 Replacement 引用，并将目标源码证据写入 OptimizationConfig。优化需要环境变量或 NUMA 设置时，在同一 `configs/` 目录增加 RuntimeConfig；不存在额外启动要求时无需创建该文件。
 
-## 7. 配置训练运行环境
+配置生成规则见[生成和检查 OptimizationConfig](optimization_config_generation.md)，运行环境字段见[RuntimeConfig 使用指南](../user_guide/runtime_config.md)。生成的配置与第二步建立的测试工程共同进入验证阶段。
 
-OptimizationConfig 只描述代码优化。优化依赖环境变量、NUMA 绑定或其他训练进程启动设置时，应另外维护 RuntimeConfig：
+## 5. 验证
 
-```text
-configs/
-├── recipe.yaml
-├── optimization.yaml
-└── runtime.yaml
-```
-
-RuntimeConfig 不是所有优化工程的必需文件。不存在额外启动要求时，可以只交付 OptimizationConfig。字段与覆盖规则见 [RuntimeConfig 使用指南](../user_guide/runtime_config.md)。
-
-使用两个配置验证原训练入口：
+先执行 Replacement 单元测试，再分别验证单个 Group 和完整 OptimizationConfig。切换到模型仓库，使用外部工程生成的配置启动原训练入口：
 
 ```bash
+cd /path/to/model/repository
 turbo-physai run \
-  --optimization-config configs/optimization.yaml \
-  --runtime-config configs/runtime.yaml \
+  --optimization-config \
+    /path/to/customer_model_optimization/configs/optimization.yaml \
+  --runtime-config \
+    /path/to/customer_model_optimization/configs/runtime.yaml \
   -- \
   python tools/train.py <原训练参数>
 ```
 
-内置模型使用 `turbo-physai run --model <model>` 时，Runner 自动选择随包交付的 OptimizationConfig 和 RuntimeConfig。
+未使用 RuntimeConfig 时，删除对应参数。数值、梯度、训练稳定性、精度、性能和显存应与第一步记录的基线在相同条件下比较。验证过程形成测试结果、训练记录、性能数据和 OptimizationReport，作为后续评审依据。
 
-## 8. 分级验证
+验收要求见[优化验证与交付](validation.md)，报告字段见[优化应用报告](../user_guide/report.md)。
 
-按照以下顺序进行：
+## 6. 提交评审
 
-![优化从单元测试到交付验收的分级验证链路](../../assets/optimization-validation-flow.svg)
+提交内容包括 Replacement、Catalog、Recipe、生成后的配置、接入 commit、测试结果、训练与性能记录、OptimizationReport 以及必要的使用说明。
 
-详细要求见[优化验证与交付](validation.md)。OptimizationReport 中的 `applied` 只能证明 Group 已成功安装，不能代替数值、精度和性能验收。
+与具体模型上下文无关且入口稳定的能力迁入 `turbo_physai/optimizations/common/`；依赖模型结构、数据链路或训练过程的能力迁入 `turbo_physai/optimizations/models/<model>/`。合入时同步维护测试、模型应用说明和支持清单。
 
-## 9. 提交评审
-
-提交材料应包含：
-
-- 外部开发工程或变更文件；
-- Group、成员、target 和功能边界表；
-- 公共或模型专用分类；
-- 最终 OptimizationConfig、适用的 RuntimeConfig 和支持 commit；
-- 实际执行的测试；
-- 数值、梯度、性能和显存证据；
-- 环境和启动命令；
-- 最终 OptimizationReport；
-- 已知限制和框架缺口。
-
-通过评审后，模型优化迁入 `turbo_physai/optimizations/models/<model>/`；被接受的公共优化进入 `turbo_physai/optimizations/common/<framework>/`，并补充独立算子测试和文档。
+提交和评审要求见[贡献指南](../../../CONTRIBUTING.md)。
