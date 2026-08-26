@@ -215,9 +215,9 @@ def test_run_cli_passes_torchrun_command_through_unchanged(tmp_path):
         result = cli_main([
             "run", "--optimization-config", str(_PACKAGED_CONFIG),
             "--runtime-config", str(runtime_path),
-            "--force-group", "customer.encoder",
-            "--disable-group", "customer.compile", "customer.training",
-            "--", "torchrun", "--nproc-per-node=2", "tools/train.py", "config.py",
+            "--force-group", "mmcv.msda",
+            "--disable-group", "mmdet3d.gaussian,mmdet3d.bev_pool",
+            "torchrun", "--nproc-per-node=2", "tools/train.py", "config.py",
         ])
     command, environment = launch.call_args.args
     assert result == 17
@@ -228,13 +228,55 @@ def test_run_cli_passes_torchrun_command_through_unchanged(tmp_path):
     assert environment["TURBO_PHYSAI_BOOTSTRAP"] == "1"
     assert environment["PYTHONPATH"].split(os.pathsep)[0] == str(SITE_DIR)
     assert environment["TURBO_PHYSAI_OPTIMIZATION_CONFIG"] == str(_PACKAGED_CONFIG)
-    assert environment["TURBO_PHYSAI_FORCE_GROUPS"] == "customer.encoder"
+    assert environment["TURBO_PHYSAI_FORCE_GROUPS"] == "mmcv.msda"
     assert environment["TURBO_PHYSAI_DISABLE_GROUPS"] == os.pathsep.join(
-        ("customer.compile", "customer.training")
+        ("mmdet3d.gaussian", "mmdet3d.bev_pool")
     )
     assert json.loads(environment["TURBO_PHYSAI_RANK_AFFINITY"]) == {"0": "0-1"}
     assert json.loads(environment["TURBO_PHYSAI_RANK_NUMA"]) == {"0": 0}
     assert environment["TURBO_PHYSAI_NUMA_AUTO"] == "1"
+
+
+def test_run_cli_rejects_invalid_group_lists_before_launch(capsys):
+    for value, message in (
+        ("mmdet3d.gaussian,,mmdet3d.bev_pool", "non-empty Group IDs"),
+        ("mmdet3d.gaussian,mmdet3d.gaussian", "duplicate Group ID"),
+        ("mmdet3d.gaussian,missing.group", "unknown Optimization Groups"),
+    ):
+        with patch("turbo_physai.cli._run_training_command") as launch:
+            assert cli_main([
+                "run", "--optimization-config", str(_PACKAGED_CONFIG),
+                "--disable-group", value,
+                "python", "tools/train.py",
+            ]) == 2
+        assert message in capsys.readouterr().err
+        launch.assert_not_called()
+
+
+def test_run_cli_reports_a_missing_group_separator(capsys):
+    with patch("turbo_physai.cli._run_training_command") as launch:
+        assert cli_main([
+            "run", "--optimization-config", str(_PACKAGED_CONFIG),
+            "--disable-group", "mmcv.msda",
+            "mmdet3d.gaussian", "torchrun", "tools/train.py",
+        ]) == 2
+    assert "separate multiple Group IDs with commas" in capsys.readouterr().err
+    launch.assert_not_called()
+
+
+def test_run_cli_group_validation_does_not_import_optimization_modules():
+    with (
+        patch("turbo_physai.cli._run_training_command", return_value=0),
+        patch(
+            "turbo_physai.engine.config.loader.importlib.import_module"
+        ) as import_module,
+    ):
+        assert cli_main([
+            "run", "--optimization-config", str(_PACKAGED_CONFIG),
+            "--disable-group", "mmdet3d.gaussian",
+            "python", "tools/train.py",
+        ]) == 0
+    import_module.assert_not_called()
 
 
 def test_run_cli_disables_all_numa_binding(tmp_path):

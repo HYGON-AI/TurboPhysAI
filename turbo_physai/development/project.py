@@ -58,7 +58,6 @@ turbo-physai optimization generate \\
 ```bash
 turbo-physai run \
   --optimization-config configs/optimization.yaml \
-  -- \
   python tools/train.py <原训练参数>
 ```
 

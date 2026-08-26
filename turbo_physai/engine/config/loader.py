@@ -203,22 +203,31 @@ def load_optimization_config(
     optimization_config_path: Optional[os.PathLike] = None,
     *,
     catalog: Optional[OptimizationConfigCatalog] = None,
+    import_modules: bool = True,
 ) -> OptimizationConfig:
     config = _load_yaml(resolve_optimization_config_path(optimization_config_path))
-    return resolve_optimization_config(config, catalog=catalog)
+    return resolve_optimization_config(
+        config,
+        catalog=catalog,
+        import_modules=import_modules,
+    )
 
 
 def resolve_optimization_config(
-    config: OptimizationConfig, *, catalog: Optional[OptimizationConfigCatalog] = None
+    config: OptimizationConfig,
+    *,
+    catalog: Optional[OptimizationConfigCatalog] = None,
+    import_modules: bool = True,
 ) -> OptimizationConfig:
     resolved = _resolve_extends(
         config, catalog or OptimizationConfigCatalog.from_builtin_files(), (config.metadata.id,)
     )
-    for module_name in resolved.optimization_modules:
-        try:
-            importlib.import_module(module_name)
-        except Exception as exc:
-            raise OptimizationConfigError(
-                f"failed to import optimization module {module_name}: {exc}"
-            ) from exc
+    if import_modules:
+        for module_name in resolved.optimization_modules:
+            try:
+                importlib.import_module(module_name)
+            except Exception as exc:
+                raise OptimizationConfigError(
+                    f"failed to import optimization module {module_name}: {exc}"
+                ) from exc
     return resolved

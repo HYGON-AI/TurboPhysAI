@@ -34,7 +34,7 @@ def _run_training_command(command, environment) -> int:
     """
 
     if not command:
-        raise TurboPhysAIError("a training command is required after --")
+        raise TurboPhysAIError("a training command is required")
     try:
         os.execvpe(command[0], list(command), environment)
     except OSError as exc:
@@ -101,25 +101,23 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--report-dir", default="turbophysai_reports")
     run.add_argument(
         "--force-group",
-        nargs="+",
-        action="extend",
+        action="append",
         default=[],
-        metavar="GROUP_ID",
-        help="force overrideable checks for one or more Groups in the current run",
+        metavar="GROUP_ID[,GROUP_ID...]",
+        help="force overrideable checks for a comma-separated Group list",
     )
     run.add_argument(
         "--disable-group",
-        nargs="+",
-        action="extend",
+        action="append",
         default=[],
-        metavar="GROUP_ID",
-        help="disable one or more Groups in the current run",
+        metavar="GROUP_ID[,GROUP_ID...]",
+        help="disable a comma-separated Group list in the current run",
     )
     run.add_argument("--set", action="append", default=[], metavar="NAME=VALUE")
     run.add_argument(
         "--disable-numa", action="store_true", help="disable configured NUMA binding"
     )
-    run.add_argument("command", nargs=argparse.REMAINDER, help="command after --")
+    run.add_argument("command", nargs=argparse.REMAINDER, help="training command")
     return parser
 
 
@@ -131,6 +129,67 @@ def _assignments(values, option):
             raise TurboPhysAIError(f"{option} expects NAME=VALUE, got {value!r}")
         result[name] = setting
     return result
+
+
+def _group_ids(values, option):
+    result = []
+    seen = set()
+    for value in values:
+        parts = [part.strip() for part in value.split(",")]
+        if not parts or any(not part for part in parts):
+            raise TurboPhysAIError(
+                f"{option} expects a comma-separated list of non-empty Group IDs, "
+                f"got {value!r}"
+            )
+        for group_id in parts:
+            if group_id in seen:
+                raise TurboPhysAIError(
+                    f"{option} contains duplicate Group ID: {group_id}"
+                )
+            seen.add(group_id)
+            result.append(group_id)
+    return result
+
+
+def _validate_run_groups(optimization_config_path, force_groups, disable_groups, command):
+    config = load_optimization_config(
+        optimization_config_path,
+        import_modules=False,
+    )
+    all_ids = {entry.id for entry in config.optimization_groups}
+    enabled_ids = {
+        entry.id for entry in config.optimization_groups if entry.enabled
+    }
+
+    if command and command[0] in all_ids:
+        raise TurboPhysAIError(
+            f"{command[0]!r} is an Optimization Group, not a training command; "
+            "separate multiple Group IDs with commas"
+        )
+
+    for option, group_ids in (
+        ("--force-group", force_groups),
+        ("--disable-group", disable_groups),
+    ):
+        unknown = [group_id for group_id in group_ids if group_id not in all_ids]
+        if unknown:
+            raise TurboPhysAIError(
+                f"{option} references unknown Optimization Groups: "
+                + ", ".join(unknown)
+            )
+        disabled = [group_id for group_id in group_ids if group_id not in enabled_ids]
+        if disabled:
+            raise TurboPhysAIError(
+                f"{option} must reference enabled Optimization Groups: "
+                + ", ".join(disabled)
+            )
+
+    overlap = sorted(set(force_groups) & set(disable_groups))
+    if overlap:
+        raise TurboPhysAIError(
+            "Optimization Groups cannot be both forced and disabled: "
+            + ", ".join(overlap)
+        )
 
 
 def _resolve_run_configs(model, optimization_config, runtime_config):
@@ -276,7 +335,15 @@ def main(argv=None) -> int:
             if command[:1] == ["--"]:
                 command = command[1:]
             if not command:
-                raise TurboPhysAIError("a training command is required after --")
+                raise TurboPhysAIError("a training command is required")
+            force_groups = _group_ids(args.force_group, "--force-group")
+            disable_groups = _group_ids(args.disable_group, "--disable-group")
+            _validate_run_groups(
+                optimization_config_path,
+                force_groups,
+                disable_groups,
+                command,
+            )
             isolated = isolation_flags(command)
             if isolated:
                 raise TurboPhysAIError(
@@ -288,8 +355,8 @@ def main(argv=None) -> int:
                 environment,
                 optimization_config=str(optimization_config_path),
                 report_dir=args.report_dir,
-                force_groups=tuple(args.force_group),
-                disable_groups=tuple(args.disable_group),
+                force_groups=tuple(force_groups),
+                disable_groups=tuple(disable_groups),
             )
 
             return _run_training_command(command, environment)
