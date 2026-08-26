@@ -137,7 +137,6 @@ cd /workspace/model/BEVFusion
 
 turbo-physai run \
   --model bevfusion \
-  --report-dir ./turbophysai_reports/train-8p \
   torchpack dist-run -np 8 \
   python tools/train.py \
     configs/nuscenes/det/transfusion/secfpn/camera+lidar/swint_v0p075/convfuser.yaml \

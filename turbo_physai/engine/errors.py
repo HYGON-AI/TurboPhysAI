@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 
 class TurboPhysAIError(RuntimeError):
@@ -36,11 +36,3 @@ class OptimizationExecutionError(ReportCarryingError):
 
 class OptimizationRollbackError(OptimizationExecutionError):
     pass
-
-
-class ReportWriteError(ReportCarryingError):
-    def __init__(
-        self, message: str, *, report: Any = None, cause: Optional[BaseException] = None
-    ) -> None:
-        super().__init__(message, report=report)
-        self.__cause__ = cause

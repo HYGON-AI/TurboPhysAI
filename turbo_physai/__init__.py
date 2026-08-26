@@ -24,7 +24,6 @@ OptimizationRollbackError = _errors.OptimizationRollbackError
 OptimizationConfigNotFoundError = _errors.OptimizationConfigNotFoundError
 OptimizationConfigError = _errors.OptimizationConfigError
 RuntimeConfigError = _errors.RuntimeConfigError
-ReportWriteError = _errors.ReportWriteError
 
 
 def apply(*args: Any, **kwargs: Any):
@@ -83,7 +82,6 @@ __all__ = [
     "OptimizationConfigNotFoundError",
     "OptimizationConfigError",
     "RuntimeConfigError",
-    "ReportWriteError",
     "group",
     "replace",
     "replace_import",

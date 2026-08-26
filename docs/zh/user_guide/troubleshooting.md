@@ -1,6 +1,8 @@
 # 问题排查
 
-问题排查应先保留完整启动命令、终端输出和 OptimizationReport。报告中的 `Configuration Checks`、`Preparation` 和 `Execution` 分别对应配置级检查、Group 应用决策和实际执行结果。
+问题排查应先保留完整启动命令和终端输出，并使用 `--log-report` 输出
+OptimizationReport。报告中的 `Configuration Checks`、`Preparation` 和 `Execution`
+分别对应配置级检查、Group 应用决策和实际执行结果。
 
 ## 1. 找不到内置模型或配置文件
 
@@ -23,7 +25,7 @@ RuntimeConfig not found: ...
 
 ## 2. Group 未应用
 
-Runner 完成每个 rank 的优化处理后会输出：
+使用 `--log-report` 时，Runner 完成每个 rank 的优化处理后会输出：
 
 ```text
 TURBO_PHYSAI_OPTIMIZATION_COMPLETED rank=<rank> applied=... blocked=... failed=...
@@ -91,8 +93,8 @@ turbo-physai run --disable-numa <training-command>
 
 ## 6. 训练进程未加载优化
 
-训练已经启动，但没有输出 `TURBO_PHYSAI_OPTIMIZATION_COMPLETED`，或报告中没有预期的
-训练 rank 时，按以下顺序检查：
+使用 `--log-report` 后仍没有输出 `TURBO_PHYSAI_OPTIMIZATION_COMPLETED`，或报告中没有
+预期的训练 rank 时，按以下顺序检查：
 
 1. 确认启动格式为 `turbo-physai run [参数] <原训练命令>`；
 2. 确认启动链路最终创建 Python 训练进程，而不是只执行非 Python 程序；
@@ -138,13 +140,18 @@ turbo-physai run \
 
 修改后必须重新验证数据加载正确性、首批耗时和稳定性能。
 
-## 10. 非 Rank 0 没有报告文件
+## 10. 查看分布式应用结果
 
-这是预期行为。每个 rank 都会完成自身的检查和应用，但仅 Rank 0 写入 JSON 和 Markdown 报告。当前报告不聚合其他 rank 的运行结果，应结合各 rank 的 `TURBO_PHYSAI_OPTIMIZATION_COMPLETED` 输出确认启动状态。
+指定 `--log-report` 后，Rank 0 在训练日志中输出以
+`TURBO_PHYSAI_OPTIMIZATION_REPORT_BEGIN` 和
+`TURBO_PHYSAI_OPTIMIZATION_REPORT_END` 界定的完整报告。其他 rank 输出
+`TURBO_PHYSAI_OPTIMIZATION_COMPLETED` 摘要。同一次启动的输出共享 Run ID，
+可用于核对各 rank 的应用结果。
 
 ## 11. 回滚失败
 
-回滚失败表示框架无法确认 Group 已恢复到快照状态。此时进程中的 Python 对象状态不可继续信任，框架会停止后续 Group、写入报告并抛出 `OptimizationRollbackError`。
+回滚失败表示框架无法确认 Group 已恢复到快照状态。此时进程中的 Python 对象状态不可继续信任，框架会停止后续 Group 并抛出 `OptimizationRollbackError`；启用
+`--log-report` 时，异常前会输出本次报告。
 
 处理步骤：
 

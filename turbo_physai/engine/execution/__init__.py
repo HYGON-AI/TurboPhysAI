@@ -4,12 +4,12 @@
 """Transactional optimization execution and reporting."""
 
 from .executor import ExecutionOutcome, Executor
-from .report import build_report, report_paths, write_report
+from .report import build_report, emit_report, format_report
 
 __all__ = [
     "ExecutionOutcome",
     "Executor",
     "build_report",
-    "report_paths",
-    "write_report",
+    "emit_report",
+    "format_report",
 ]

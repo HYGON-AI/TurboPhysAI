@@ -133,7 +133,6 @@ cd /workspace/model/BEVFormer
 
 turbo-physai run \
   --model bevformer \
-  --report-dir ./turbophysai_reports/train-8p \
   torchrun --nproc-per-node=8 tools/train.py \
     ./projects/configs/bevformer/bevformer_base.py \
     --launcher pytorch

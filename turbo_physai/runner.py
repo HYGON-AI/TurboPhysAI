@@ -40,9 +40,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--module", help="Run this module as __main__ instead of a script")
     parser.add_argument(
-        "--report-dir",
-        default=os.environ.get("TURBO_PHYSAI_REPORT_DIR", "turbophysai_reports"),
-        help="OptimizationReport directory (default: turbophysai_reports)",
+        "--log-report",
+        action="store_true",
+        help="write the OptimizationReport to the training log",
     )
     parser.add_argument(
         "--force-group",
@@ -74,7 +74,7 @@ def run(
     script_args: Sequence[str],
     *,
     optimization_config_path: str | None = None,
-    report_dir: str = "turbophysai_reports",
+    log_report: bool = False,
     force_groups: Sequence[str] = (),
     disable_groups: Sequence[str] = (),
     apply_optimization: Callable[..., object] = apply,
@@ -90,11 +90,12 @@ def run(
 
     report = apply_optimization(
         optimization_config_path=optimization_config_path,
-        report_dir=report_dir,
+        log_report=log_report,
         force_groups=list(force_groups),
         disable_groups=list(disable_groups),
     )
-    _print_optimization_result(report)
+    if log_report:
+        _print_optimization_result(report)
 
     sys.argv = [str(target), *script_args]
     sys.path[0] = str(target.parent)
@@ -124,9 +125,11 @@ def _set_rank_affinity() -> None:
 
 
 def _print_optimization_result(report: object) -> None:
-    """Print the actual outcome without implying every Group applied."""
+    """Print a concise outcome for nonzero ranks."""
 
     rank = os.environ.get("RANK", os.environ.get("LOCAL_RANK", "0"))
+    if rank == "0":
+        return
     summary = getattr(report, "summary", {})
     fields = (
         "applied",
@@ -243,11 +246,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         _set_rank_affinity()
         report = apply(
             optimization_config_path=args.optimization_config,
-            report_dir=args.report_dir,
+            log_report=args.log_report,
             force_groups=list(args.force_group),
             disable_groups=list(args.disable_group),
         )
-        _print_optimization_result(report)
+        if args.log_report:
+            _print_optimization_result(report)
         sys.argv = [args.module, *command]
         runpy.run_module(args.module, run_name="__main__", alter_sys=True)
         return 0
@@ -257,7 +261,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         command[0],
         command[1:],
         optimization_config_path=args.optimization_config,
-        report_dir=args.report_dir,
+        log_report=args.log_report,
         force_groups=list(args.force_group),
         disable_groups=list(args.disable_group),
     )

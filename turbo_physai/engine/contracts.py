@@ -387,12 +387,6 @@ class GroupExecutionResult:
 
 
 @dataclass(frozen=True)
-class ReportArtifacts:
-    json_path: Optional[str] = None
-    markdown_path: Optional[str] = None
-
-
-@dataclass(frozen=True)
 class OptimizationReport:
     run_id: str
     optimization_config: FrozenDict
@@ -401,7 +395,6 @@ class OptimizationReport:
     summary: FrozenDict
     optimization_config_path: Optional[str] = None
     runtime_config_path: Optional[str] = None
-    artifacts: ReportArtifacts = field(default_factory=ReportArtifacts)
     schema_version: str = REPORT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:

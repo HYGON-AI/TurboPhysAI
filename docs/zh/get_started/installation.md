@@ -85,7 +85,7 @@ turbo-physai --help
 python -m pip uninstall turbo_physai
 ```
 
-卸载 TurboPhysAI 不会删除模型文件、数据集、PyTorch 编译缓存或用户生成的 `turbophysai_reports/`。
+卸载 TurboPhysAI 不会删除模型文件、数据集或 PyTorch 编译缓存。
 
 ## 下一步
 

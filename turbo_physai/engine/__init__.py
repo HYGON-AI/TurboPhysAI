@@ -26,7 +26,6 @@ from .contracts import (
     OptimizationConfig,
     OptimizationReport,
     PreparedGroup,
-    ReportArtifacts,
     PreparedExecution,
 )
 from .checking.ordering import Preparation
@@ -41,7 +40,7 @@ from .definitions import (
     wrap,
 )
 from .definitions.registry import Registry, default_registry as _default_registry
-from .execution.report import build_report, report_paths, write_report
+from .execution.report import build_report, emit_report
 from .execution.replacements import default_handlers
 from .config.loader import OptimizationConfigCatalog, load_optimization_config, resolve_optimization_config_path
 
@@ -411,18 +410,19 @@ def apply(
     *,
     optimization_config_path: Optional[PathLike] = None,
     model: Optional[str] = None,
-    report_dir: PathLike = "turbophysai_reports",
+    log_report: bool = False,
     registry: Optional[Registry] = None,
     catalog: Optional[OptimizationConfigCatalog] = None,
     force_groups: Sequence[str] = (),
     disable_groups: Sequence[str] = (),
 ) -> OptimizationReport:
-    """Apply one OptimizationConfig during process startup and write its report.
+    """Apply one OptimizationConfig during process startup and report its result.
 
     Call this entry point once per process, before importing the target model.
     ``model`` selects a packaged model OptimizationConfig when no explicit path is
-    provided. ``disable_groups`` skips the named Groups and their dependents for
-    this call only.
+    provided. ``log_report`` writes the complete OptimizationReport to standard
+    output on rank 0. ``disable_groups`` skips the named Groups and their
+    dependents for this call only.
     Repeated application and in-process retry are intentionally unsupported.
     Blocked or successfully rolled-back Groups are isolated together with their
     dependents; unrelated Groups continue.  A rollback failure is terminal.
@@ -447,11 +447,6 @@ def apply(
         disable_groups=disable_groups,
         restore_imports=False,
     )
-    artifacts = (
-        report_paths(Path(report_dir), prepared_execution.run_id)
-        if prepared_execution.environment.rank == 0
-        else ReportArtifacts()
-    )
     regular_outcome: ExecutionOutcome = Executor().execute(
         regular_prepared, prepared_groups=prepared_groups
     )
@@ -464,18 +459,15 @@ def apply(
         for entry in config.optimization_groups
         if entry.id in results_by_id
     )
-    report = write_report(
-        build_report(
-            config,
-            prepared_execution,
-            execution,
-            optimization_config_path=str(resolved_config_path),
-            runtime_config_path=os.environ.get(
-                "TURBO_PHYSAI_RUNTIME_CONFIG_PATH"
-            ),
-            artifacts=artifacts,
-        )
+    report = build_report(
+        config,
+        prepared_execution,
+        execution,
+        optimization_config_path=str(resolved_config_path),
+        runtime_config_path=os.environ.get("TURBO_PHYSAI_RUNTIME_CONFIG_PATH"),
     )
+    if log_report and prepared_execution.environment.rank == 0:
+        emit_report(report)
     terminal_error = compatibility_outcome.terminal_error or regular_outcome.terminal_error
     if terminal_error:
         raise OptimizationRollbackError(terminal_error, report=report)

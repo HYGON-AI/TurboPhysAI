@@ -154,11 +154,13 @@ import turbo_physai
 report = turbo_physai.apply(
     model="bevformer",
     disable_groups=["bevformer.compile", "bevformer.grid_mask"],
-    report_dir="./turbophysai_reports",
+    log_report=True,
 )
 ```
 
 每个训练进程只能调用一次 `apply()`，且应在导入目标模型前执行。多进程训练推荐使用 `turbo-physai run`，由 Runner 在每个训练 rank 中完成调用。
+`log_report` 默认值为 `False`；设为 `True` 时，Rank 0 将 OptimizationReport 输出到标准日志。
+该参数不影响报告对象的返回值，也不改变优化检查和应用行为。
 
 配置选择顺序如下：
 

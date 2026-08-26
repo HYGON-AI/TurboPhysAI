@@ -98,7 +98,11 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     run.add_argument("--runtime-config", help="RuntimeConfig YAML")
-    run.add_argument("--report-dir", default="turbophysai_reports")
+    run.add_argument(
+        "--log-report",
+        action="store_true",
+        help="write the OptimizationReport to the training log",
+    )
     run.add_argument(
         "--force-group",
         action="append",
@@ -354,7 +358,7 @@ def main(argv=None) -> int:
             environment = bootstrap_environment(
                 environment,
                 optimization_config=str(optimization_config_path),
-                report_dir=args.report_dir,
+                log_report=args.log_report,
                 force_groups=tuple(force_groups),
                 disable_groups=tuple(disable_groups),
             )

@@ -1,13 +1,14 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 
-import json
+import io
 import sys
 import tempfile
 import textwrap
 import types
 import unittest
 from pathlib import Path
+from contextlib import redirect_stdout
 
 import turbo_physai
 import turbo_physai.engine as engine_module
@@ -228,44 +229,55 @@ class EngineExecutorTest(unittest.TestCase):
                     disable_groups=["demo.group"],
                 )
 
-    def test_apply_changes_target_and_writes_report(self):
+    def test_apply_changes_target_and_emits_report_when_enabled(self):
         registry = self.registry()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             optimization_config_path = root / "config.yaml"
             write_optimization_config(optimization_config_path)
-            report = turbo_physai.apply(
-                optimization_config_path=optimization_config_path,
-                registry=registry,
-                report_dir=root / "reports",
-            )
+            output = io.StringIO()
+            with redirect_stdout(output):
+                report = turbo_physai.apply(
+                    optimization_config_path=optimization_config_path,
+                    log_report=True,
+                    registry=registry,
+                )
             self.assertEqual(self.module.original(2), 9)
             self.assertEqual(self.module.alias(2), 9)
             self.assertEqual(report.execution[0].status, ExecutionStatus.APPLIED)
-            self.assertTrue(Path(report.artifacts.json_path).is_file())
-            payload = json.loads(
-                Path(report.artifacts.json_path).read_text(encoding="utf-8")
-            )
-            self.assertEqual(payload["summary"]["applied"], 1)
-            self.assertEqual(
-                payload["optimization_config"]["metadata"]["id"], "demo"
-            )
-            self.assertNotIn("model_optimization_config", payload)
-            self.assertEqual(
-                payload["optimization_config_path"], str(optimization_config_path.resolve())
-            )
-            self.assertNotIn("model_optimization_config_path", payload)
-            self.assertIsNone(payload["runtime_config_path"])
-            self.assertNotIn("mode", payload["prepared_execution"])
-            markdown = Path(report.artifacts.markdown_path).read_text(encoding="utf-8")
-            self.assertNotIn("- Mode:", markdown)
-            self.assertIn("- OptimizationConfig: `demo` `1`", markdown)
+            log = output.getvalue()
             self.assertIn(
-                f"- OptimizationConfig path: `{optimization_config_path.resolve()}`", markdown
+                f"TURBO_PHYSAI_OPTIMIZATION_REPORT_BEGIN run_id={report.run_id}",
+                log,
             )
-            self.assertIn("## Configuration Checks", markdown)
-            self.assertIn("OptimizationConfig path", markdown)
-            self.assertIn("- RuntimeConfig path: not used", markdown)
+            self.assertIn("OptimizationConfig: demo 1", log)
+            self.assertIn(
+                f"OptimizationConfig path: {optimization_config_path.resolve()}",
+                log,
+            )
+            self.assertIn("RuntimeConfig path: not used", log)
+            self.assertIn("Summary: applied=1", log)
+            self.assertIn("Preparation:", log)
+            self.assertIn("Execution:", log)
+            self.assertIn(
+                f"TURBO_PHYSAI_OPTIMIZATION_REPORT_END run_id={report.run_id}",
+                log,
+            )
+
+    def test_apply_does_not_log_report_by_default(self):
+        registry = self.registry()
+        with tempfile.TemporaryDirectory() as directory:
+            optimization_config_path = Path(directory) / "config.yaml"
+            write_optimization_config(optimization_config_path)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                report = turbo_physai.apply(
+                    optimization_config_path=optimization_config_path,
+                    registry=registry,
+                )
+
+        self.assertEqual(report.execution[0].status, ExecutionStatus.APPLIED)
+        self.assertEqual(output.getvalue(), "")
 
     def test_apply_installs_runtime_condition_dispatcher(self):
         registry = Registry()
@@ -289,7 +301,6 @@ class EngineExecutorTest(unittest.TestCase):
             report = turbo_physai.apply(
                 optimization_config_path=optimization_config_path,
                 registry=registry,
-                report_dir=root / "reports",
             )
         self.assertEqual(report.execution[0].status, ExecutionStatus.APPLIED)
         self.assertIs(self.module.original, self.module.alias)
@@ -322,7 +333,6 @@ class EngineExecutorTest(unittest.TestCase):
             turbo_physai.apply(
                 optimization_config_path=optimization_config_path,
                 registry=registry,
-                report_dir=root / "reports",
             )
         self.assertEqual(calls, ["demo.replacement"])
 
@@ -335,7 +345,6 @@ class EngineExecutorTest(unittest.TestCase):
             turbo_physai.apply(
                 optimization_config_path=optimization_config_path,
                 registry=registry,
-                report_dir=root / "first",
             )
             with self.assertRaisesRegex(
                 OptimizationConfigError, "only be called once per process"
@@ -343,11 +352,10 @@ class EngineExecutorTest(unittest.TestCase):
                 turbo_physai.apply(
                     optimization_config_path=optimization_config_path,
                     registry=registry,
-                    report_dir=root / "second",
                 )
         self.assertEqual(self.module.original(2), 9)
 
-    def test_block_writes_report_without_mutation(self):
+    def test_block_returns_report_without_mutation(self):
         registry = Registry()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -356,17 +364,14 @@ class EngineExecutorTest(unittest.TestCase):
             report = turbo_physai.apply(
                 optimization_config_path=optimization_config_path,
                 registry=registry,
-                report_dir=root / "reports",
             )
             self.assertEqual(report.summary["blocked"], 1)
-            self.assertTrue(Path(report.artifacts.json_path).is_file())
             with self.assertRaisesRegex(
                 OptimizationConfigError, "only be called once per process"
             ):
                 turbo_physai.apply(
                     optimization_config_path=optimization_config_path,
                     registry=registry,
-                    report_dir=root / "retry",
                 )
 
     def test_block_does_not_stop_independent_group(self):
@@ -388,7 +393,7 @@ class EngineExecutorTest(unittest.TestCase):
                 encoding="utf-8",
             )
             report = turbo_physai.apply(
-                optimization_config_path=optimization_config_path, registry=registry, report_dir=root
+                optimization_config_path=optimization_config_path, registry=registry
             )
         self.assertEqual(report.summary["blocked"], 1)
         self.assertEqual(report.summary["applied"], 1)

@@ -26,7 +26,7 @@ turbo-physai run --model bevformer \
 ```
 
 组件加载该模型随包交付的优化配置和运行配置，在每个训练进程启动时应用一次，
-并生成优化应用报告，用于确认声明的目标入口是否已安装优化对象。`--model` 的可选值、优化接入基线和使用说明见
+可通过 `--log-report` 输出优化应用报告，用于确认声明的目标入口是否已安装优化对象。`--model` 的可选值、优化接入基线和使用说明见
 [模型支持清单](docs/zh/models/support_list.md)。
 
 前置条件（安装组件、模型仓库 commit、数据集与权重）见[安装指南](docs/zh/get_started/installation.md)。

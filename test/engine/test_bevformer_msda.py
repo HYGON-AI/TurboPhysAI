@@ -272,7 +272,6 @@ else:
                 report = turbo_physai.apply(
                     optimization_config_path=optimization_config_path,
                     registry=registry,
-                    report_dir=root / "reports",
                 )
             self.assertEqual(report.execution[0].status.value, "rolled_back")
         self._assert_model_identity(modules, OriginalFp16, OriginalFp32)

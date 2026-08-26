@@ -4,32 +4,58 @@ OptimizationReport 用于确认一次训练启动实际加载了哪些配置、�
 
 状态为 `applied` 时，该 Group 声明的 `target` 和 `aliases` 已指向优化对象，后续模型执行链路通过这些入口发起的调用将使用优化后的对象。模型数值、精度和性能仍需按照对应模型说明完成验证。
 
-## 1. 输出文件
+## 1. 启用报告日志
 
-`turbo-physai run` 默认将报告写入 `turbophysai_reports`。可通过 `--report-dir` 修改目录：
+OptimizationReport 日志默认关闭。需要确认优化应用详情或排查问题时，在启动命令中增加
+`--log-report`：
 
 ```bash
 turbo-physai run \
   --model bevformer \
-  --report-dir ./turbophysai_reports \
+  --log-report \
   torchrun --nproc-per-node=8 tools/train.py path/to/config.py
 ```
 
-一次 `turbo-physai run` 生成一份 OptimizationReport，并以相同 Run ID 输出 JSON 和
-Markdown 两种格式：
+该参数只控制报告日志，不影响优化检查和应用。启用后，Rank 0 输出完整报告，并使用固定
+标记界定报告范围：
 
 ```text
-turbophysai_reports/
-├── optimization_report-<run-id>.json
-└── optimization_report-<run-id>.md
+TURBO_PHYSAI_OPTIMIZATION_REPORT_BEGIN run_id=<run-id>
+OptimizationConfig: <config-id> <version>
+OptimizationConfig path: <absolute-path>
+RuntimeConfig path: <absolute-path-or-not-used>
+Summary: applied=<count> skipped=<count> blocked=<count> failed=<count> rolled_back=<count> not_started=<count>
+Configuration checks:
+  ...
+Preparation:
+  ...
+Execution:
+  ...
+TURBO_PHYSAI_OPTIMIZATION_REPORT_END run_id=<run-id>
 ```
 
-- JSON 保存完整结构化数据，适用于自动检查、归档和进一步分析；
-- Markdown 展示主要配置、异常检查、Group 决策和执行结果，适用于人工查看。
+其他 rank 输出一行状态摘要：
+
+```text
+TURBO_PHYSAI_OPTIMIZATION_COMPLETED rank=<rank> applied=<count> ... run_id=<run-id>
+```
+
+同一次 `turbo-physai run` 启动的各进程使用相同 Run ID，可据此关联分布式训练日志。
+TurboPhysAI 不创建独立报告文件。
+
+直接调用 Python API 时，使用 `log_report=True` 输出报告：
+
+```python
+import turbo_physai
+
+report = turbo_physai.apply(log_report=True)
+```
+
+无论是否输出日志，`apply()` 都会返回完整的 `OptimizationReport` 对象。
 
 ## 2. 报告结构
 
-Markdown 报告包含以下内容：
+Rank 0 日志中的完整报告包含以下内容：
 
 | 部分 | 内容 |
 | --- | --- |
@@ -39,9 +65,9 @@ Markdown 报告包含以下内容：
 | `Preparation` | 每个 Group 的依赖、应用决策、原因和异常检查 |
 | `Execution` | 已进入执行阶段的 Group 状态和错误信息 |
 
-JSON 在此基础上保存运行环境快照、全部 Group 检查、Replacement 成员结果、目标修改记录、回滚结果和报告文件路径。需要进行自动化判断时，应以 JSON 为准。
-
-OptimizationConfig 和 RuntimeConfig 均以本次实际加载的绝对路径记录。未使用 RuntimeConfig 时，Markdown 显示 `not used`，JSON 中的 `runtime_config_path` 为 `null`。
+OptimizationConfig 和 RuntimeConfig 均记录本次实际加载的绝对路径。未使用 RuntimeConfig
+时，日志显示 `not used`。Python API 返回的 `OptimizationReport` 对象还包含运行环境快照、
+全部 Group 检查、Replacement 成员结果、目标修改记录和回滚结果，可供程序化检查。
 
 ## 3. 检查状态
 
@@ -57,7 +83,9 @@ OptimizationConfig 和 RuntimeConfig 均以本次实际加载的绝对路径记�
 
 OptimizationConfig 级检查在 `Configuration Checks` 中记录一次。例如，模型 commit 与配置记录不一致时，`project.commit` 为 `warning`，Group 是否可以应用仍由 target 证据和其他检查决定。
 
-Markdown 在 `Preparation` 中展开 `warning`、`fail` 和 `unknown` 的 Group 检查。JSON 保存全部检查，包括 target、Replacement、aliases、签名、Hash 和 Group 兼容条件。
+日志在 `Preparation` 中展开 `warning`、`fail` 和 `unknown` 的 Group 检查。Python API
+返回的报告对象保存全部检查，包括 target、Replacement、aliases、签名、Hash 和 Group
+兼容条件。
 
 ## 4. 应用决策
 
@@ -106,15 +134,14 @@ not_started = 0
 
 `skipped` 可以大于 0，表示部分 Group 不参与本次执行。常见原因包括配置中的
 `enabled: false`、通过 `--disable-group` 临时禁用，以及所依赖的 Group 被禁用。具体原因见
-`Planning` 中对应 Group 的 `Reason`；预期执行的 Group 应全部计入 `applied`。
+`Preparation` 中对应 Group 的 `reason`；预期执行的 Group 应全部计入 `applied`。
 
 ## 7. 异常和回滚
 
 Group 应用失败后，框架按快照恢复该 Group 的全部成员：
 
 - 回滚成功：Group 状态为 `rolled_back`，其他独立 Group 可以继续执行；
-- 回滚失败：Group 状态为 `failed`，后续 Group 标记为 `not_started`，框架写入报告后抛出 `OptimizationRollbackError`；
-- 报告文件写入失败：抛出 `ReportWriteError`。
+- 回滚失败：Group 状态为 `failed`，后续 Group 标记为 `not_started`，框架输出报告后抛出 `OptimizationRollbackError`。
 
 Group 决策为 `block` 或状态为 `rolled_back` 时，`apply()` 可以正常返回报告。因此，不能仅根据训练进程是否启动判断所有优化均已完成安装。
 
@@ -125,6 +152,7 @@ import turbo_physai
 
 report = turbo_physai.apply(
     optimization_config_path="./configs/optimization.yaml",
+    log_report=True,
 )
 summary = report.summary
 

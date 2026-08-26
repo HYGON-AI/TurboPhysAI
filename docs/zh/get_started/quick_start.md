@@ -32,7 +32,7 @@ OptimizationConfig 和 RuntimeConfig，然后执行后续的原训练命令。
 ```bash
 turbo-physai run \
   --model bevformer \
-  --report-dir ./turbophysai_reports \
+  --log-report \
   torchrun --nproc-per-node=8 tools/train.py path/to/config.py
 ```
 
@@ -51,14 +51,32 @@ turbo-physai run \
 可启动八卡训练。NUMA 默认开启；不需要绑定时，在 `turbo-physai run` 参数中增加
 `--disable-numa`。
 
+### 高级用法：Python API
+
+能够控制训练入口时，可以在导入模型相关模块前调用 `apply()`：
+
+```python
+import turbo_physai
+
+report = turbo_physai.apply(
+    model="bevformer",
+    log_report=True,
+)
+```
+
+`log_report` 默认值为 `False`。设为 `True` 时，Rank 0 将完整 OptimizationReport 输出到
+标准日志；无论是否输出日志，`apply()` 都会返回报告对象。每个训练进程只能调用一次
+`apply()`。
+
 ## 4. 查看执行结果
 
-Rank 0 默认生成：
+`--log-report` 用于输出本次优化应用结果，默认关闭。启用后，Rank 0 在训练日志中输出
+完整 OptimizationReport，报告以以下标记界定：
 
 ```text
-turbophysai_reports/
-├── optimization_report-<run-id>.json
-└── optimization_report-<run-id>.md
+TURBO_PHYSAI_OPTIMIZATION_REPORT_BEGIN run_id=<run-id>
+...
+TURBO_PHYSAI_OPTIMIZATION_REPORT_END run_id=<run-id>
 ```
 
 确认：
@@ -71,8 +89,8 @@ turbophysai_reports/
 - 预热后迭代时间稳定；
 - 按模型应用说明完成精度和性能验证。
 
-JSON 报告是优化应用结果的结构化记录。状态和字段说明见
-[优化应用报告](../user_guide/report.md)。
+其他 rank 输出一行状态摘要。不需要查看应用详情时，可以从启动命令中删除
+`--log-report`。报告内容和状态定义见[优化应用报告](../user_guide/report.md)。
 
 ## 5. 后续阅读
 

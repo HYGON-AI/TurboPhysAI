@@ -79,7 +79,7 @@ turbo-physai run \
   [--model <model-name>] \
   [--optimization-config <model-optimization-config.yaml>] \
   [--runtime-config <runtime.yaml>] \
-  [--report-dir <directory>] \
+  [--log-report] \
   [--force-group GROUP_ID[,GROUP_ID...]] \
   [--disable-group GROUP_ID[,GROUP_ID...]] \
   [--set NAME=VALUE] \
@@ -92,7 +92,7 @@ turbo-physai run \
 | `--model` | 内置模型名称；自动选择该模型的 OptimizationConfig 和 RuntimeConfig |
 | `--optimization-config` | 显式 OptimizationConfig 路径；优先于 `--model` 选择结果 |
 | `--runtime-config` | 显式 RuntimeConfig 路径；优先于 `--model` 选择结果 |
-| `--report-dir` | 报告目录，默认 `turbophysai_reports` |
+| `--log-report` | 将本次优化应用报告输出到训练日志；默认关闭 |
 | `--force-group GROUP_ID[,GROUP_ID...]` | 对指定且已启用的一个或多个 Group 的可放行检查进行一次性覆盖 |
 | `--disable-group GROUP_ID[,GROUP_ID...]` | 本次启动不应用指定的一个或多个 Group |
 | `--set NAME=VALUE` | 覆盖或增加非空环境变量，可重复 |
@@ -101,6 +101,9 @@ turbo-physai run \
 训练命令直接写在 TurboPhysAI 参数之后，框架逐字透传，不解析或改写启动器参数。可以使用 `torchrun`、
 `torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 或 Shell 启动脚本，
 TurboPhysAI 会在每个 Python 训练 rank 中自动应用 OptimizationConfig。
+
+指定 `--log-report` 后，Rank 0 将完整 OptimizationReport 输出到训练日志，其他 rank
+输出应用状态摘要。报告内容见[优化应用报告](../user_guide/report.md)。
 
 例外是 `python -E`、`-I`、`-S`：这三个标志会使启动钩子不被加载，命令中出现它们时
 `turbo-physai run` 直接报错，而不是让训练以未优化状态运行。

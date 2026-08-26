@@ -17,7 +17,6 @@ from turbo_physai.engine.checking.context import _int_env, _run_git, detect_cont
 from turbo_physai.engine.errors import (
     OptimizationConfigNotFoundError,
     OptimizationConfigError,
-    ReportWriteError,
 )
 from turbo_physai.engine.contracts import (
     CheckResult,
@@ -598,12 +597,6 @@ class NegativePathsTest(unittest.TestCase):
             )
             with self.assertRaises(OptimizationConfigError):
                 load_optimization_config(path, catalog=catalog)
-
-    def test_report_write_error_is_public(self):
-        with self.assertRaises(ReportWriteError) as raised:
-            turbo_physai.apply(report_dir="/dev/null")
-        self.assertIsNotNone(raised.exception.report)
-
 
 if __name__ == "__main__":
     unittest.main()

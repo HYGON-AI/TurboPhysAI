@@ -352,7 +352,6 @@ class ImportCompatibilityTest(unittest.TestCase):
                         report = apply(
                             optimization_config_path=config,
                             registry=registry,
-                            report_dir=root / "reports",
                         )
                     self.assertEqual(report.summary["applied"], 2)
                     model = importlib.import_module("stage_model")
@@ -490,7 +489,6 @@ class ImportCompatibilityTest(unittest.TestCase):
                         report = apply(
                             optimization_config_path=config,
                             registry=registry,
-                            report_dir=root / "reports",
                         )
                     self.assertEqual(report.summary["rolled_back"], 1)
                     self.assertFalse(hasattr(vendor, "FlashMHA"))

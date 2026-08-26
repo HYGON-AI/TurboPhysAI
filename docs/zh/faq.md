@@ -30,7 +30,11 @@ Runner 加载内置 common OptimizationConfig，其中只包含与具体模型�
 
 ## 如何确认优化是否已安装？
 
-查看本次运行生成的 OptimizationReport：
+在启动命令中增加 `--log-report`，查看本次运行的 OptimizationReport：
+
+```bash
+turbo-physai run --log-report <original-training-command>
+```
 
 - Preparation 中决策为 `apply` 的 Group 已进入执行阶段；
 - Execution 中状态为 `applied` 的 Group 已完成安装；

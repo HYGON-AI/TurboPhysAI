@@ -25,8 +25,8 @@ SITE_DIR = Path(__file__).resolve().parent / "_sitedir"
 BOOTSTRAP_FLAG = "TURBO_PHYSAI_BOOTSTRAP"
 OPTIMIZATION_CONFIG = "TURBO_PHYSAI_OPTIMIZATION_CONFIG"
 RUNTIME_CONFIG_PATH = "TURBO_PHYSAI_RUNTIME_CONFIG_PATH"
-REPORT_DIR = "TURBO_PHYSAI_REPORT_DIR"
 RUN_ID = "TURBO_PHYSAI_RUN_ID"
+LOG_REPORT = "TURBO_PHYSAI_LOG_REPORT"
 FORCE_GROUPS = "TURBO_PHYSAI_FORCE_GROUPS"
 DISABLE_GROUPS = "TURBO_PHYSAI_DISABLE_GROUPS"
 
@@ -146,7 +146,7 @@ def bootstrap_environment(
     environment: Mapping[str, str],
     *,
     optimization_config: str,
-    report_dir: str,
+    log_report: bool = False,
     force_groups: Sequence[str] = (),
     disable_groups: Sequence[str] = (),
 ) -> dict[str, str]:
@@ -158,11 +158,14 @@ def bootstrap_environment(
     prepared["PYTHONPATH"] = os.pathsep.join(dict.fromkeys(entries))
     prepared[BOOTSTRAP_FLAG] = "1"
     prepared[OPTIMIZATION_CONFIG] = str(optimization_config)
-    prepared[REPORT_DIR] = str(report_dir)
     # One CLI launch can create several Python interpreters (launcher, ranks,
-    # and model-side helper scripts). Give all descendants one identity so
-    # rank 0 updates a single report instead of leaving one report per process.
+    # and model-side helper scripts). Give all descendants one identity so log
+    # records produced by the same launch can be correlated.
     prepared[RUN_ID] = uuid.uuid4().hex
+    if log_report:
+        prepared[LOG_REPORT] = "1"
+    else:
+        prepared.pop(LOG_REPORT, None)
     if force_groups:
         prepared[FORCE_GROUPS] = os.pathsep.join(force_groups)
     else:
@@ -203,13 +206,14 @@ def _activate() -> None:
     raw_disabled_groups = os.environ.get(DISABLE_GROUPS, "")
     report = apply(
         optimization_config_path=os.environ.get(OPTIMIZATION_CONFIG) or None,
-        report_dir=os.environ.get(REPORT_DIR, "turbophysai_reports"),
+        log_report=os.environ.get(LOG_REPORT) == "1",
         force_groups=tuple(group for group in raw_groups.split(os.pathsep) if group),
         disable_groups=tuple(
             group for group in raw_disabled_groups.split(os.pathsep) if group
         ),
     )
-    _print_optimization_result(report)
+    if os.environ.get(LOG_REPORT) == "1":
+        _print_optimization_result(report)
 
 
 def activate() -> None:

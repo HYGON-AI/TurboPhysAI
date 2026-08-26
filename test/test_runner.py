@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from turbo_physai.bootstrap import (
     ACTIVATION_FAILURE_EXIT_CODE,
+    LOG_REPORT,
     RUN_ID,
     RUNTIME_CONFIG_PATH,
     SITE_DIR,
@@ -64,7 +65,6 @@ def test_runner_applies_optimization_before_executing_target(tmp_path, monkeypat
             str(target),
             ("--optimization-config", "config.py"),
             optimization_config_path="config.yaml",
-            report_dir="reports",
             apply_optimization=apply_optimization,
         )
     finally:
@@ -73,7 +73,7 @@ def test_runner_applies_optimization_before_executing_target(tmp_path, monkeypat
     assert calls == [
         {
             "optimization_config_path": "config.yaml",
-            "report_dir": "reports",
+            "log_report": False,
             "force_groups": [],
             "disable_groups": [],
         }
@@ -88,6 +88,12 @@ def test_runner_reports_actual_optimization_summary(capsys, monkeypatch):
         "TURBO_PHYSAI_OPTIMIZATION_COMPLETED rank=3 applied=1 skipped=0 blocked=0 "
         "failed=0 rolled_back=0 not_started=0 run_id=test-run\n"
     )
+
+
+def test_runner_does_not_repeat_rank_zero_report(capsys, monkeypatch):
+    monkeypatch.setenv("RANK", "0")
+    _print_optimization_result(_Report())
+    assert capsys.readouterr().out == ""
 
 
 def test_builtin_optimization_config_catalog_ignores_appledouble_metadata(tmp_path, monkeypatch):
@@ -354,20 +360,29 @@ def test_bootstrap_environment_preserves_existing_pythonpath():
     environment = bootstrap_environment(
         {"PYTHONPATH": "/opt/user"},
         optimization_config="/cfg.yaml",
-        report_dir="reports",
     )
     assert environment["PYTHONPATH"] == f"{SITE_DIR}{os.pathsep}/opt/user"
     assert len(environment[RUN_ID]) == 32
     assert set(environment[RUN_ID]) <= set("0123456789abcdef")
     assert "TURBO_PHYSAI_FORCE_GROUPS" not in environment
     assert "TURBO_PHYSAI_DISABLE_GROUPS" not in environment
+    assert LOG_REPORT not in environment
 
 
-def _bootstrap_env(**extra):
+def test_bootstrap_environment_enables_report_logging_explicitly():
+    environment = bootstrap_environment(
+        {},
+        optimization_config="/cfg.yaml",
+        log_report=True,
+    )
+    assert environment[LOG_REPORT] == "1"
+
+
+def _bootstrap_env(*, log_report=False, **extra):
     environment = bootstrap_environment(
         os.environ,
         optimization_config=str(_PACKAGED_CONFIG),
-        report_dir=str(Path(extra.pop("report_dir", "turbophysai_reports"))),
+        log_report=log_report,
     )
     environment["PYTHONPATH"] = os.pathsep.join(
         [environment["PYTHONPATH"], str(_REPO_ROOT)]
@@ -385,11 +400,26 @@ def test_bootstrap_applies_before_the_training_script_runs(tmp_path):
     )
     completed = subprocess.run(
         [sys.executable, str(script)],
-        env=_bootstrap_env(report_dir=str(tmp_path / "reports")),
+        env=_bootstrap_env(),
         cwd=tmp_path, text=True, capture_output=True,
     )
     assert completed.returncode == 0, completed.stderr
-    applied = completed.stdout.index("TURBO_PHYSAI_OPTIMIZATION_COMPLETED")
+    assert "TRAIN_STARTED patched=True" in completed.stdout
+    assert "TURBO_PHYSAI_OPTIMIZATION_REPORT_BEGIN" not in completed.stdout
+
+
+def test_bootstrap_logs_report_before_training_when_enabled(tmp_path):
+    script = tmp_path / "train.py"
+    script.write_text("print('TRAIN_STARTED')\n", encoding="utf-8")
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        env=_bootstrap_env(log_report=True),
+        cwd=tmp_path,
+        text=True,
+        capture_output=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    applied = completed.stdout.index("TURBO_PHYSAI_OPTIMIZATION_REPORT_END")
     started = completed.stdout.index("TRAIN_STARTED")
     assert applied < started, completed.stdout
 
@@ -406,7 +436,7 @@ def test_bootstrap_makes_the_training_working_directory_importable(tmp_path):
         "print('MODEL_PROJECT=%s' % model_project.VALUE)\n",
         encoding="utf-8",
     )
-    environment = _bootstrap_env(report_dir=str(tmp_path / "reports"))
+    environment = _bootstrap_env()
     completed = subprocess.run(
         [sys.executable, str(script)],
         env=environment,
@@ -418,14 +448,14 @@ def test_bootstrap_makes_the_training_working_directory_importable(tmp_path):
     assert "MODEL_PROJECT=available" in completed.stdout
 
 
-def test_bootstrap_descendants_update_one_shared_report(tmp_path):
+def test_bootstrap_descendants_emit_correlated_reports(tmp_path):
     scripts = []
     for name in ("prepare.py", "train.py"):
         script = tmp_path / name
         script.write_text(f"print({name!r})\n", encoding="utf-8")
         scripts.append(script)
-    report_dir = tmp_path / "reports"
-    environment = _bootstrap_env(report_dir=str(report_dir))
+    environment = _bootstrap_env(log_report=True)
+    outputs = []
 
     for script in scripts:
         phase_environment = dict(environment)
@@ -438,15 +468,15 @@ def test_bootstrap_descendants_update_one_shared_report(tmp_path):
             capture_output=True,
         )
         assert completed.returncode == 0, completed.stderr
+        outputs.append(completed.stdout)
 
-    json_reports = list(report_dir.glob("optimization_report-*.json"))
-    markdown_reports = list(report_dir.glob("optimization_report-*.md"))
-    assert len(json_reports) == 1
-    assert len(markdown_reports) == 1
-    assert environment[RUN_ID] in json_reports[0].name
-    report = json.loads(json_reports[0].read_text(encoding="utf-8"))
-    assert report["runtime_config_path"] == "/train/runtime.yaml"
-    assert not list(report_dir.glob("*.tmp"))
+    for output, script in zip(outputs, scripts):
+        marker = (
+            "TURBO_PHYSAI_OPTIMIZATION_REPORT_BEGIN "
+            f"run_id={environment[RUN_ID]}"
+        )
+        assert marker in output
+        assert f"RuntimeConfig path: /{script.stem}/runtime.yaml" in output
 
 
 def test_bootstrap_aborts_instead_of_training_unoptimized(tmp_path):
@@ -454,7 +484,7 @@ def test_bootstrap_aborts_instead_of_training_unoptimized(tmp_path):
 
     script = tmp_path / "train.py"
     script.write_text("print('TRAIN_STARTED')\n", encoding="utf-8")
-    environment = _bootstrap_env(report_dir=str(tmp_path / "reports"))
+    environment = _bootstrap_env()
     environment["TURBO_PHYSAI_OPTIMIZATION_CONFIG"] = str(tmp_path / "missing.yaml")
     completed = subprocess.run(
         [sys.executable, str(script)],
@@ -470,12 +500,12 @@ def test_bootstrap_does_not_activate_in_launcher_processes(tmp_path):
     launcher.write_text("print('LAUNCHER_RAN')\n", encoding="utf-8")
     completed = subprocess.run(
         [sys.executable, str(launcher)],
-        env=_bootstrap_env(report_dir=str(tmp_path / "reports")),
+        env=_bootstrap_env(),
         cwd=tmp_path, text=True, capture_output=True,
     )
     assert completed.returncode == 0, completed.stderr
     assert "LAUNCHER_RAN" in completed.stdout
-    assert "TURBO_PHYSAI_OPTIMIZATION_COMPLETED" not in completed.stdout
+    assert "TURBO_PHYSAI_OPTIMIZATION_REPORT_BEGIN" not in completed.stdout
 
 
 def test_bootstrap_chains_to_an_existing_user_sitecustomize(tmp_path):
@@ -486,7 +516,7 @@ def test_bootstrap_chains_to_an_existing_user_sitecustomize(tmp_path):
     )
     script = tmp_path / "train.py"
     script.write_text("print('TRAIN_STARTED')\n", encoding="utf-8")
-    environment = _bootstrap_env(report_dir=str(tmp_path / "reports"))
+    environment = _bootstrap_env()
     environment["PYTHONPATH"] = os.pathsep.join(
         [environment["PYTHONPATH"], str(user_site)]
     )
@@ -496,7 +526,8 @@ def test_bootstrap_chains_to_an_existing_user_sitecustomize(tmp_path):
     )
     assert completed.returncode == 0, completed.stderr
     assert "USER_SITECUSTOMIZE_RAN" in completed.stdout
-    assert "TURBO_PHYSAI_OPTIMIZATION_COMPLETED" in completed.stdout
+    assert "TRAIN_STARTED" in completed.stdout
+    assert "TURBO_PHYSAI_OPTIMIZATION_REPORT_END" not in completed.stdout
 
 
 def test_run_config_defaults_to_common_optimization():
@@ -557,6 +588,23 @@ def test_run_cli_uses_builtin_model_configs():
         "TURBO_PHYSAI_OPTIMIZATION_CONFIG"
     ]
     assert environment["NCCL_ALGO"] == "Ring"
+    assert LOG_REPORT not in environment
+
+
+def test_run_cli_enables_report_logging_explicitly():
+    with patch("turbo_physai.cli._run_training_command", return_value=0) as launch:
+        result = cli_main([
+            "run",
+            "--model",
+            "bevformer",
+            "--log-report",
+            "python",
+            "tools/train.py",
+        ])
+
+    _, environment = launch.call_args.args
+    assert result == 0
+    assert environment[LOG_REPORT] == "1"
 
 
 def test_run_training_command_replaces_this_process():
