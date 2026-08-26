@@ -12,7 +12,7 @@ TurboPhysAI 支持以下两种部署方式：
 产品镜像已包含以下内容：
 
 - TurboPhysAI Python 包、命令行工具和原生算子扩展；
-- 与目标设备匹配的 HCU Runtime、PyTorch 和 hipDNN；
+- 与目标设备匹配的 HCU Runtime、PyTorch、hipDNN 和高性能算子库；
 - 已验证的模型依赖；
 - 随组件交付的 OptimizationConfig 和 RuntimeConfig。
 
@@ -42,10 +42,11 @@ turbo-physai --help
 - HCU 驱动和 DTK/ROCm 工具链；
 - HCU 版本的 PyTorch；
 - hipDNN 1.0.0 或更高版本；
+- OptimizationConfig 所需的高性能算子库，例如 LightOp；
 - Ninja 和支持 C++17 的编译器；
 - 构建所需的 HCU 头文件和系统库。
 
-PyTorch、DTK 和 hipDNN 应由产品镜像或 HCU 软件源提供。默认 Python 软件源可能不提供 hipDNN，不能依赖 `pip` 从公共软件源自动安装该依赖。
+PyTorch、DTK、hipDNN 和 LightOp 等平台依赖应由产品镜像或 HCU 软件源提供。默认 Python 软件源可能不提供这些平台专用包，不能依赖 `pip` 自动安装。
 
 在仓库根目录执行：
 
@@ -56,7 +57,7 @@ MAX_JOBS=8 python setup.py bdist_wheel
 python -m pip install --no-deps dist/turbo_physai-*.whl
 ```
 
-`--no-deps` 仅用于上述依赖已经由当前 HCU 环境提供的情况。它不会安装或校验 PyTorch、hipDNN 等运行依赖。
+`--no-deps` 仅用于上述依赖已经由当前 HCU 环境提供的情况。它不会安装或校验 PyTorch、hipDNN、LightOp 等平台运行依赖。
 
 `setup.py` 根据 `ROCM_HOME` 或 `ROCM_PATH` 定位工具链。需要限制目标架构时，可在构建命令中设置：
 

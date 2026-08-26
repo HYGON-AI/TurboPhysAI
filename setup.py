@@ -402,11 +402,6 @@ def get_extensions():
     return extensions
 
 
-pytorch_dep = 'torch'
-if os.getenv('PYTORCH_VERSION'):
-    pytorch_dep += "==" + os.getenv('PYTORCH_VERSION')
-
-
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 VERSION = "0.1.0"
 
@@ -451,8 +446,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        "hipdnn>=1.0.0",
-        pytorch_dep,
+        "numpy>=1.23.0",
         "PyYAML>=6.0",
         "packaging>=21.0",
     ],
