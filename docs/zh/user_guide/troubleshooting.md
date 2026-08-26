@@ -36,7 +36,7 @@ TURBO_PHYSAI_OPTIMIZATION_COMPLETED rank=<rank> applied=... blocked=... failed=.
 3. 状态为 `not_started` 时，检查该 Group 的依赖项以及此前是否出现终止性错误；
 4. 根据报告中的 target、`expected`、`actual` 和错误信息修正配置、依赖或 Replacement，再使用新进程验证。
 
-独立 Group 的阻断或成功回滚不会阻止其他 Group 和训练入口继续运行，因此不能仅根据训练是否启动判断全部优化均已生效。
+独立 Group 的阻断或成功回滚不会阻止其他 Group 和训练入口继续运行，因此不能仅根据训练是否启动判断全部优化均已完成安装。
 
 决策、依赖传播和失败处理规则见[优化检查、执行与回滚](../design/execution.md)。
 

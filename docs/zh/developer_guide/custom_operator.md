@@ -166,7 +166,7 @@ def bev_pool_prepare(geom_feats, bx, dx, nx, B, D, H, W):
 需要替换上游框架入口时，在对应公共优化 Catalog 中声明 Group。仓库中的 `mmdet3d.bev_pool` 将 MMDetection3D 的稳定入口替换为 TurboPhysAI 的 Python 前端：
 
 ```python
-from turbo_physai.engine.definitions import group, replace
+from turbo_physai import group, replace
 
 
 BEV_POOL = group(

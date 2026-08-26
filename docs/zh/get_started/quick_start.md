@@ -71,7 +71,7 @@ turbophysai_reports/
 
 - 预期启用的 Group 为 `applied`；
 - `blocked`、`failed`、`rolled_back` 和 `not_started` 均为 0；
-- `skipped` 仅对应 OptimizationConfig 中未启用的 Group；
+- `skipped` 仅包含配置未启用、命令行临时禁用或依赖项被禁用的 Group，具体原因见报告中的 `reason`；
 - 训练日志中没有因 Replacement 导致的运行时异常；
 - 数值、梯度和性能仍需通过真实训练验证。
 

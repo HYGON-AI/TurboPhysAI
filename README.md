@@ -5,7 +5,7 @@ TurboPhysAI 是面向 Physical AI 领域模型（自动驾驶、具身智能、�
 充分发挥 HCU 高性能计算能力。
 
 优化实现与模型源码分离维护：优化能力随包交付，在训练进程启动时应用到目标入口，
-并记录每项优化的应用结果，便于确认是否生效和回溯问题。
+并记录每项优化的安装状态，便于确认模型执行链路使用的对象并回溯问题。
 
 能力边界、适用场景和整体工作方式见 [TurboPhysAI 概述](docs/zh/overview.md)。
 
@@ -25,7 +25,7 @@ turbo-physai run --model bevformer -- \
 ```
 
 组件加载该模型随包交付的优化配置和运行配置，在每个训练进程启动时应用一次，
-并生成优化应用报告用于确认优化是否生效。`--model` 的可选值、接入基线和使用说明见
+并生成优化应用报告，用于确认声明的目标入口是否已安装优化对象。`--model` 的可选值、接入基线和使用说明见
 [模型支持清单](docs/zh/models/support_list.md)。
 
 前置条件（安装组件、模型仓库 commit、数据集与权重）见[安装指南](docs/zh/get_started/installation.md)。
@@ -36,7 +36,7 @@ turbo-physai run --model bevformer -- \
 
 | 角色 | 典型场景 | 文档入口 |
 | --- | --- | --- |
-| 训练用户 | 在已支持的模型上启用优化，确认优化生效并排查问题 | [安装指南](docs/zh/get_started/installation.md) → [快速开始](docs/zh/get_started/quick_start.md) → [模型支持清单](docs/zh/models/support_list.md) |
+| 训练用户 | 在已支持的模型上启用优化，确认安装状态并排查问题 | [安装指南](docs/zh/get_started/installation.md) → [快速开始](docs/zh/get_started/quick_start.md) → [模型支持清单](docs/zh/models/support_list.md) |
 | 优化开发人员 | 为新模型或新算子实现优化，生成配置并完成验证交付 | [优化开发与接入流程](docs/zh/developer_guide/optimization_workflow.md) → [优化验证与交付](docs/zh/developer_guide/validation.md) |
 | 框架维护人员 | 维护优化引擎、评审优化接入、扩展框架能力 | [组件架构](docs/zh/design/architecture.md) → [优化检查、执行与回滚](docs/zh/design/execution.md) → [兼容性管理](docs/zh/design/compatibility.md) → [贡献指南](CONTRIBUTING.md) |
 

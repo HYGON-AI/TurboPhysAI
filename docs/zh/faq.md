@@ -29,13 +29,15 @@ Runner 加载内置 common OptimizationConfig，其中只包含与具体模型�
 
 模型源码、依赖和数据准备仍应满足对应模型应用说明中的前置条件。
 
-## 如何确认优化是否生效？
+## 如何确认优化是否已安装？
 
 查看本次运行生成的 OptimizationReport：
 
 - Preparation 中决策为 `apply` 的 Group 已进入执行阶段；
 - Execution 中状态为 `applied` 的 Group 已完成安装；
-- `block`、`rolled_back`、`failed` 或 `not_started` 表示对应优化未完整生效。
+- `block`、`rolled_back`、`failed` 或 `not_started` 表示对应优化未完成安装。
+
+状态为 `applied` 时，该 Group 声明的 `target` 和 `aliases` 已指向优化对象；后续模型执行链路通过这些入口发起的调用将使用优化后的对象。
 
 报告结构和状态定义见[优化应用报告](user_guide/report.md)。
 
@@ -53,7 +55,7 @@ commit 不一致本身只会使 OptimizationReport 中的 `project.commit` 检�
 
 ## `apply()` 返回后优化是否已经安装？
 
-是。`apply()` 返回时，Execution 状态为 `applied` 的 `target` 和 `aliases` 已经指向优化对象，不需要等待模型第一次调用。
+是。`apply()` 返回时，Execution 状态为 `applied` 的 `target` 和 `aliases` 已经指向优化对象，不需要等待模型第一次调用。后续模型执行链路通过这些入口发起的调用将使用优化后的对象。
 
 模型第一次调用该入口时，才会执行 Replacement 中的具体计算。`apply()` 是高级 Python API；多进程训练默认使用 `turbo-physai run`。
 

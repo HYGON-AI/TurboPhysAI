@@ -110,7 +110,7 @@ turbo_physai/
 │   ├── development/                # 外部优化工程初始化
 │   ├── compatibility.py            # 兼容性补丁声明接口
 │   ├── bootstrap/                  # 解释器启动钩子，在 rank 内自动激活
-│   ├── runner.py                   # rank 内应用 OptimizationConfig 并执行训练入口
+│   ├── runner.py                   # Python 兼容入口与进程资源绑定辅助
 │   ├── runtime.py                  # RuntimeConfig 加载与进程环境准备
 │   └── cli.py                      # 命令行入口
 ├── model_examples/

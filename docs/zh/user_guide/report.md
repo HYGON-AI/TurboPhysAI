@@ -1,8 +1,8 @@
 # 优化应用报告
 
-OptimizationReport 用于确认一次训练启动实际加载了哪些配置、各项优化是否完成应用，以及未生效的原因。报告将应用前检查、Group 决策、执行结果和回滚结果集中记录，便于训练验收和问题定位。
+OptimizationReport 用于确认一次训练启动实际加载了哪些配置、各项优化是否完成安装，以及未完成安装的原因。报告将应用前检查、Group 决策、执行结果和回滚结果集中记录，便于训练验收和问题定位。
 
-OptimizationReport 只能证明优化对象在训练进程中的应用状态。模型数值、精度和性能仍需按照对应模型说明完成验证。
+状态为 `applied` 时，该 Group 声明的 `target` 和 `aliases` 已指向优化对象，后续模型执行链路通过这些入口发起的调用将使用优化后的对象。模型数值、精度和性能仍需按照对应模型说明完成验证。
 
 ## 1. 输出文件
 
@@ -16,7 +16,8 @@ turbo-physai run \
   torchrun --nproc-per-node=8 tools/train.py path/to/config.py
 ```
 
-Rank 0 生成两个文件：
+一次 `turbo-physai run` 生成一份 OptimizationReport，并以相同 Run ID 输出 JSON 和
+Markdown 两种格式：
 
 ```text
 turbophysai_reports/
@@ -24,12 +25,8 @@ turbophysai_reports/
 └── optimization_report-<run-id>.md
 ```
 
-同一次 `turbo-physai run` 启动链路共用一个 Run ID。启动链路包含多个 Python 阶段时，后续阶段更新同一组文件，不会为每个阶段重复保留报告。
-
 - JSON 保存完整结构化数据，适用于自动检查、归档和进一步分析；
 - Markdown 展示主要配置、异常检查、Group 决策和执行结果，适用于人工查看。
-
-每个训练 rank 都会完成自身的检查与应用。文件报告由 Rank 0 写入，不进行跨 rank 结果汇总。
 
 ## 2. 报告结构
 
@@ -81,7 +78,7 @@ Markdown 在 `Preparation` 中展开 `warning`、`fail` 和 `unknown` 的 Group 
 
 | 状态 | 含义 |
 | --- | --- |
-| `applied` | Group 的全部 Replacement 已完成应用 |
+| `applied` | Group 的全部 Replacement 已完成安装，声明的入口已指向优化对象 |
 | `rolled_back` | 应用过程中发生异常，Group 已恢复到应用前状态 |
 | `failed` | Group 快照失败，或应用异常后未能完整恢复 |
 | `not_started` | 依赖 Group 未成功应用，或此前发生终止性执行错误 |
@@ -108,7 +105,9 @@ rolled_back = 0
 not_started = 0
 ```
 
-`skipped` 可以大于 0，表示配置中存在 `enabled: false` 的 Group。预期启用的 Group 应全部计入 `applied`。
+`skipped` 可以大于 0，表示部分 Group 不参与本次执行。常见原因包括配置中的
+`enabled: false`、通过 `--disable-group` 临时禁用，以及所依赖的 Group 被禁用。具体原因见
+`Planning` 中对应 Group 的 `Reason`；预期执行的 Group 应全部计入 `applied`。
 
 ## 7. 异常和回滚
 
@@ -118,7 +117,7 @@ Group 应用失败后，框架按快照恢复该 Group 的全部成员：
 - 回滚失败：Group 状态为 `failed`，后续 Group 标记为 `not_started`，框架写入报告后抛出 `OptimizationRollbackError`；
 - 报告文件写入失败：抛出 `ReportWriteError`。
 
-Group 决策为 `block` 或状态为 `rolled_back` 时，`apply()` 可以正常返回报告。因此，不能仅根据训练进程是否启动判断所有优化均已生效。
+Group 决策为 `block` 或状态为 `rolled_back` 时，`apply()` 可以正常返回报告。因此，不能仅根据训练进程是否启动判断所有优化均已完成安装。
 
 高级 Python 集成可以直接检查 Summary：
 

@@ -54,7 +54,7 @@ OptimizationConfig 顶层 commit 检查匹配时为 `pass`，不匹配或无法�
 ## 4. 决策
 
 - `apply`：检查通过，进入 execution order；
-- `skip`：Group 未启用；
+- `skip`：Group 不参与本次执行，包括配置未启用、命令行临时禁用或依赖项被禁用；
 - `block`：检查或依赖未通过。
 
 决策为 `block` 的 Group 不执行，依赖它的下游 Group 同样不执行，其他独立 Group 继续。
