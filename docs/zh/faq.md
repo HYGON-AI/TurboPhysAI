@@ -11,7 +11,6 @@
 ```bash
 turbo-physai run \
   --model <model-name> \
-  -- \
   <original-training-command>
 ```
 
@@ -47,11 +46,17 @@ Runner 加载内置 common OptimizationConfig，其中只包含与具体模型�
 
 回滚失败表示进程状态无法可靠恢复，此时框架会停止后续执行。具体排查方法见[问题排查：Group 未应用](user_guide/troubleshooting.md#2-group-未应用)，处理规则见[优化检查、执行与回滚](design/execution.md)。
 
-## 模型 commit 变化但 `target` Hash 相同，可以应用吗？
+## 可以在优化接入基线之外的模型版本上使用吗？
 
-commit 不一致本身只会使 OptimizationReport 中的 `project.commit` 检查产生 `warning`。如果 `target` Hash、签名、对象身份和 Group 兼容条件等其余检查全部通过，对应 Group 仍可应用。
+可以。使用其他 commit 或修改模型源码时，框架会根据目标对象的源码、AST、签名及
+Optimization Group 声明的兼容条件逐项检查。满足条件的优化可以继续应用；不满足条件的优化
+不会应用，并在执行报告中记录原因。
 
-正式支持新的模型基线前，应完成正确性和性能验证，并重新生成 OptimizationConfig。
+模型 commit 与优化接入基线不一致时，OptimizationReport 中的 `project.commit` 检查会产生
+`warning`，不会单独阻断优化。
+
+推荐使用模型支持清单中的优化接入基线。正式支持新的优化接入基线前，应完成正确性和性能验证，
+并重新生成 OptimizationConfig。
 
 ## `apply()` 返回后优化是否已经安装？
 

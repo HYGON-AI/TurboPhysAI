@@ -23,7 +23,7 @@
 ## 优化开发指南
 
 - [优化开发与接入流程](zh/developer_guide/optimization_workflow.md)
-- [定义优化与组织优化组](zh/developer_guide/optimization_declarations.md)
+- [优化声明](zh/developer_guide/optimization_declarations.md)
 - [生成和检查 OptimizationConfig](zh/developer_guide/optimization_config_generation.md)
 - [优化验证与交付](zh/developer_guide/validation.md)
 - [自定义算子接入](zh/developer_guide/custom_operator.md)

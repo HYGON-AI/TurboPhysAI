@@ -10,7 +10,7 @@
         <mxCell id="model" value="&lt;b&gt;2  选择内置模型&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 13px;&quot;&gt;--model &amp;lt;model&amp;gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F1FF;strokeColor=#4C7BD9;strokeWidth=2;fontColor=#1F3354;fontSize=17;arcSize=12;" vertex="1" parent="1">
           <mxGeometry x="380" y="60" width="270" height="95" as="geometry"/>
         </mxCell>
-        <mxCell id="run" value="&lt;b&gt;3  启动原训练命令&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 13px;&quot;&gt;turbo-physai run -- ...&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F2ECFF;strokeColor=#8A67D5;strokeWidth=2;fontColor=#3D2B63;fontSize=17;arcSize=12;" vertex="1" parent="1">
+        <mxCell id="run" value="&lt;b&gt;3  启动原训练命令&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 13px;&quot;&gt;turbo-physai run ...&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F2ECFF;strokeColor=#8A67D5;strokeWidth=2;fontColor=#3D2B63;fontSize=17;arcSize=12;" vertex="1" parent="1">
           <mxGeometry x="710" y="60" width="270" height="95" as="geometry"/>
         </mxCell>
         <mxCell id="apply" value="&lt;b&gt;4  每个训练进程应用优化&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 13px;&quot;&gt;导入训练入口前应用 OptimizationConfig&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2E5;strokeColor=#D98534;strokeWidth=2;fontColor=#633A17;fontSize=17;arcSize=12;" vertex="1" parent="1">

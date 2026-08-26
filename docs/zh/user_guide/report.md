@@ -12,7 +12,6 @@ OptimizationReport 用于确认一次训练启动实际加载了哪些配置、�
 turbo-physai run \
   --model bevformer \
   --report-dir ./turbophysai_reports \
-  -- \
   torchrun --nproc-per-node=8 tools/train.py path/to/config.py
 ```
 
@@ -146,7 +145,6 @@ if any(summary[name] for name in (
 turbo-physai run \
   --model bevformer \
   --force-group <group-id> \
-  -- \
   torchrun --nproc-per-node=8 tools/train.py path/to/config.py
 ```
 

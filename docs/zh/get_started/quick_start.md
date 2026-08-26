@@ -14,25 +14,25 @@
 - 配置文件和预训练权重已经准备完成；
 - TurboPhysAI wheel 与当前 HCU/PyTorch 环境匹配。
 
-内置模型和接入基线见[模型支持清单](../models/support_list.md)。
+内置模型和优化接入基线见[模型支持清单](../models/support_list.md)。
 
 ## 2. 选择模型
 
 每个内置模型均随包提供优化配置（OptimizationConfig）和运行配置（RuntimeConfig）。通过
 `--model <模型名>` 选择模型后，Runner 自动加载对应配置，无需查找包内文件路径。
+`--model` 的参数就是模型名，不区分大小写，例如 `--model bevformer`。
 
-请从[模型支持清单](../models/support_list.md)进入对应模型说明。
+支持的模型名、优化接入基线和使用说明统一见[模型支持清单](../models/support_list.md)。
 
 ## 3. 启动训练
 
 `turbo-physai run` 是训练用户的默认入口。该命令根据 `--model` 或显式配置路径选择
-OptimizationConfig 和 RuntimeConfig，然后执行 `--` 后的原训练命令。
+OptimizationConfig 和 RuntimeConfig，然后执行后续的原训练命令。
 
 ```bash
 turbo-physai run \
   --model bevformer \
   --report-dir ./turbophysai_reports \
-  -- \
   torchrun --nproc-per-node=8 tools/train.py path/to/config.py
 ```
 
@@ -41,7 +41,6 @@ Runner 自动加载 `bevformer` 随包交付的 OptimizationConfig 和 RuntimeCo
 
 ```bash
 turbo-physai run \
-  -- \
   python tools/train.py path/to/config.py
 ```
 
@@ -51,11 +50,6 @@ turbo-physai run \
 `--nproc-per-node` 是当前节点的训练进程数；设为 `1` 可进行单卡冒烟，设为 `8`
 可启动八卡训练。NUMA 默认开启；不需要绑定时，在 `turbo-physai run` 参数中增加
 `--disable-numa`。
-
-具体模型名称和训练参数以对应模型 README 为准：
-
-- [BEVFormer](../../../model_examples/BEVFormer/README.md)
-- [BEVFusion](../../../model_examples/BEVFusion/README.md)
 
 ## 4. 查看执行结果
 
@@ -72,10 +66,13 @@ turbophysai_reports/
 - 预期启用的 Group 为 `applied`；
 - `blocked`、`failed`、`rolled_back` 和 `not_started` 均为 0；
 - `skipped` 仅包含配置未启用、命令行临时禁用或依赖项被禁用的 Group，具体原因见报告中的 `reason`；
-- 训练日志中没有因 Replacement 导致的运行时异常；
-- 数值、梯度和性能仍需通过真实训练验证。
+- 模型、数据集和预训练权重正常加载；
+- 首个训练迭代能够完成，loss 没有 NaN/Inf；
+- 预热后迭代时间稳定；
+- 按模型应用说明完成精度和性能验证。
 
-优化成功安装不等于训练执行一定正确。详细解释见 [优化应用报告](../user_guide/report.md)。
+JSON 报告是优化应用结果的结构化记录。状态和字段说明见
+[优化应用报告](../user_guide/report.md)。
 
 ## 5. 后续阅读
 

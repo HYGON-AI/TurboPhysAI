@@ -1,6 +1,12 @@
 # 生成和检查 OptimizationConfig
 
-OptimizationConfig 用于选择需要应用的 Optimization Group，并记录目标代码证据。本章说明优化开发者如何从配方生成可交付的 OptimizationConfig，以及如何检查已有配置。
+TurboPhysAI 通过 `target` 路径定位需要替换的 Python 对象。路径只能说明对象位于何处，不能证明当前对象仍是优化开发和验证时使用的实现；不同模型版本可能保留相同路径，但已经修改函数内容或调用约定。仅根据路径安装 Replacement，可能将优化应用到不兼容的目标代码上。
+
+Recipe 和 Catalog 是开发阶段的输入：Recipe 选择需要交付的 Group，Catalog 定义 Group 成员、依赖关系、目标和 Replacement。配置生成器将它们与已验证的模型基线结合：
+
+![OptimizationConfig 生成流程](../../assets/optimization-config-generation-flow.svg)
+
+生成后的 OptimizationConfig 保存展开的 Group 选择、参考 commit 及目标源码、AST 或原生扩展文件证据。训练应用时，框架重新解析当前目标并比较这些证据，只对仍满足条件的 Group 安装 Replacement。目标代码证据决定优化是否适用，参考 commit 用于记录配置的生成基线。
 
 ## 1. 配置生成涉及的对象
 

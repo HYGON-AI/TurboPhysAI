@@ -1,6 +1,7 @@
 # TurboPhysAI
 
-TurboPhysAI 是面向 Physical AI 领域模型（自动驾驶、具身智能、世界模型等）的训练性能优化组件。
+TurboPhysAI 是面向 Physical AI 的模型训练性能优化组件，面向自动驾驶、具身智能等应用领域，
+并支持世界模型等相关模型的训练优化。
 组件在**不修改模型源码**的前提下，通过算子、模型计算图、数据链路和训练过程优化，
 充分发挥 HCU 高性能计算能力。
 
@@ -19,13 +20,13 @@ torchrun --nproc-per-node=8 tools/train.py \
   ./projects/configs/bevformer/bevformer_base.py --launcher pytorch
 
 # 启用 BEVFormer 的模型专用优化
-turbo-physai run --model bevformer -- \
+turbo-physai run --model bevformer \
   torchrun --nproc-per-node=8 tools/train.py \
     ./projects/configs/bevformer/bevformer_base.py --launcher pytorch
 ```
 
 组件加载该模型随包交付的优化配置和运行配置，在每个训练进程启动时应用一次，
-并生成优化应用报告，用于确认声明的目标入口是否已安装优化对象。`--model` 的可选值、接入基线和使用说明见
+并生成优化应用报告，用于确认声明的目标入口是否已安装优化对象。`--model` 的可选值、优化接入基线和使用说明见
 [模型支持清单](docs/zh/models/support_list.md)。
 
 前置条件（安装组件、模型仓库 commit、数据集与权重）见[安装指南](docs/zh/get_started/installation.md)。

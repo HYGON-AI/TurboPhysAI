@@ -13,7 +13,6 @@ OptimizationConfig 不包含环境变量或 NUMA 设置。这些启动参数由 
 ```bash
 turbo-physai run \
   --model bevformer \
-  -- \
   torchrun --nproc-per-node=8 tools/train.py path/to/config.py
 ```
 
@@ -25,7 +24,6 @@ turbo-physai run \
 
 ```bash
 turbo-physai run \
-  -- \
   python tools/train.py path/to/config.py
 ```
 
@@ -38,7 +36,6 @@ turbo-physai run \
 ```bash
 turbo-physai run \
   --optimization-config ./configs/optimization.yaml \
-  -- \
   python tools/train.py path/to/config.py
 ```
 

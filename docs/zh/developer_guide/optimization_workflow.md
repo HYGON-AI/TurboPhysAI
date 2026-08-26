@@ -5,8 +5,10 @@
 ## 开发主线
 
 ```text
-准备基线 → 创建外部工程 → 实现与声明优化 → 生成配置 → 验证 → 提交评审
+准备基线 → 创建外部工程 → 优化声明 → 生成 OptimizationConfig → 验证 → 提交评审
 ```
+
+TurboPhysAI 通过 Python 运行时替换，将 Replacement 安装到 Catalog 声明的目标入口，无需修改模型源码。框架在替换前检查目标代码和优化组合，并以 Optimization Group 为单位执行和回滚。具体机制见[组件架构](../design/architecture.md)。
 
 ## 1. 准备基线
 
@@ -50,17 +52,17 @@ customer_model_optimization/
 
 该工程分别保存优化实现、优化声明、配置配方和测试。完成初始化后，即可根据第一步确定的目标入口实现优化。
 
-## 3. 实现与声明优化
+## 3. 优化声明
 
 在 `replacements.py` 中实现优化对象，并保持原目标的参数、返回值、Tensor 形状、数据类型、设备和梯度契约。在 `catalog.py` 中使用 `replace` 或 `wrap` 关联目标入口与 Replacement，再使用 `group` 将共同构成一项完整优化的成员组织为 Optimization Group。
 
 每个 Group 应具有清晰的功能边界，并能够独立检查、应用和回滚。目标对象存在其他导入路径时声明 Alias；优化只适用于部分运行时输入时声明运行条件。实现和声明完成后，应在 `tests/` 中增加对应的导入、数值及必要的梯度测试。
 
-接口、参数和真实示例见[定义优化与组织优化组](optimization_declarations.md)；涉及原生算子时参见[自定义算子接入](custom_operator.md)。完成声明后，将需要交付的 Group ID 写入 `configs/recipe.yaml`，进入配置生成阶段。
+接口、参数和真实示例见[优化声明](optimization_declarations.md)；涉及原生算子时参见[自定义算子接入](custom_operator.md)。完成声明后，将需要交付的 Group ID 写入 `configs/recipe.yaml`，进入配置生成阶段。
 
-## 4. 生成配置
+## 4. 生成 OptimizationConfig
 
-Recipe 记录需要启用的 Group，并可继承公共基础优化。在干净的模型仓库和确定的接入 commit 上执行：
+Recipe 记录需要启用的 Group，并可继承公共基础优化。在干净的模型仓库和确定的优化接入 commit 上执行：
 
 ```bash
 turbo-physai optimization generate \
@@ -70,9 +72,9 @@ turbo-physai optimization generate \
   --output configs/optimization.yaml
 ```
 
-生成过程会加载 Catalog，展开 Group 依赖，检查目标冲突和 Replacement 引用，并将目标源码证据写入 OptimizationConfig。优化需要环境变量或 NUMA 设置时，在同一 `configs/` 目录增加 RuntimeConfig；不存在额外启动要求时无需创建该文件。
+生成过程会加载 Catalog，展开 Group 依赖，检查目标冲突和 Replacement 引用，并将目标源码证据写入 OptimizationConfig。模型优化需要固定环境变量时，由开发者根据验证结果在同一 `configs/` 目录编写 RuntimeConfig；不存在额外启动要求时无需创建该文件。
 
-配置生成规则见[生成和检查 OptimizationConfig](optimization_config_generation.md)，运行环境字段见[RuntimeConfig 使用指南](../user_guide/runtime_config.md)。生成的配置与第二步建立的测试工程共同进入验证阶段。
+配置生成规则见[生成和检查 OptimizationConfig](optimization_config_generation.md)，运行环境字段见[RuntimeConfig 使用指南](../user_guide/runtime_config.md)。生成的 OptimizationConfig 与第二步建立的测试工程共同进入验证阶段。
 
 ## 5. 验证
 
@@ -85,7 +87,6 @@ turbo-physai run \
     /path/to/customer_model_optimization/configs/optimization.yaml \
   --runtime-config \
     /path/to/customer_model_optimization/configs/runtime.yaml \
-  -- \
   python tools/train.py <原训练参数>
 ```
 

@@ -80,11 +80,11 @@ turbo-physai run \
   [--optimization-config <model-optimization-config.yaml>] \
   [--runtime-config <runtime.yaml>] \
   [--report-dir <directory>] \
-  [--force-group GROUP_ID] \
-  [--disable-group GROUP_ID] \
+  [--force-group GROUP_ID[,GROUP_ID...]] \
+  [--disable-group GROUP_ID[,GROUP_ID...]] \
   [--set NAME=VALUE] \
   [--disable-numa] \
-  -- <training-command>
+  <training-command>
 ```
 
 | 参数 | 含义 |
@@ -93,12 +93,12 @@ turbo-physai run \
 | `--optimization-config` | 显式 OptimizationConfig 路径；优先于 `--model` 选择结果 |
 | `--runtime-config` | 显式 RuntimeConfig 路径；优先于 `--model` 选择结果 |
 | `--report-dir` | 报告目录，默认 `turbophysai_reports` |
-| `--force-group GROUP_ID` | 对指定且已启用 Group 的可放行检查进行一次性覆盖，可重复 |
-| `--disable-group GROUP_ID` | 本次启动不应用指定 Group；可一次指定多个 Group，也可重复使用 |
+| `--force-group GROUP_ID[,GROUP_ID...]` | 对指定且已启用的一个或多个 Group 的可放行检查进行一次性覆盖 |
+| `--disable-group GROUP_ID[,GROUP_ID...]` | 本次启动不应用指定的一个或多个 Group |
 | `--set NAME=VALUE` | 覆盖或增加非空环境变量，可重复 |
 | `--disable-numa` | 关闭本次启动的 NUMA 绑定；默认开启 |
 
-命令在 `--` 之后逐字透传，不解析或改写启动器参数。可以使用 `torchrun`、
+训练命令直接写在 TurboPhysAI 参数之后，框架逐字透传，不解析或改写启动器参数。可以使用 `torchrun`、
 `torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 或 Shell 启动脚本，
 TurboPhysAI 会在每个 Python 训练 rank 中自动应用 OptimizationConfig。
 
@@ -120,7 +120,6 @@ Shell 语法本身仍不由 `turbo-physai run` 解析。`source`、`ulimit`、�
 ```bash
 turbo-physai run \
   --model bevformer \
-  -- \
   torchrun --nproc-per-node=8 tools/train.py path/to/config.py
 ```
 
@@ -129,13 +128,12 @@ TorchPack 示例：
 ```bash
 turbo-physai run \
   --model bevfusion \
-  -- \
   torchpack dist-run -np 8 python tools/train.py path/to/config.py
 ```
 
-`--force-group` 仅对本次启动有效，且 Group 必须已被当前 OptimizationConfig 启用。该参数只能覆盖框架明确标记为可放行的证据类检查。目标不存在、Alias 身份冲突、签名不兼容和优化冲突等结构性问题仍会阻断。
+`--force-group` 仅对本次启动有效，且 Group 必须已被当前 OptimizationConfig 启用。多个 Group ID 使用逗号分隔。该参数只能覆盖框架明确标记为可放行的证据类检查。目标不存在、Alias 身份冲突、签名不兼容和优化冲突等结构性问题仍会阻断。
 
-`--disable-group` 仅对本次启动有效，不修改 OptimizationConfig。依赖被禁用 Group 的其他 Group 同时跳过。报告分别使用 `disabled_by_user` 和 `dependency_disabled` 记录两类原因。同一 Group 不能同时强制放行和禁用。
+`--disable-group` 仅对本次启动有效，不修改 OptimizationConfig。多个 Group ID 使用逗号分隔。依赖被禁用 Group 的其他 Group 同时跳过。报告分别使用 `disabled_by_user` 和 `dependency_disabled` 记录两类原因。同一 Group 不能同时强制放行和禁用。
 
 `run` 用 `exec` 替换自身执行训练命令，进程树中不留中间进程。`SIGINT`、`SIGTERM` 等信号由训练进程直接接收，不经过转发。
 

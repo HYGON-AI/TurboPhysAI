@@ -1,79 +1,48 @@
 # 组件架构
 
-TurboPhysAI 基于 Python 运行时替换（Monkey Patch）应用优化。为降低优化接入成本，
-并保证替换过程可检查、可回滚、可追溯，组件围绕优化声明、配置管理、应用前检查、
-冲突分析、分组执行和结果记录构建了如下架构。
+TurboPhysAI 通过 Python 运行时替换（Monkey Patch），在不修改模型源码的情况下应用性能优化。为简化优化接入，并使替换过程可检查、可回滚、可追溯，组件统一管理优化声明与配置、应用条件检查、冲突与执行顺序、分组执行与回滚以及状态记录，形成如下架构。TurboPhysAI 基于 Python 运行时替换（Monkey Patch）应用优化。为降低优化接入成本，并保证替换过程可检查、可回滚、可追溯，组件围绕优化声明、配置管理、应用前检查、冲突分析、分组执行和结果记录构建了如下架构。
 
 ![TurboPhysAI 组件架构](../../assets/turbophysai-component-framework.png)
 
-## 设计目标
-
-TurboPhysAI 将 Replacement 与安全应用流程分开：
-
-- 优化代码负责实际计算；
-- Catalog 负责声明可以替换的入口和功能边界；
-- OptimizationConfig 负责选择本次交付的优化；
-- 框架负责环境检查、冲突判断、执行顺序、回滚和 OptimizationReport；
-- 模型工程无需修改上游业务实现。
-
 ## 分层结构
 
-### 接入层
+架构中的四层从上到下分别回答：如何启用优化、应用哪些优化、如何安全地完成应用，以及优化代码由什么实现。训练从命令或 Python API 进入组件，配置确定本次需要使用的优化，优化应用层完成检查和安装，模型随后通过原有入口调用优化实现。
 
-公开入口为：
+### 命令与接口层
 
-- `turbo_physai.apply()`：检查并应用一次 OptimizationConfig；
-- `turbo_physai.check()`：生成应用决策但不安装 Replacement；
-- `group/replace/wrap`：优化开发声明；
-- `turbo-physai`：OptimizationConfig、RuntimeConfig、训练启动和外部开发工程 CLI。
+这一层是训练用户和优化开发者使用 TurboPhysAI 的入口。
 
-顶层包延迟加载算子模块，使 OptimizationConfig Schema 和 Catalog 可以在不初始化 Torch/HCU 算子的情况下导入。
+- `turbo-physai run` 负责在不修改模型源码的情况下应用优化，并将 RuntimeConfig 中声明的环境变量配置到训练进程；
+- `turbo-physai optimization generate` 将优化声明和模型基线转换为可交付的优化配置；
+- `turbo_physai.apply()` 用于在 Python 训练入口中显式应用优化。
 
-### 优化资产层
+训练用户通常使用 `turbo-physai run`。Python API 适用于能够控制训练入口的集成方式，配置生成命令用于优化开发与交付。
 
-- `operators/`：可直接调用的算子级 Python API；
-- `optimizations/common/<framework>/`：按上层框架或基础库划分的跨模型公共优化；当前 `optimizations/common/mmcv/` 是其中一个子目录；
-- `optimizations/models/<model>/`：依赖模型上下文的优化；
-- `optimizations/common/configs/`：默认公共优化配置；
-- `optimizations/models/<model>/configs/`：随模型实现集中存放配方、OptimizationConfig 与 RuntimeConfig。
+### 声明与配置层
 
-Catalog 使用字符串声明 target 和 Replacement，不在声明阶段导入真实模型或重型算子实现。
-公共框架 Catalog 随 TurboPhysAI 初始化登记；模型 Catalog 不做全局汇总，由对应
-OptimizationConfig 的 `optimization_modules` 按需导入。
+这一层描述“有哪些优化”和“本次训练使用哪些优化”：
 
-### 应用前检查
+- **Catalog** 是可用优化的清单，记录每项优化需要替换的模型入口及其优化实现；
+- **OptimizationConfig** 从 Catalog 中选择本次需要应用的 Optimization Group，并保存用于确认目标代码是否匹配的证据；
+- **RuntimeConfig** 记录训练启动所需的环境变量和进程资源配置。
 
-- Loader 读取 YAML、展开内置 `extends` 并导入外部 `optimization_modules`；
-- Registry 通过稳定 ID 索引内部 ReplacementSpec 和 OptimizationGroup；
-- Context 采集 Python、平台、依赖、Git、backend 和 rank 信息；
-- Handler 解析真实 target、aliases 和 Replacement；
-- Checker 执行统一基础检查，并运行 Group 显式声明的兼容条件；
-- Conflict Analyzer 检查入口重复、冲突和依赖；
-- 检查结果与 Group 依赖共同确定 `apply/skip/block` 状态和执行顺序。
+模型专用配置随组件交付；使用 `--model` 启动训练时，TurboPhysAI 自动加载对应的 OptimizationConfig 和 RuntimeConfig。
 
-### 执行层
+### 优化应用层
 
-Executor 只执行 `PreparedExecution.execution_order` 中的 Group。每个 Group 在首次修改前准备全部成员并保存 target 快照，成员失败后按逆序回滚。Reporter 将 Preparation 和 Execution 结果写入 OptimizationReport。
+这一层负责将配置中的优化安全地安装到当前训练进程。它先定位模型中的目标对象，确认目标代码和运行环境满足应用条件，再处理多项优化之间的依赖和冲突，最后按照确定的顺序安装优化。
 
-### 启动层
+安装过程中，框架以 Optimization Group 为单位保存目标原始状态。某个 Group 安装失败时，框架恢复该 Group 已修改的目标；检查结论、应用状态和失败原因会统一记录并输出。
 
-`turbo-physai run` 加载 RuntimeConfig、准备环境变量与启动钩子，然后用 `exec` 替换
-自身执行训练命令。Runner 不解析或改写启动器参数，且进程树中不留中间进程。启动链路
-最终需要创建启用标准库 `site` 的 Python 训练进程。
+### 优化实现层
 
-每个训练 rank 的解释器在启动时由标准库 `site` 自动导入 `turbo_physai/bootstrap`
-下的钩子，先准备运行环境并执行 `apply()`，再进入原训练入口。启动器进程
-（`torchrun` 等）本身不安装 Python Replacement。
+这一层提供最终参与模型计算的优化代码，包括：
 
-### HCU 实现层
+- 可被多个模型复用的公共优化；
+- 针对具体模型计算图和执行链路实现的模型专用优化；
+- 由 HCU Kernel、hipDNN、LightOp 或 PyTorch 扩展提供的高性能算子。
 
-优化最终可以调用：
-
-- 编译进 `turbo_physai.ops` 的 HCU/CUDA Kernel；
-- hipDNN；
-- LightOp；
-- PyTorch、Autograd 和 `torch.library`；
-- 外部优化包提供的算子。
+优化应用完成后，模型仍然使用原有调用入口，实际执行的是已经安装的优化实现。
 
 ## 工程目录
 
@@ -122,17 +91,3 @@ turbo_physai/
 ├── third_party/                     # 第三方许可证材料
 └── setup.py                         # Python 包和原生扩展构建
 ```
-
-## 三个生命周期
-
-### 开发期
-
-开发者在外部工程实现 Replacement、声明 Group、按需增加兼容条件、维护最小配方并生成最终 YAML。冲突必须在这一阶段解决。
-
-### 启动期
-
-父进程依据 RuntimeConfig 准备启动环境。每个训练 rank 在导入模型训练入口前调用 `apply()`，解析当前 Python 对象、检查环境和基线、确定执行顺序并完成替换。
-
-### 运行期
-
-模型调用已经安装的优化对象。默认情况下，输入语义错误、设备异常或编译问题由 Replacement 直接暴露，不自动 fallback。声明 `runtime_condition` 时，框架安装调用期条件分发对象，并在条件为 `False` 时调用原实现；条件函数与 Replacement 的异常仍直接向上传播。OptimizationReport 记录的是启动期安装结果，不是完整训练正确性的证明。

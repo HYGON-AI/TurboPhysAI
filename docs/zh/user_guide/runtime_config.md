@@ -46,7 +46,6 @@ turbo-physai run \
   --model bevformer \
   --set HIP_VISIBLE_DEVICES=0,1,2,3 \
   --set NCCL_SOCKET_IFNAME=ens19f0 \
-  -- \
   torchrun --nproc-per-node=4 tools/train.py path/to/config.py
 ```
 
@@ -67,7 +66,6 @@ turbo-physai run \
   --runtime-config ./configs/runtime.yaml \
   --set NAME=VALUE \
   --disable-numa \
-  -- \
   torchrun --nproc-per-node=8 tools/train.py path/to/config.py
 ```
 
