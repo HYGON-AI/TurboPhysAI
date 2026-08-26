@@ -48,7 +48,7 @@ turbo-physai run --log-report <original-training-command>
 
 通常不会。被阻断的 Group 及其下游依赖不会执行，其他独立 Group 继续处理；Group 应用失败但成功回滚时，其他独立 Group 也可以继续。
 
-回滚失败表示进程状态无法可靠恢复，此时框架会停止后续执行。具体排查方法见[问题排查：Group 未应用](user_guide/troubleshooting.md#2-group-未应用)，处理规则见[优化检查、执行与回滚](design/execution.md)。
+回滚失败表示进程状态无法可靠恢复，此时框架会停止后续执行。具体排查方法见[问题排查：Group 未应用](user_guide/troubleshooting.md#2-group-未应用)，处理规则见[优化应用与回滚](design/execution.md)。
 
 ## 可以在优化接入基线之外的模型版本上使用吗？
 

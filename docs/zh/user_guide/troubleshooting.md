@@ -40,7 +40,7 @@ TURBO_PHYSAI_OPTIMIZATION_COMPLETED rank=<rank> applied=... blocked=... failed=.
 
 独立 Group 的阻断或成功回滚不会阻止其他 Group 和训练入口继续运行，因此不能仅根据训练是否启动判断全部优化均已完成安装。
 
-决策、依赖传播和失败处理规则见[优化检查、执行与回滚](../design/execution.md)。
+决策、依赖传播和失败处理规则见[优化应用与回滚](../design/execution.md)。
 
 ## 3. target、alias 或 Hash 检查失败
 

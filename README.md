@@ -35,11 +35,11 @@ turbo-physai run --model bevformer \
 
 ## 按角色导航
 
-| 角色 | 典型场景 | 文档入口 |
-| --- | --- | --- |
-| 训练用户 | 在已支持的模型上启用优化，确认安装状态并排查问题 | [安装指南](docs/zh/get_started/installation.md) → [快速开始](docs/zh/get_started/quick_start.md) → [模型支持清单](docs/zh/models/support_list.md) |
-| 优化开发人员 | 为新模型或新算子实现优化，生成配置并完成验证交付 | [优化开发与接入流程](docs/zh/developer_guide/optimization_workflow.md) → [优化验证与交付](docs/zh/developer_guide/validation.md) |
-| 框架维护人员 | 维护优化引擎、评审优化接入、扩展框架能力 | [组件架构](docs/zh/design/architecture.md) → [优化检查、执行与回滚](docs/zh/design/execution.md) → [兼容性管理](docs/zh/design/compatibility.md) → [贡献指南](CONTRIBUTING.md) |
+| 角色         | 典型场景                                         | 文档入口                                                                                                                                                        |
+| ------------ | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 训练用户     | 在已支持的模型上启用优化，确认安装状态并排查问题 | [安装指南](docs/zh/get_started/installation.md) → [快速开始](docs/zh/get_started/quick_start.md) → [模型支持清单](docs/zh/models/support_list.md)                      |
+| 优化开发人员 | 为新模型或新算子实现优化，生成配置并完成验证交付 | [优化开发与接入流程](docs/zh/developer_guide/optimization_workflow.md) → [优化验证与交付](docs/zh/developer_guide/validation.md)                                     |
+| 框架维护人员 | 维护优化引擎、评审优化接入、扩展框架能力         | [组件架构](docs/zh/design/architecture.md) → [优化应用与回滚](docs/zh/design/execution.md) → [兼容性管理](docs/zh/design/compatibility.md) → [贡献指南](CONTRIBUTING.md) |
 
 日常查询：[CLI 参考](docs/zh/reference/cli.md) · [优化应用报告](docs/zh/user_guide/report.md) ·
 [问题排查](docs/zh/user_guide/troubleshooting.md) · [FAQ](docs/zh/faq.md)。
@@ -60,12 +60,10 @@ TurboPhysAI/
 
 ## 参与开发
 
-优化开发者先用 `turbo-physai optimization init` 在仓库外创建独立开发工程，
-完成实现、正确性测试和真实模型验证后再提交长期集成。
-贡献要求见 [CONTRIBUTING.md](CONTRIBUTING.md)，流程见[优化开发与接入流程](docs/zh/developer_guide/optimization_workflow.md)。
+贡献说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 版本记录：[RELEASE_NOTES.md](RELEASE_NOTES.md) · 安全问题：[SECURITY.md](SECURITY.md) ·
-问题和需求：通过仓库 Issue 或 Merge Request 反馈。
+问题和需求：通过仓库 Issue 或 Pull Request（PR）反馈。
 
 ## License
 

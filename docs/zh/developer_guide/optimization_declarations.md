@@ -283,7 +283,7 @@ IMPORT_COMPATIBILITY = group(
 以上四种机制可以组成同一个导入兼容 Group，但不能与普通 `replace` 或 `wrap` 混入同一 Group。导入兼容 Group 之间的依赖也只能指向其他导入兼容 Group。
 
 导入兼容 Group 先于普通优化 Group 生效。完整检查和恢复规则见
-[优化检查、执行与回滚](../design/execution.md)。
+[优化应用与回滚](../design/execution.md)。
 
 ## 6. aliases
 
@@ -429,6 +429,6 @@ OptimizationConfig 可以为 Group 提供 `options`。`wrap` 的 Wrapper Factory
 ## 9. 相关规则
 
 - Group 的检查、决策、事务执行和回滚规则见
-  [优化检查、执行与回滚](../design/execution.md)；
+  [优化应用与回滚](../design/execution.md)；
 - 依赖展开、组合冲突和 Replacement 引用检查见
   [生成和检查 OptimizationConfig](optimization_config_generation.md)。

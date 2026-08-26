@@ -31,6 +31,6 @@
 ## 设计与维护
 
 - [组件架构](zh/design/architecture.md)
-- [优化检查、执行与回滚](zh/design/execution.md)
+- [优化应用与回滚](zh/design/execution.md)
 - [兼容性管理](zh/design/compatibility.md)
 - [CLI 参考](zh/reference/cli.md)
