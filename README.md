@@ -8,7 +8,11 @@ TurboPhysAI 是面向 Physical AI 的模型训练性能优化组件，面向自�
 
 ## 使用方式
 
-优化不侵入模型仓库。原训练命令保持不变，在前面加上 `turbo-physai run` 即可启用：
+TurboPhysAI 提供命令行和 Python API 两类入口。训练用户优先使用 `turbo-physai run`；能够控制模型模块导入顺序时，也可以直接调用 `turbo_physai.apply()`。
+
+### 使用内置模型优化
+
+原训练命令保持不变，在前面加上 `turbo-physai run --model <模型名>`，即可加载该模型随包交付的 [OptimizationConfig](docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](docs/zh/user_guide/runtime_config.md)：
 
 ```bash
 # 原训练命令
@@ -21,9 +25,46 @@ turbo-physai run --model bevformer \
     ./projects/configs/bevformer/bevformer_base.py --launcher pytorch
 ```
 
-组件加载该模型随包交付的优化配置和运行配置，在每个训练进程启动时应用一次，可通过 `--log-report` 输出优化应用报告，用于确认声明的目标入口是否已安装优化对象。`--model` 的可选值、优化接入基线和使用说明见[模型支持清单](docs/zh/models/support_list.md)。
+组件在每个训练进程启动时应用一次优化。增加 `--log-report` 可以输出优化应用日志，用于确认预期优化项是否已应用。`--model` 的可选值、优化接入基线和使用说明见[模型支持清单](docs/zh/models/support_list.md)。
 
-前置条件（安装组件、模型仓库 commit、数据集与权重）见[安装指南](docs/zh/get_started/installation.md)。不指定 `--model`、使用自定义配置或直接调用 `turbo_physai.apply()` 的用法，见[快速开始](docs/zh/get_started/quick_start.md)。
+### 仅使用公共优化
+
+不指定模型和配置时，Runner 加载随包交付的公共 OptimizationConfig，不加载模型专用优化或 RuntimeConfig：
+
+```bash
+turbo-physai run \
+  python tools/train.py path/to/config.py
+```
+
+### 使用显式配置
+
+外部优化包或自定义优化时可以显式指定 OptimizationConfig 和 RuntimeConfig：
+
+```bash
+turbo-physai run \
+  --optimization-config ./configs/optimization.yaml \
+  --runtime-config ./configs/runtime.yaml \
+  python tools/train.py path/to/config.py
+```
+
+显式配置路径优先于 `--model` 选择的同类配置。RuntimeConfig 是可选项；未使用 RuntimeConfig 时，训练环境和启动参数由原命令或外部脚本负责。
+
+### 使用 Python API
+
+能够控制训练入口时，可以在导入模型相关模块前显式应用优化：
+
+```python
+import turbo_physai
+
+report = turbo_physai.apply(
+    model="bevformer",
+    log_report=True,
+)
+```
+
+也可以将 `model` 替换为 `optimization_config_path="./configs/optimization.yaml"`，加载显式 OptimizationConfig。`apply()` 每个训练进程只能调用一次，不负责加载 RuntimeConfig 或启动训练；调用方需要在应用完成后再导入并执行模型代码。
+
+前置条件（安装组件、模型仓库 commit、数据集与权重）见[安装指南](docs/zh/get_started/installation.md)。完整启动参数、配置规则和报告说明见[快速开始](docs/zh/get_started/quick_start.md)、[CLI 参考](docs/zh/reference/cli.md)和[优化应用报告](docs/zh/user_guide/report.md)。
 
 ## 按角色导航
 
