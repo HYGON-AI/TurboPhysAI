@@ -1,9 +1,6 @@
 # Third-Party Notices and Provenance
 
-This file records the provenance of source code distributed in TurboPhysAI. The
-root [BSD-3-Clause License](LICENSE) applies to Hygon-authored material only. A source
-file derived from an upstream work remains subject to its upstream license and
-notices.
+This file records the provenance of source code distributed in TurboPhysAI. The root [BSD-3-Clause License](LICENSE) applies to Hygon-authored material only. A source file derived from an upstream work remains subject to its upstream license and notices.
 
 ## Confirmed Apache-2.0 derivations
 
@@ -43,15 +40,10 @@ The complete Boost Software License 1.0 text is in [third_party/licenses/Boost-1
 
 ## Provenance policy for future additions
 
-Before public release, every newly introduced third-party or mixed-source file
-must be resolved to an upstream path and 40-character commit and added here.
+Before public release, every newly introduced third-party or mixed-source file must be resolved to an upstream path and 40-character commit and added here.
 
-All previously identified source files now have a direct upstream path and a
-fixed 40-character source revision. Any newly introduced third-party or mixed
-source must be added to this file before public release.
+All previously identified source files now have a direct upstream path and a fixed 40-character source revision. Any newly introduced third-party or mixed source must be added to this file before public release.
 
 ## Hygon modification notice
 
-Where Apache-2.0 source code was modified, the source file retains the upstream
-copyright and license notice, then adds Hygon copyright and `Modified by
-Hygon.`. The notice does not change the upstream license.
+Where Apache-2.0 source code was modified, the source file retains the upstream copyright and license notice, then adds Hygon copyright and `Modified by Hygon.`. The notice does not change the upstream license.

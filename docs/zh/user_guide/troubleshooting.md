@@ -1,8 +1,6 @@
 # 问题排查
 
-问题排查应先保留完整启动命令和终端输出，并使用 `--log-report` 输出
-OptimizationReport。报告中的 `Configuration Checks`、`Preparation` 和 `Execution`
-分别对应配置级检查、Group 应用决策和实际执行结果。
+问题排查应先保留完整启动命令和终端输出，并使用 `--log-report` 输出 OptimizationReport。报告中的 `Configuration Checks`、`Preparation` 和 `Execution` 分别对应配置级检查、Group 应用决策和实际执行结果。
 
 ## 1. 找不到内置模型或配置文件
 
@@ -93,8 +91,7 @@ turbo-physai run --disable-numa <training-command>
 
 ## 6. 训练进程未加载优化
 
-使用 `--log-report` 后仍没有输出 `TURBO_PHYSAI_OPTIMIZATION_COMPLETED`，或报告中没有
-预期的训练 rank 时，按以下顺序检查：
+使用 `--log-report` 后仍没有输出 `TURBO_PHYSAI_OPTIMIZATION_COMPLETED`，或报告中没有预期的训练 rank 时，按以下顺序检查：
 
 1. 确认启动格式为 `turbo-physai run [参数] <原训练命令>`；
 2. 确认启动链路最终创建 Python 训练进程，而不是只执行非 Python 程序；
@@ -102,8 +99,7 @@ turbo-physai run --disable-numa <training-command>
 4. 使用 Shell 脚本或调度系统时，确认其启动的训练进程继承 Runner 准备的环境；
 5. 在训练 rank 的输出和 OptimizationReport 中确认结果，不以启动器父进程是否应用优化为判断依据。
 
-TurboPhysAI 参数之后的命令由 Runner 逐字执行。Shell 脚本可以作为原训练命令，但脚本最终必须启动
-符合上述条件的 Python 训练进程。完整规则见 [CLI 参考](../reference/cli.md)。
+TurboPhysAI 参数之后的命令由 Runner 逐字执行。Shell 脚本可以作为原训练命令，但脚本最终必须启动符合上述条件的 Python 训练进程。完整规则见 [CLI 参考](../reference/cli.md)。
 
 ## 7. Replacement 在训练运行时报错
 
@@ -142,16 +138,11 @@ turbo-physai run \
 
 ## 10. 查看分布式应用结果
 
-指定 `--log-report` 后，Rank 0 在训练日志中输出以
-`TURBO_PHYSAI_OPTIMIZATION_REPORT_BEGIN` 和
-`TURBO_PHYSAI_OPTIMIZATION_REPORT_END` 界定的完整报告。其他 rank 输出
-`TURBO_PHYSAI_OPTIMIZATION_COMPLETED` 摘要。同一次启动的输出共享 Run ID，
-可用于核对各 rank 的应用结果。
+指定 `--log-report` 后，Rank 0 在训练日志中输出以 `TURBO_PHYSAI_OPTIMIZATION_REPORT_BEGIN` 和 `TURBO_PHYSAI_OPTIMIZATION_REPORT_END` 界定的完整报告。其他 rank 输出 `TURBO_PHYSAI_OPTIMIZATION_COMPLETED` 摘要。同一次启动的输出共享 Run ID，可用于核对各 rank 的应用结果。
 
 ## 11. 回滚失败
 
-回滚失败表示框架无法确认 Group 已恢复到快照状态。此时进程中的 Python 对象状态不可继续信任，框架会停止后续 Group 并抛出 `OptimizationRollbackError`；启用
-`--log-report` 时，异常前会输出本次报告。
+回滚失败表示框架无法确认 Group 已恢复到快照状态。此时进程中的 Python 对象状态不可继续信任，框架会停止后续 Group 并抛出 `OptimizationRollbackError`；启用 `--log-report` 时，异常前会输出本次报告。
 
 处理步骤：
 

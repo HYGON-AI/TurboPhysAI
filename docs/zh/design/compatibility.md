@@ -60,8 +60,7 @@ TurboPhysAI 不从磁盘重新加载原实现，也不沿 `__wrapped__` 链移�
 | 第三方组件 → TurboPhysAI | TurboPhysAI 读取到第三方修改后的对象，基线证据通常不匹配，默认阻断。人工确认并通过 `force_groups` 放行后，`replace` 覆盖第三方实现，`wrap` 包装第三方实现。 |
 | TurboPhysAI → 第三方组件 | TurboPhysAI 按基线完成检查和应用。第三方组件随后执行 `replace` 时会覆盖 TurboPhysAI；执行 Wrapper 时可能包装 TurboPhysAI 的实现。 |
 
-第三方组件在 TurboPhysAI 之后执行的修改不经过 TurboPhysAI 检查。两个组件修改不同
-target 时，加载顺序通常不影响彼此。
+第三方组件在 TurboPhysAI 之后执行的修改不经过 TurboPhysAI 检查。两个组件修改不同 target 时，加载顺序通常不影响彼此。
 
 ## 能力边界
 

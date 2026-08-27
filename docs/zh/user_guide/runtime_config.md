@@ -80,9 +80,6 @@ turbo-physai run \
 
 ## 5. 与训练命令的关系
 
-Runner 在执行原训练命令前，将 RuntimeConfig 中的设置写入训练环境。启动链路创建的
-后续进程继承该环境。RuntimeConfig 加载或应用失败时，原训练命令不会启动。
+Runner 在执行原训练命令前，将 RuntimeConfig 中的设置写入训练环境。启动链路创建的后续进程继承该环境。RuntimeConfig 加载或应用失败时，原训练命令不会启动。
 
-训练命令的透传规则、启动条件、参数和返回码见 [CLI 参考](../reference/cli.md)。
-RuntimeConfig 的修改可能影响通信、CPU 调度和算子选择，交付前应在目标环境中验证训练
-正确性和稳定性能。
+训练命令的透传规则、启动条件、参数和返回码见 [CLI 参考](../reference/cli.md)。RuntimeConfig 的修改可能影响通信、CPU 调度和算子选择，交付前应在目标环境中验证训练正确性和稳定性能。

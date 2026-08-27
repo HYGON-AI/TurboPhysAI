@@ -52,15 +52,11 @@ turbo-physai run --log-report <original-training-command>
 
 ## 可以在优化接入基线之外的模型版本上使用吗？
 
-可以。使用其他 commit 或修改模型源码时，框架会根据目标对象的源码、AST、签名及
-Optimization Group 声明的兼容条件逐项检查。满足条件的优化可以继续应用；不满足条件的优化
-不会应用，并在执行报告中记录原因。
+可以。使用其他 commit 或修改模型源码时，框架会根据目标对象的源码、AST、签名及 Optimization Group 声明的兼容条件逐项检查。满足条件的优化可以继续应用；不满足条件的优化不会应用，并在执行报告中记录原因。
 
-模型 commit 与优化接入基线不一致时，OptimizationReport 中的 `project.commit` 检查会产生
-`warning`，不会单独阻断优化。
+模型 commit 与优化接入基线不一致时，OptimizationReport 中的 `project.commit` 检查会产生 `warning`，不会单独阻断优化。
 
-推荐使用模型支持清单中的优化接入基线。正式支持新的优化接入基线前，应完成正确性和性能验证，
-并重新生成 OptimizationConfig。
+推荐使用模型支持清单中的优化接入基线。正式支持新的优化接入基线前，应完成正确性和性能验证，并重新生成 OptimizationConfig。
 
 ## `apply()` 返回后优化是否已经安装？
 

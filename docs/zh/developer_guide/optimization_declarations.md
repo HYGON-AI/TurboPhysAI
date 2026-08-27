@@ -1,7 +1,6 @@
 # 优化声明
 
-本文说明优化开发人员如何使用 `group`、`replace`、`wrap` 和导入兼容接口声明优化能力，
-并定义 Group 边界、依赖和适用条件。
+本文说明优化开发人员如何使用 `group`、`replace`、`wrap` 和导入兼容接口声明优化能力，并定义 Group 边界、依赖和适用条件。
 
 普通优化声明从 `turbo_physai` 导入：
 
@@ -77,8 +76,7 @@ replace(
 
 ### 2.1 函数和方法替换
 
-以 MMDetection3D Gaussian 公共优化为例，Replacement 实现位于
-`turbo_physai/optimizations/common/mmdet3d/gaussian.py`：
+以 MMDetection3D Gaussian 公共优化为例，Replacement 实现位于 `turbo_physai/optimizations/common/mmdet3d/gaussian.py`：
 
 ```python
 def gaussian_2d(shape, sigma=1, device=None, dtype=None):
@@ -282,8 +280,7 @@ IMPORT_COMPATIBILITY = group(
 
 以上四种机制可以组成同一个导入兼容 Group，但不能与普通 `replace` 或 `wrap` 混入同一 Group。导入兼容 Group 之间的依赖也只能指向其他导入兼容 Group。
 
-导入兼容 Group 先于普通优化 Group 生效。完整检查和恢复规则见
-[优化应用与回滚](../design/execution.md)。
+导入兼容 Group 先于普通优化 Group 生效。完整检查和恢复规则见[优化应用与回滚](../design/execution.md)。
 
 ## 6. aliases
 
@@ -376,8 +373,7 @@ GAUSSIAN = group(
 )
 ```
 
-依赖关系在 Catalog 中声明。Generator 根据 `depends_on` 补齐依赖 Group 并确定执行顺序。
-完整生成规则见[生成和检查 OptimizationConfig](optimization_config_generation.md)。
+依赖关系在 Catalog 中声明。Generator 根据 `depends_on` 补齐依赖 Group 并确定执行顺序。完整生成规则见[生成和检查 OptimizationConfig](optimization_config_generation.md)。
 
 ### 8.2 compatibility_check
 

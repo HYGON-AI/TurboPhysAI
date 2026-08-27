@@ -98,19 +98,13 @@ turbo-physai run \
 | `--set NAME=VALUE` | 覆盖或增加非空环境变量，可重复 |
 | `--disable-numa` | 关闭本次启动的 NUMA 绑定；默认开启 |
 
-训练命令直接写在 TurboPhysAI 参数之后，框架逐字透传，不解析或改写启动器参数。可以使用 `torchrun`、
-`torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 或 Shell 启动脚本，
-TurboPhysAI 会在每个 Python 训练 rank 中自动应用 OptimizationConfig。
+训练命令直接写在 TurboPhysAI 参数之后，框架逐字透传，不解析或改写启动器参数。可以使用 `torchrun`、`torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 或 Shell 启动脚本，TurboPhysAI 会在每个 Python 训练 rank 中自动应用 OptimizationConfig。
 
-指定 `--log-report` 后，Rank 0 将完整 OptimizationReport 输出到训练日志，其他 rank
-输出应用状态摘要。报告内容见[优化应用报告](../user_guide/report.md)。
+指定 `--log-report` 后，Rank 0 将完整 OptimizationReport 输出到训练日志，其他 rank 输出应用状态摘要。报告内容见[优化应用报告](../user_guide/report.md)。
 
-例外是 `python -E`、`-I`、`-S`：这三个标志会使启动钩子不被加载，命令中出现它们时
-`turbo-physai run` 直接报错，而不是让训练以未优化状态运行。
+例外是 `python -E`、`-I`、`-S`：这三个标志会使启动钩子不被加载，命令中出现它们时 `turbo-physai run` 直接报错，而不是让训练以未优化状态运行。
 
-Shell 语法本身仍不由 `turbo-physai run` 解析。`source`、`ulimit`、管道和条件分支应
-保留在作业脚本中，由该脚本调用 `turbo-physai run`。完整字段和覆盖规则见
-[RuntimeConfig 使用指南](../user_guide/runtime_config.md)。
+Shell 语法本身仍不由 `turbo-physai run` 解析。`source`、`ulimit`、管道和条件分支应保留在作业脚本中，由该脚本调用 `turbo-physai run`。完整字段和覆盖规则见 [RuntimeConfig 使用指南](../user_guide/runtime_config.md)。
 
 配置选择顺序如下：
 
