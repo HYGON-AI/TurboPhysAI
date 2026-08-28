@@ -337,8 +337,8 @@ def _hcu_backward(input, offset, mask, weight, grad_output, stride, padding,
         weight = weight.to(dtype=torch.float16)
         grad_output = grad_output.to(dtype=torch.float16)
 
-    grad_input = torch.empty_like(input)
-    grad_weight = torch.empty_like(weight)
+    grad_input = torch.zeros_like(input)
+    grad_weight = torch.zeros_like(weight)
     grad_output = grad_output.to(memory_format=torch.channels_last)
 
     shape_key = _conv_key('wrw', input, weight, offset, mask, stride, padding,
