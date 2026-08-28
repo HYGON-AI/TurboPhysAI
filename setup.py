@@ -447,6 +447,7 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "numpy>=1.23.0",
+        "scipy>=1.9.0",
         "PyYAML>=6.0",
         "packaging>=21.0",
     ],
