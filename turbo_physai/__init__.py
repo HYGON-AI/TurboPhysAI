@@ -39,10 +39,6 @@ def check(*args: Any, **kwargs: Any):
 
 
 _LAZY_OPERATORS = {
-    "MultiScaleDeformableAttnFunction": (
-        "turbo_physai.operators.multi_scale_deformable_attn",
-        "MultiScaleDeformableAttnFunction",
-    ),
     "ModulatedDeformConv2dFunction": (
         "turbo_physai.operators.modulated_deform_conv",
         "ModulatedDeformConv2dFunction",
