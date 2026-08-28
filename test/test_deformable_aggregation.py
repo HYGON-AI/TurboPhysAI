@@ -5,9 +5,12 @@ import pytest
 import torch
 import numpy as np
 from functools import partial
-from utils import allclose, run_benchmark
+from test.utils import allclose, run_benchmark
 from turbo_physai import deformable_aggregation_function as hcu_deformable_aggregation_function
-from deformable_aggregation_np import DeformableAggregationFunction as cpu_deformable_aggregation_function
+from test.deformable_aggregation_np import DeformableAggregationFunction as cpu_deformable_aggregation_function
+
+
+pytestmark = pytest.mark.hcu
 
 
 def cpu_gen_inputs(B, C, numGroups, anchor, pts, num_feat, cam, scale, H, W):

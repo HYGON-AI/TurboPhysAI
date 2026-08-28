@@ -416,8 +416,29 @@ class BevFusionPatchFrameworkTest(unittest.TestCase):
                 self.assertIsNotNone(resolve_replacement(spec.replacement))
 
     def test_catalog_import_does_not_import_model_stack(self):
-        self.assertNotIn("mmcv", sys.modules)
-        self.assertNotIn("mmdet3d", sys.modules)
+        script = textwrap.dedent(
+            """
+            import sys
+
+            from turbo_physai.optimizations.common.mmdet3d import catalog
+            from turbo_physai.optimizations.models.bevfusion import (
+                catalog as model_catalog,
+            )
+
+            assert catalog is not None
+            assert model_catalog is not None
+            assert "mmcv" not in sys.modules
+            assert "mmdet3d" not in sys.modules
+            """
+        )
+        completed = subprocess.run(
+            [sys.executable, "-c", script],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=os.getcwd(),
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_extract_features_uses_input_batch_size(self):
         class Backbone:

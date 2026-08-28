@@ -5,9 +5,12 @@ import pytest
 import torch
 import numpy as np
 from functools import partial
-from utils import allclose, run_benchmark
+from test.utils import allclose, run_benchmark
 from torch.nn.functional import interpolate as torch_interpolate
 from turbo_physai import interpolate as hcu_interpolate
+
+
+pytestmark = pytest.mark.hcu
 
 
 class TestUpSampleBilinear2d():

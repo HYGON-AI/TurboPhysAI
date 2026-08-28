@@ -42,7 +42,7 @@ Engine 的声明、检查、事务执行和报告行为由 `test/engine/` 下的
 仓库中的真实测试可作为实现参考：
 
 - [`test/test_grid_sample.py`](../../../test/test_grid_sample.py) 使用 PyTorch `grid_sample` 作为参考实现，对比 TurboPhysAI 算子的前向输出、输入梯度和 Grid 梯度；
-- [`test/test_multi_scale_deformable_attn.py`](../../../test/test_multi_scale_deformable_attn.py) 对比 Multi-Scale Deformable Attention 的前向与反向结果；
+- [`test/optimizations/test_hcu_implementations.py`](../../../test/optimizations/test_hcu_implementations.py) 对比公共与 BEVFormer LightOp Multi-Scale Deformable Attention 的前向与反向结果；
 - [`test/test_deformable_aggregation.py`](../../../test/test_deformable_aggregation.py) 使用参考计算验证 Deformable Aggregation 的输出和梯度；
 - [`test/engine/test_bevfusion.py`](../../../test/engine/test_bevfusion.py) 中的 `test_factorized_depth_features_match_dense_outer_product_and_gradients` 对比 BEVFusion 稠密参考计算与优化实现，并验证输入梯度。
 

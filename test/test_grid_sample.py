@@ -7,8 +7,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from functools import partial
-from utils import allclose, run_benchmark
+from test.utils import allclose, run_benchmark
 from turbo_physai import grid_sample
+
+pytestmark = pytest.mark.hcu
 
 torch.manual_seed(2026)
 
