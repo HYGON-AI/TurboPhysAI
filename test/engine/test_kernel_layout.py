@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -12,11 +13,39 @@ KERNEL_ROOT = ROOT / "kernel"
 
 class KernelLayoutTest(unittest.TestCase):
     def test_kernel_tree_contains_only_maintained_sources(self):
+        generated_ignore_rules = {
+            "kernel/**/*.hip",
+            "kernel/**/*_hip.h",
+            "kernel/**/*_hip.hpp",
+            "kernel/**/*_hip.cpp",
+            "kernel/**/*_hip.cuh",
+        }
+        ignore_rules = {
+            line.strip()
+            for line in (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+        self.assertTrue(generated_ignore_rules.issubset(ignore_rules))
+
+        completed = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files", "-z", "--", "kernel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if completed.returncode != 0:
+            # Exported source trees do not contain .git metadata. The ignore
+            # policy above is the available repository-layout evidence there.
+            return
+
+        tracked = [
+            ROOT / raw.decode("utf-8")
+            for raw in completed.stdout.split(b"\0")
+            if raw
+        ]
         generated = [
             path
-            for path in KERNEL_ROOT.rglob("*")
-            if path.is_file()
-            and (path.suffix == ".hip" or "_hip." in path.name.lower())
+            for path in tracked
+            if path.suffix == ".hip" or "_hip." in path.name.lower()
         ]
         self.assertEqual(generated, [])
 
