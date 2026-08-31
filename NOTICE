@@ -1,0 +1,7 @@
+TurboPhysAI NOTICE
+
+The fixed BEVFusion and BEVFormer upstream baselines used by this distribution
+do not contain a NOTICE file. Apache-2.0 attribution and license materials for
+derivative code are retained in source headers and third_party/licenses/.
+
+This distribution includes modifications by Hygon Information Technology Co., Ltd.

@@ -1,0 +1,23 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+environment:
+  set:
+    MIOPEN_FIND_MODE: "1"
+    PYTORCH_MIOPEN_SUGGEST_NHWC: "1"
+    MMDET3D_CHANNELS_LAST: "1"
+    MMDET3D_BEV_POOL_GEOMETRY_BOUNDARY_EPS: "1e-3"
+    MMDET3D_BEV_POOL_GEOMETRY_CORRECTION_CHUNK: "262144"
+    TORCHINDUCTOR_LAYOUT_OPTIMIZATION: "1"
+    TORCHINDUCTOR_MAX_AUTOTUNE_GEMM_BACKENDS: ATEN
+    MMDET3D_COMPILE_TARGET: camera
+    MMDET3D_COMPILE_MODE: max-autotune-no-cudagraphs
+    TORCHINDUCTOR_CACHE_DIR: /tmp/bevfusion/torchinductor
+    HIPBLASLT_ALLOW_TF32: "1"
+  unset: []
+
+process:
+  numa: true

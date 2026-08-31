@@ -1,0 +1,31 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.bevformer.base.hcu
+  version: "1.0.0"
+  description: Complete validated HCU optimization recipe for official BEVFormer
+model:
+  name: BEVFormer
+optimization_modules:
+  - turbo_physai.optimizations.models.bevformer.catalog
+extends:
+  - framework.mmcv.hcu
+compatibility: {}
+optimization_groups:
+  - id: bevformer.mdc
+    enabled: true
+  - id: bevformer.msda
+    enabled: true
+  - id: bevformer.geometry_sca
+    enabled: true
+  - id: bevformer.tsa
+    enabled: true
+  - id: bevformer.grid_mask
+    enabled: true
+  - id: bevformer.compile
+    enabled: true
+  - id: bevformer.training
+    enabled: true

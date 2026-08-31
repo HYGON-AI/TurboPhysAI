@@ -1,0 +1,259 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.bevfusion.base.hcu
+  version: 1.0.0
+  description: Validated HCU optimization recipe for BEVFusion
+model:
+  name: BEVFusion
+compatibility:
+  commits:
+  - 326653dc06e0938edf1aae7d01efcd158ba83de5
+optimization_groups:
+- id: mmcv.msda
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmcv._ext.ms_deform_attn_forward:
+      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
+      mmcv._ext.ms_deform_attn_backward:
+      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
+    ast_hashes: {}
+- id: mmdet3d.gaussian
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.core.utils.gaussian.gaussian_2d:
+      - source-v1:4727602f15cdd1d6c1b27a345e59550ae4ac05aff33b921143e8349c5e11ba82
+    ast_hashes:
+      mmdet3d.core.utils.gaussian.gaussian_2d:
+      - ast-v1:106c345f0242b3d882d1eaa4a22679553083fa3d48fdbeaf93b0aa62286e2e73
+- id: mmdet3d.bev_pool
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.bev_pool.bev_pool.bev_pool:
+      - source-v1:b28afbb89c322d8b03f1ce3e5af9db5a5979d167fc9f3d557ed5a2f3d3e835d4
+    ast_hashes:
+      mmdet3d.ops.bev_pool.bev_pool.bev_pool:
+      - ast-v1:4aa808a8271184f0788874638503999212feb953f790302992186cc2650fd445
+- id: mmdet3d.quick_cumsum
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.bev_pool.bev_pool.QuickCumsum.forward:
+      - source-v1:01b0884cb6007996b37c0a9eea84658aa43627bf42e956d58795b75e2b5b870c
+      mmdet3d.ops.bev_pool.bev_pool.QuickCumsum.backward:
+      - source-v1:4781c83fb04faa5b239242103af3695ee143d157d1ee5a47b894abf12031bb93
+    ast_hashes:
+      mmdet3d.ops.bev_pool.bev_pool.QuickCumsum.forward:
+      - ast-v1:93d46b732c6f1eec4d522d8e257a2f678a78831eb2622b9ed5214d229be40400
+      mmdet3d.ops.bev_pool.bev_pool.QuickCumsum.backward:
+      - ast-v1:bd2a8b1bd1f8b0ab63919246247d008fe36db34f9436dbced27dce6180092d08
+- id: mmdet3d.voxelization
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.voxel.voxelize._Voxelization.forward:
+      - source-v1:346222f8afcd8d7d4f70613151c0b645b6e6b14bfa8344d6540ec58c47c42dc7
+    ast_hashes:
+      mmdet3d.ops.voxel.voxelize._Voxelization.forward:
+      - ast-v1:96684f4902cda9fa4fbee955b7f8e9688b046a27c93a942d7245f6694e299d33
+- id: mmdet3d.canonical_indice_pairs
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.spconv.ops.get_indice_pairs:
+      - source-v1:570bd39359a34dad2624410016f320d2f170b83bae952bb737ae3a9d154045ae
+    ast_hashes:
+      mmdet3d.ops.spconv.ops.get_indice_pairs:
+      - ast-v1:fb9ffd3d6f6a940206d9ffb83321744da7c823e19319c3bcdec634e0dfc21f9b
+- id: mmdet3d.sparse_tensor
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.spconv.structure.SparseConvTensor.sparity:
+      - source-v1:ed2498f515ae2197f2fb6fff9fa235b53b610dd51bdd2434531c51ecac49b331
+    ast_hashes:
+      mmdet3d.ops.spconv.structure.SparseConvTensor.sparity:
+      - ast-v1:fff1cb0fbc9d9e4208c8310570ddea4d934d45a8e322db002a57f7928acca962
+- id: bevfusion.import_compatibility
+  enabled: true
+  options: {}
+  trust:
+    source_hashes: {}
+    ast_hashes: {}
+- id: bevfusion.backbone
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.models.fusion_models.bevfusion.BEVFusion.extract_camera_features:
+      - source-v1:4459ccda2625c50f3714065d76265146dfad7014df2e26af837cc1fd1a57493c
+      mmdet3d.models.fusion_models.bevfusion.BEVFusion.extract_features:
+      - source-v1:e13a5032e21f67b5223c6c4e531b92696156d1bf9d5af7ec81f7e4153f47e50b
+    ast_hashes:
+      mmdet3d.models.fusion_models.bevfusion.BEVFusion.extract_camera_features:
+      - ast-v1:be51264303d9c26942806bb79c6437a681142eec99e8a20a8df574e88a3abc20
+      mmdet3d.models.fusion_models.bevfusion.BEVFusion.extract_features:
+      - ast-v1:51733451b6d5ae28416e40c2c4bfac89435737a36104fd8c2fece00343986573
+- id: bevfusion.loss_reduction
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.models.fusion_models.base.Base3DFusionModel._parse_losses:
+      - source-v1:72fb8a1ed277aa3b70bbb292b3d9fa2d19181cadb5f8c72837a6e130e85afcc1
+    ast_hashes:
+      mmdet3d.models.fusion_models.base.Base3DFusionModel._parse_losses:
+      - ast-v1:e604b0fdf88c6458de5b4d861a520fb6fb2f878f4237bf8c0fc225e3f352a4a5
+- id: bevfusion.training
+  enabled: true
+  options:
+    channels_last: true
+    compile_mode: max-autotune-no-cudagraphs
+    compile_target: camera
+    cuda_prefetch: true
+    start_method: fork
+  trust:
+    source_hashes:
+      mmdet3d.apis.train.train_model:
+      - source-v1:6215bc796d762e6fea35f7289bf6edc46f9f406e377520e00bc7a500144080b1
+    ast_hashes:
+      mmdet3d.apis.train.train_model:
+      - ast-v1:b1e7df6eca71976ac570963e0ee3419fa294faa6501a9c9321613779442bf2a7
+- id: bevfusion.gaussian
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.core.utils.gaussian.draw_heatmap_gaussian:
+      - source-v1:35d1777bdf45042141ed10690da8ab16513cc2622453fdd9dfdf30f97c397d06
+      mmdet3d.core.utils.gaussian.gaussian_radius:
+      - source-v1:42140cefc334f74e3a4f3ebd868acf87eae90ea7c77c3549776eb1980f8f07b4
+    ast_hashes:
+      mmdet3d.core.utils.gaussian.draw_heatmap_gaussian:
+      - ast-v1:b9d160bf97f087574f5f29a784b219e0623e337ca64668b7b7f368ea331c12c4
+      mmdet3d.core.utils.gaussian.gaussian_radius:
+      - ast-v1:bc329e3ccd9aa76dcb1db9f8a10c0e7ba2972355bb696c4eb0eb7ea71e815457
+- id: bevfusion.depth_factorization
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.models.vtransforms.base.BaseTransform.__init__:
+      - source-v1:f609dfc03265124175e03c6332759b996c2ba5ee70cc6f08fc37ec1679ebbf27
+      mmdet3d.models.vtransforms.base.BaseDepthTransform.forward:
+      - source-v1:26c74e792823365aa53da7f19406729638b6ee4306a24b7cc595de9ff1e9ba71
+      mmdet3d.models.vtransforms.depth_lss.DepthLSSTransform.get_cam_feats:
+      - source-v1:62e74e6d7429fc5bd9c3fa7d690e3af83ffe227118707994e29a8a81236d3276
+      mmdet3d.models.vtransforms.base.BaseTransform.bev_pool:
+      - source-v1:e06d404df30ac59e8d826e60cbb378382be1f622d954eca7c32c397ed245d4f0
+    ast_hashes:
+      mmdet3d.models.vtransforms.base.BaseTransform.__init__:
+      - ast-v1:7c0ae1d28163f67fb158321ba531cfdf0c4840058668edc1a406f1900239fd59
+      mmdet3d.models.vtransforms.base.BaseDepthTransform.forward:
+      - ast-v1:8b3845f800b5cda9971058c6107a2f7a5f0e15c26a7ff8a39d971b3a7b19c8bd
+      mmdet3d.models.vtransforms.depth_lss.DepthLSSTransform.get_cam_feats:
+      - ast-v1:a841ee27f6e29185cb508f4c0543ee43fa823d4e2e2d92a4aea1a446388e61ff
+      mmdet3d.models.vtransforms.base.BaseTransform.bev_pool:
+      - ast-v1:f28bb5f5942e70bd6f9e03c51aa500f0ea0c8e3e2a40242222199ef3ecec9176
+- id: bevfusion.bev_geometry
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.models.vtransforms.base.BaseTransform.get_geometry:
+      - source-v1:6efcf0f3003b0b0e886b0ab1380e47a0455174bab7f422dffcddc221247ec8b8
+    ast_hashes:
+      mmdet3d.models.vtransforms.base.BaseTransform.get_geometry:
+      - ast-v1:0d4b792ea4ba2c316a703d34e9cb7bd2ce9fdf098d46f6d9aba0f7e681857a47
+- id: bevfusion.hungarian_transfer
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.__init__:
+      - source-v1:29a965a68134442d896d014166b732ceb6a215380d6516e249be32067eec5418
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.get_targets:
+      - source-v1:cfc69edfec014980830b9be7e6dde1451c810c0b6c0dd5a157b42a8aa7929ee2
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.get_targets_single:
+      - source-v1:e4ed90e106029f87150cbaf6314e403f7b54a914fe8924c6e9d6fb2524731a77
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.loss:
+      - source-v1:54e15fb27301c22da083cc1cc1a5667c762db65f214c2980f802d79956ce24e1
+      mmdet3d.core.bbox.assigners.hungarian_assigner.HungarianAssigner3D.assign:
+      - source-v1:c7c5911e1f8401cad4e82ccef6ca57370c3d25c806d0fff66c456e7add5957f6
+    ast_hashes:
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.__init__:
+      - ast-v1:73482340f2add8a8dcb0b418abee17c707ec12e60d741072b613171ccae8fcbc
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.get_targets:
+      - ast-v1:d834b0c0959f15dab6699c0d3060e9a6fefc60202802690f54e6462d917e5a79
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.get_targets_single:
+      - ast-v1:26db4a3698c6039d518da24383a7ab66e8c7de4ac80d495174455693ca0da4ce
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.loss:
+      - ast-v1:6461880dc17f879bfe337b6c5c80fa534e7568c11e740134708cb50f81b6d756
+      mmdet3d.core.bbox.assigners.hungarian_assigner.HungarianAssigner3D.assign:
+      - ast-v1:39f631aa6c16f05cc7a2cd7368b6bbae4b61ebf50d4fdbc152ab14f966a44455
+- id: bevfusion.transfusion_bbox_coder
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.core.bbox.coders.transfusion_bbox_coder.TransFusionBBoxCoder:
+      - source-v1:caf12c4f5c18840dee689e0999257e5da15825abe5e9d14f811bcfea3aa56de9
+      mmdet.core.bbox.builder.build_bbox_coder:
+      - source-v1:48744bb4de3e53efe3b0fb0562eb9cdd32318a4fd893211cfe32a13b3fddc799
+    ast_hashes:
+      mmdet3d.core.bbox.coders.transfusion_bbox_coder.TransFusionBBoxCoder:
+      - ast-v1:b0bcd902de7f7feff79eb6ec3621590f1b6f9cee848b76a11f7fe36c5bb965d2
+      mmdet.core.bbox.builder.build_bbox_coder:
+      - ast-v1:1f8c8cb77de9fdd409fab14f832d7f3362e6ca8971f3124759eb4e91d62a5fbe
+- id: bevfusion.compile
+  enabled: true
+  options:
+    mode: max-autotune-no-cudagraphs
+  trust:
+    source_hashes:
+      mmdet3d.models.backbones.sparse_encoder.SparseEncoder:
+      - source-v1:75336704021b6b7f8d8c45d1891bc0ed688256ef83e838d6d093da8ee44f6e44
+      mmdet3d.models.fusers.conv.ConvFuser:
+      - source-v1:3877818ba07356f16436dd978993fff27b2782ff10f0e7d87054ccaf0c745b0a
+      mmdet3d.models.necks.generalized_lss.GeneralizedLSSFPN:
+      - source-v1:8aba98a8e9bbb10733ffd7f8f47e9d1d27d153f0606736a7aa6436fb787a69c5
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.forward_single:
+      - source-v1:0022b63ac5165181821e021cb7cd440c42f60685e9c756ce43e60279768a8c4c
+      mmdet3d.models.vtransforms.depth_lss.DepthLSSTransform:
+      - source-v1:20909a44ede951908a3945d6dd90d4cfb2126976ac63071ab993ac5802f6b047
+      mmdet3d.models.utils.transformer.PositionEmbeddingLearned.forward:
+      - source-v1:dacf05399ce8450d76314902f3ce2657f35addb7821ebc020d95bdfe617bcc65
+      mmdet3d.models.utils.transformer.FFN.forward:
+      - source-v1:9fcfed156f51fa3b1e87ccb168c8a4b7ffebe6ae8fdd41e21af99073f55c4038
+    ast_hashes:
+      mmdet3d.models.backbones.sparse_encoder.SparseEncoder:
+      - ast-v1:743a8310d01c5c628dc2f73882eb26516138e51ef1d3777ab7fc2bacf2e0d6d7
+      mmdet3d.models.fusers.conv.ConvFuser:
+      - ast-v1:d1cb9e94e6923e25088d73121773776232b69e5e8f21af3272fa2926ff0ce95d
+      mmdet3d.models.necks.generalized_lss.GeneralizedLSSFPN:
+      - ast-v1:cb68aa94ef97b47b0f9311bf06064a3a45d2343b1340eb470b964a37a46da226
+      mmdet3d.models.heads.bbox.transfusion.TransFusionHead.forward_single:
+      - ast-v1:b414baf75e004074c25ca96faa10a9625f3b9b1a0d200e6ae9956e69169cccc8
+      mmdet3d.models.vtransforms.depth_lss.DepthLSSTransform:
+      - ast-v1:e3eee89770a6ce5c2abe16c1713fb1c383b4cb6dd06423d4e301791adbf086c2
+      mmdet3d.models.utils.transformer.PositionEmbeddingLearned.forward:
+      - ast-v1:0562ff1652f16c86f935ec20f417bb1aefe3dc2b70978bb3b9b48776fcb2d69a
+      mmdet3d.models.utils.transformer.FFN.forward:
+      - ast-v1:c042ec86d1c4f8540a7bb92f4d7ae216f92a4f18570518e8067e782a0a1aa80c
+optimization_modules:
+- turbo_physai.optimizations.common.mmcv.catalog
+- turbo_physai.optimizations.common.mmdet3d.catalog
+- turbo_physai.optimizations.models.bevfusion.catalog
