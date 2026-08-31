@@ -1,0 +1,60 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.bevfusion.base.hcu
+  version: "1.0.0"
+  description: Validated HCU optimization recipe for BEVFusion
+model:
+  name: BEVFusion
+optimization_modules:
+  - turbo_physai.optimizations.models.bevfusion.catalog
+extends:
+  - common.hcu.base
+compatibility: {}
+optimization_groups:
+  - id: bevfusion.import_compatibility
+    enabled: true
+  - id: bevfusion.backbone
+    enabled: true
+  - id: bevfusion.loss_reduction
+    enabled: true
+  - id: bevfusion.training
+    enabled: true
+    options:
+      channels_last: true
+      compile_mode: max-autotune-no-cudagraphs
+      cuda_prefetch: true
+      start_method: fork
+  - id: bevfusion.gaussian
+    enabled: true
+  - id: bevfusion.depth_factorization
+    enabled: true
+  - id: bevfusion.bev_geometry
+    enabled: true
+  - id: bevfusion.hungarian_transfer
+    enabled: true
+  - id: bevfusion.transfusion_bbox_coder
+    enabled: true
+  - id: bevfusion.compile.sparse_encoder
+    enabled: true
+    options:
+      mode: max-autotune-no-cudagraphs
+  - id: bevfusion.compile.camera
+    enabled: true
+    options:
+      mode: max-autotune-no-cudagraphs
+  - id: bevfusion.compile.fuser
+    enabled: true
+    options:
+      mode: max-autotune-no-cudagraphs
+  - id: bevfusion.compile.depth_transform
+    enabled: true
+    options:
+      mode: max-autotune-no-cudagraphs
+  - id: bevfusion.compile.transfusion
+    enabled: true
+    options:
+      mode: max-autotune-no-cudagraphs

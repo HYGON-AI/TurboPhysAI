@@ -1,0 +1,89 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: common.hcu.base
+  version: 0.1.0
+  description: Default public HCU optimization collection
+model: {}
+compatibility: {}
+optimization_groups:
+- id: mmcv.msda
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmcv._ext.ms_deform_attn_forward:
+      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
+      mmcv._ext.ms_deform_attn_backward:
+      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
+    ast_hashes: {}
+- id: mmdet3d.gaussian
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.core.utils.gaussian.gaussian_2d:
+      - source-v1:4727602f15cdd1d6c1b27a345e59550ae4ac05aff33b921143e8349c5e11ba82
+    ast_hashes:
+      mmdet3d.core.utils.gaussian.gaussian_2d:
+      - ast-v1:106c345f0242b3d882d1eaa4a22679553083fa3d48fdbeaf93b0aa62286e2e73
+- id: mmdet3d.bev_pool
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.bev_pool.bev_pool.bev_pool:
+      - source-v1:b28afbb89c322d8b03f1ce3e5af9db5a5979d167fc9f3d557ed5a2f3d3e835d4
+    ast_hashes:
+      mmdet3d.ops.bev_pool.bev_pool.bev_pool:
+      - ast-v1:4aa808a8271184f0788874638503999212feb953f790302992186cc2650fd445
+- id: mmdet3d.quick_cumsum
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.bev_pool.bev_pool.QuickCumsum.forward:
+      - source-v1:01b0884cb6007996b37c0a9eea84658aa43627bf42e956d58795b75e2b5b870c
+      mmdet3d.ops.bev_pool.bev_pool.QuickCumsum.backward:
+      - source-v1:4781c83fb04faa5b239242103af3695ee143d157d1ee5a47b894abf12031bb93
+    ast_hashes:
+      mmdet3d.ops.bev_pool.bev_pool.QuickCumsum.forward:
+      - ast-v1:93d46b732c6f1eec4d522d8e257a2f678a78831eb2622b9ed5214d229be40400
+      mmdet3d.ops.bev_pool.bev_pool.QuickCumsum.backward:
+      - ast-v1:bd2a8b1bd1f8b0ab63919246247d008fe36db34f9436dbced27dce6180092d08
+- id: mmdet3d.voxelization
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.voxel.voxelize._Voxelization.forward:
+      - source-v1:346222f8afcd8d7d4f70613151c0b645b6e6b14bfa8344d6540ec58c47c42dc7
+    ast_hashes:
+      mmdet3d.ops.voxel.voxelize._Voxelization.forward:
+      - ast-v1:96684f4902cda9fa4fbee955b7f8e9688b046a27c93a942d7245f6694e299d33
+- id: mmdet3d.canonical_indice_pairs
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.spconv.ops.get_indice_pairs:
+      - source-v1:570bd39359a34dad2624410016f320d2f170b83bae952bb737ae3a9d154045ae
+    ast_hashes:
+      mmdet3d.ops.spconv.ops.get_indice_pairs:
+      - ast-v1:fb9ffd3d6f6a940206d9ffb83321744da7c823e19319c3bcdec634e0dfc21f9b
+- id: mmdet3d.sparse_tensor
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.ops.spconv.structure.SparseConvTensor.sparity:
+      - source-v1:35df97307150d50629d38922509e128a66f22ab355125461cdf7c0d3c504b487
+    ast_hashes:
+      mmdet3d.ops.spconv.structure.SparseConvTensor.sparity:
+      - ast-v1:2cf48f4777efa3f5792280628da885a82ec55f83eaffdc4bf8f0ec3ed0aff3b0
+optimization_modules:
+- turbo_physai.optimizations.common.mmcv.catalog
+- turbo_physai.optimizations.common.mmdet3d.catalog

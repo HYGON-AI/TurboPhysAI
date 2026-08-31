@@ -1,0 +1,5 @@
+numpy==1.23.5
+scipy>=1.9.0
+PyYAML>=6.0
+packaging>=21.0
+Pillow==12.3.0

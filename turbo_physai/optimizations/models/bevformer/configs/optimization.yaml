@@ -1,0 +1,140 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.bevformer.base.hcu
+  version: 1.0.0
+  description: Complete validated HCU optimization recipe for official BEVFormer
+model:
+  name: BEVFormer
+compatibility:
+  commits:
+  - 66b65f3a1f58caf0507cb2a971b9c0e7f842376c
+optimization_groups:
+- id: mmcv.msda
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmcv._ext.ms_deform_attn_forward:
+      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
+      mmcv._ext.ms_deform_attn_backward:
+      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
+    ast_hashes: {}
+- id: bevformer.mdc
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmcv.ops.modulated_deform_conv.modulated_deform_conv2d:
+      - source-v1:0fb1db0ba4a6a7e98f548551c50dd9fda8dcaea1f71d5cd99cf517291506fbd6
+      mmcv.ops.modulated_deform_conv.ModulatedDeformConv2d:
+      - source-v1:5d6f87879a01bfde8a0142ff784c85d2db89b5e07a0fac5b0a3d8ed6a03c8d6f
+      mmcv.ops.modulated_deform_conv.ModulatedDeformConv2dPack:
+      - source-v1:b9b46e8da79edc1d3b750c5dcf06985ef8df8044d1e158607801e446a73cdf61
+      projects.mmdet3d_plugin.bevformer.detectors.bevformer.BEVFormer.extract_img_feat:
+      - source-v1:bbb89e54dc1d137fee58c72753015f88d923e6d706eb0099b31d13ccb3ad78e3
+    ast_hashes:
+      mmcv.ops.modulated_deform_conv.modulated_deform_conv2d:
+      - ast-v1:8cc6516f975802eecaf78be30cb13546f403bfbeee014c68c0e9e9680baddaff
+      mmcv.ops.modulated_deform_conv.ModulatedDeformConv2d:
+      - ast-v1:f013ae5285f59a0eaa5d2baa8899e9550abfe67b20ccbc38bb7a928be0dd2e71
+      mmcv.ops.modulated_deform_conv.ModulatedDeformConv2dPack:
+      - ast-v1:6f1b94e6e2a22b097cf8c22fd3048bcb1bbc5786582e5aec253e90c82e03fed6
+      projects.mmdet3d_plugin.bevformer.detectors.bevformer.BEVFormer.extract_img_feat:
+      - ast-v1:da75ffd854c6edecd1a233c00239d4a835092364b284c91398eb99d078ccb52a
+- id: bevformer.msda
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.bevformer.modules.multi_scale_deformable_attn_function.MultiScaleDeformableAttnFunction_fp16:
+      - source-v1:36352acdf259231322f5a93fe19fc95501b5250649403e909986226082ca90ea
+      projects.mmdet3d_plugin.bevformer.modules.multi_scale_deformable_attn_function.MultiScaleDeformableAttnFunction_fp32:
+      - source-v1:09b5e277f814425a663beda90aa20f91b71498ed0a044a91cf2db65ba9f7115d
+    ast_hashes:
+      projects.mmdet3d_plugin.bevformer.modules.multi_scale_deformable_attn_function.MultiScaleDeformableAttnFunction_fp16:
+      - ast-v1:505f83fc1bdfa5e4292e866a38c05cbc0b1bc63b35fb4ab38bdba5c5f482f24d
+      projects.mmdet3d_plugin.bevformer.modules.multi_scale_deformable_attn_function.MultiScaleDeformableAttnFunction_fp32:
+      - ast-v1:09685adf3a604b932c5fda19a419c90ea6b79cbe6ff4dbe3b9a59d4339d9815c
+- id: bevformer.geometry_sca
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.datasets.builder.build_dataloader:
+      - source-v1:9375b5d9ead2deb9db6f90ec848c370efe72f22fd39c469787526b4fe3c01c0b
+      projects.mmdet3d_plugin.bevformer.modules.transformer.PerceptionTransformer.get_bev_features:
+      - source-v1:a1bfc272b267516ca566a1234c8e70bc87ad3307d0126cf8baa19182821b9319
+      projects.mmdet3d_plugin.bevformer.modules.encoder.BEVFormerEncoder.point_sampling:
+      - source-v1:06d39904dc255703305d993c10eb0245c851d3255615a515ad32d6c2e5976b31
+      projects.mmdet3d_plugin.bevformer.modules.encoder.BEVFormerEncoder.forward:
+      - source-v1:6371d0325f10caec2b14472b032a13b867f633909922bf4f670fc8c894ea4ea2
+      projects.mmdet3d_plugin.bevformer.modules.spatial_cross_attention.SpatialCrossAttention.forward:
+      - source-v1:3be5bfda3d2c097a164bc704c55b974e3ad5eb92075400f805992e14ff885080
+    ast_hashes:
+      projects.mmdet3d_plugin.datasets.builder.build_dataloader:
+      - ast-v1:f18587e564d60d36a580a1194f206924cf24c472c45efccecb0d26111c4ab75b
+      projects.mmdet3d_plugin.bevformer.modules.transformer.PerceptionTransformer.get_bev_features:
+      - ast-v1:1d08f5aa2d7125175d15d27a8c96dfcab71706d270d13745cc353c3830a0287e
+      projects.mmdet3d_plugin.bevformer.modules.encoder.BEVFormerEncoder.point_sampling:
+      - ast-v1:96a600ff62ca7ad33606d77aabfbb2fac1d3cdd72a74676820e4302faa96cacb
+      projects.mmdet3d_plugin.bevformer.modules.encoder.BEVFormerEncoder.forward:
+      - ast-v1:b9af4ce3604a2c3431b3face117c90e8d773a02fd6b6a4f908a18863276cfa43
+      projects.mmdet3d_plugin.bevformer.modules.spatial_cross_attention.SpatialCrossAttention.forward:
+      - ast-v1:43550bea15487b279d598d485ec3221ce6adf016ab0f2bf07f47d0258049d6dc
+- id: bevformer.tsa
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.bevformer.modules.temporal_self_attention.TemporalSelfAttention.forward:
+      - source-v1:af6257689e6fd0c129a65b1efd92f2449591611707b36ecd733416434146cf54
+    ast_hashes:
+      projects.mmdet3d_plugin.bevformer.modules.temporal_self_attention.TemporalSelfAttention.forward:
+      - ast-v1:aa13fc61e75bd3bc40ea8e2257aade79ccf0daa556fc19017add49034a724afe
+- id: bevformer.grid_mask
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.utils.grid_mask.GridMask.forward:
+      - source-v1:39874d1cb8e5ee26ce483c23d292d79dcae3890f0065c60dc3ce8db1da98d4da
+    ast_hashes:
+      projects.mmdet3d_plugin.models.utils.grid_mask.GridMask.forward:
+      - ast-v1:0be0ed899f1ca91b43fb78d7e424a6e3460c36fe65fb1f615dc721850d3c2b2e
+- id: bevformer.compile.encoder
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.bevformer.modules.encoder.BEVFormerLayer.forward:
+      - source-v1:6d2c500d7a243936982c8b643296cc98e271aac93164d69b74464227d0fd5544
+    ast_hashes:
+      projects.mmdet3d_plugin.bevformer.modules.encoder.BEVFormerLayer.forward:
+      - ast-v1:683f4e527fff808e07f05f0a6efa2ed7033b9a8a7b98aa401ca04bdf05cfb796
+- id: bevformer.compile.decoder
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.bevformer.modules.decoder.DetectionTransformerDecoder.forward:
+      - source-v1:b76277ab8f8431b6fbd280dc26c5ac81dfec54d747d6aa9899e89fb8e70e8765
+    ast_hashes:
+      projects.mmdet3d_plugin.bevformer.modules.decoder.DetectionTransformerDecoder.forward:
+      - ast-v1:eeabd132f5b9299781fcf3b62f26b3ee033049241201df6be7c4df2aada96f6a
+- id: bevformer.training
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.bevformer.apis.mmdet_train.custom_train_detector:
+      - source-v1:34a5db05a4523d74c44669be65b0e3167fd7a9f247b554635513368e88070e92
+    ast_hashes:
+      projects.mmdet3d_plugin.bevformer.apis.mmdet_train.custom_train_detector:
+      - ast-v1:09220ef496650fbec6b6bcae9ebf4264ba7ea748dbae0b98b9f02258d5706a43
+optimization_modules:
+- turbo_physai.optimizations.common.mmcv.catalog
+- turbo_physai.optimizations.models.bevformer.catalog
