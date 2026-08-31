@@ -27,6 +27,7 @@ env:
   # Transitional mode: build the repository-owned CI image on each runner.
   # Keep a stable local tag so persistent runners can reuse Docker layer cache.
   TURBOPHYSAI_CI_IMAGE: turbophysai-ci:hcu-ci-local
+  TURBOPHYSAI_CI_ARTIFACT_RETENTION_DAYS: "14"
 
 jobs:
   wheel-and-tests:
@@ -63,6 +64,7 @@ jobs:
           public_root="${runner_work_root}/ci/public/TurboPhysAI"
           artifact_dir="${public_root}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p "${artifact_dir}"
+          echo "TURBOPHYSAI_CI_PUBLIC_ROOT=${public_root}" >> "${GITHUB_ENV}"
           echo "TURBOPHYSAI_CI_ARTIFACT_DIR=${artifact_dir}" >> "${GITHUB_ENV}"
           echo "TURBOPHYSAI_CI_CONTAINER=turbophysai-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_ENV}"
           echo "TURBOPHYSAI_DOCKER_CONFIG=${RUNNER_TEMP}/turbophysai-docker-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_ENV}"
@@ -190,3 +192,42 @@ jobs:
               -printf '%P\t%s bytes\n' | sort
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Clean expired local CI artifacts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          retention_days="${TURBOPHYSAI_CI_ARTIFACT_RETENTION_DAYS}"
+          if [[ ! "${retention_days}" =~ ^[0-9]+$ ]] || (( retention_days < 1 )); then
+            echo "Invalid local artifact retention: ${retention_days}" >&2
+            exit 1
+          fi
+
+          runner_work_root="$(cd -- "${RUNNER_TEMP}/.." && pwd)"
+          expected_root="${runner_work_root}/ci/public/TurboPhysAI"
+          public_root="${TURBOPHYSAI_CI_PUBLIC_ROOT:-${expected_root}}"
+          if [[ "${public_root}" != "${expected_root}" ]]; then
+            echo "Refusing to clean unexpected path: ${public_root}" >&2
+            exit 1
+          fi
+          if [[ ! -d "${public_root}" ]]; then
+            echo "Local CI artifact root does not exist: ${public_root}"
+            exit 0
+          fi
+
+          deleted=0
+          while IFS= read -r -d '' expired_dir; do
+            if [[ "${expired_dir}" == "${TURBOPHYSAI_CI_ARTIFACT_DIR:-}" ]]; then
+              continue
+            fi
+            echo "Removing expired local CI artifacts: ${expired_dir}"
+            rm -rf -- "${expired_dir}"
+            deleted=$((deleted + 1))
+          done < <(
+            find "${public_root}" \
+              -mindepth 1 -maxdepth 1 -type d \
+              -mtime "+${retention_days}" -print0
+          )
+          echo "Removed ${deleted} local CI artifact directorie(s) older than ${retention_days} days."
