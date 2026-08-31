@@ -100,7 +100,6 @@ jobs:
         run: |
           set -euo pipefail
           docker build \
-            --progress=plain \
             --file docker/ci/Dockerfile \
             --tag "${TURBOPHYSAI_CI_IMAGE}" \
             .
