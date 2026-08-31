@@ -59,11 +59,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact_dir="${RUNNER_TEMP}/turbophysai-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          runner_work_root="$(cd -- "${RUNNER_TEMP}/.." && pwd)"
+          public_root="${runner_work_root}/ci/public/TurboPhysAI"
+          artifact_dir="${public_root}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p "${artifact_dir}"
           echo "TURBOPHYSAI_CI_ARTIFACT_DIR=${artifact_dir}" >> "${GITHUB_ENV}"
           echo "TURBOPHYSAI_CI_CONTAINER=turbophysai-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_ENV}"
           echo "TURBOPHYSAI_DOCKER_CONFIG=${RUNNER_TEMP}/turbophysai-docker-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_ENV}"
+          echo "Local CI artifacts: ${artifact_dir}"
 
       - name: Validate HCU runner and Docker
         shell: bash
@@ -165,11 +168,25 @@ jobs:
             rm -rf -- "${TURBOPHYSAI_DOCKER_CONFIG}"
           fi
 
-      - name: Upload wheel and complete CI logs
+      - name: Report locally stored CI artifacts
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: turbophysai-hcu-ci-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/turbophysai-ci-${{ github.run_id }}-${{ github.run_attempt }}/
-          if-no-files-found: warn
-          retention-days: 14
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_dir="${TURBOPHYSAI_CI_ARTIFACT_DIR:-}"
+          if [[ -z "${artifact_dir}" || ! -d "${artifact_dir}" ]]; then
+            echo "::warning::The local CI artifact directory was not created."
+            exit 0
+          fi
+
+          echo "::notice title=Local CI artifacts::${artifact_dir}"
+          {
+            echo "### Local CI artifacts"
+            echo
+            echo "Runner-local path: \`${artifact_dir}\`"
+            echo
+            echo '```text'
+            find "${artifact_dir}" -maxdepth 2 -type f \
+              -printf '%P\t%s bytes\n' | sort
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
