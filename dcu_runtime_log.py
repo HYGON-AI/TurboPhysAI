@@ -1,0 +1,1 @@
+print("amd runtime log")
