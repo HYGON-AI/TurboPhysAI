@@ -102,9 +102,16 @@ jobs:
 
       - name: Build the repository-specified CI image
         shell: bash
+        env:
+          L0_IMAGE: ${{ vars.IMAGE_URL }}
         run: |
           set -euo pipefail
+          if [[ -z "${L0_IMAGE:-}" ]]; then
+            echo "Required repository variable IMAGE_URL is not configured." >&2
+            exit 1
+          fi
           docker build \
+            --build-arg "L0_IMAGE=${L0_IMAGE}" \
             --file docker/ci/Dockerfile \
             --tag "${TURBOPHYSAI_CI_IMAGE}" \
             .

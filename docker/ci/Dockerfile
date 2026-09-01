@@ -4,7 +4,7 @@
 # Minimal TurboPhysAI CI environment. It intentionally does not contain the
 # TurboPhysAI source or wheel: every CI job installs and tests its checked-out
 # candidate revision.
-ARG L0_IMAGE=harbor.sourcefind.cn:5443/dcu/admin/base/dtk:26.04-ubuntu22.04-mpi5.0-gcc11.4-cmake3.29-py3.10
+ARG L0_IMAGE
 FROM ${L0_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
