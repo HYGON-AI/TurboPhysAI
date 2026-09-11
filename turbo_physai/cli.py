@@ -4,8 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import difflib
-import json
 import os
 import subprocess
 import sys
@@ -13,13 +11,11 @@ from pathlib import Path
 
 from .bootstrap import bootstrap_environment, isolation_flags
 from .engine.errors import TurboPhysAIError
-from .engine.contracts import to_primitive
 from .engine.config.loader import (
     PACKAGED_DEFAULT_OPTIMIZATION_CONFIG,
     PACKAGED_OPTIMIZATION_ROOT,
     load_optimization_config,
 )
-from .engine.config.schema import optimization_config_to_dict
 from .runtime import load_runtime_config, prepare_environment
 
 _PACKAGED_MODEL_ROOT = PACKAGED_OPTIMIZATION_ROOT / "models"
@@ -44,10 +40,6 @@ def _run_training_command(command, environment) -> int:
     raise AssertionError("unreachable: execvpe replaces this process")
 
 
-def _json(value) -> str:
-    return json.dumps(to_primitive(value), ensure_ascii=False, indent=2, sort_keys=True)
-
-
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="turbo-physai")
     root = parser.add_subparsers(dest="resource", required=True)
@@ -63,9 +55,12 @@ def _parser() -> argparse.ArgumentParser:
         "--output",
         help="project directory (default: <name>_optimization)",
     )
-    for command in ("validate", "show"):
-        child = optimization_commands.add_parser(command)
-        child.add_argument("optimization_config")
+    generate = optimization_commands.add_parser("generate")
+    generate.add_argument("--recipe", required=True)
+    generate.add_argument("--repo", required=True)
+    generate.add_argument("--commit", required=True)
+    generate.add_argument("--output", required=True)
+    generate.add_argument("--force", action="store_true")
     check = optimization_commands.add_parser("check")
     check.add_argument(
         "optimization_config", help="generated OptimizationConfig YAML"
@@ -75,16 +70,6 @@ def _parser() -> argparse.ArgumentParser:
         default=".",
         help="model repository to verify (default: current directory)",
     )
-    diff = optimization_commands.add_parser("diff")
-    diff.add_argument("left")
-    diff.add_argument("right")
-    generate = optimization_commands.add_parser("generate")
-    generate.add_argument("--recipe", required=True)
-    generate.add_argument("--repo", required=True)
-    generate.add_argument("--commit", required=True)
-    generate.add_argument("--output", required=True)
-    generate.add_argument("--force", action="store_true")
-
     run = root.add_parser(
         "run",
         help="apply optimizations, prepare the runtime environment, and launch training",
@@ -255,27 +240,6 @@ def _resolve_run_configs(model, optimization_config, runtime_config):
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
     try:
-        if args.resource == "optimization" and args.command in {"validate", "show"}:
-            config = load_optimization_config(args.optimization_config)
-            if args.command == "validate":
-                print(
-                    f"valid OptimizationConfig: "
-                    f"{config.metadata.id} {config.metadata.version}"
-                )
-            else:
-                print(_json(optimization_config_to_dict(config)))
-            return 0
-        if args.resource == "optimization" and args.command == "diff":
-            left = _json(optimization_config_to_dict(load_optimization_config(args.left))).splitlines(
-                True
-            )
-            right = _json(optimization_config_to_dict(load_optimization_config(args.right))).splitlines(
-                True
-            )
-            sys.stdout.writelines(
-                difflib.unified_diff(left, right, fromfile=args.left, tofile=args.right)
-            )
-            return 0
         if args.resource == "optimization" and args.command == "check":
             from .engine.config.generator import check_optimization_config
 

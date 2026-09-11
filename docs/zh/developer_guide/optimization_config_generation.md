@@ -81,21 +81,6 @@ turbo-physai optimization generate \
 
 ## 4. 检查命令
 
-### 4.1 validate
-
-```bash
-turbo-physai optimization validate configs/optimization.yaml
-```
-
-`validate` 加载 OptimizationConfig，并检查：
-
-- `schema_version`、`kind` 和字段类型；
-- 未知字段和重复 Group；
-- `extends` 引用；
-- `optimization_modules` 导入。
-
-该命令不需要模型仓库，也不计算目标代码证据。
-
 ### 4.2 check
 
 ```bash
@@ -112,15 +97,6 @@ turbo-physai optimization check configs/optimization.yaml \
 - 原生扩展目标的文件证据。
 
 模型 `optimization.yaml` 保存生成时使用的模型 commit，公共配置不记录该字段。`optimization check` 不因当前 HEAD 与模型配置中的参考 commit 不同而失败；运行 `turbo-physai run` 或调用 `turbo_physai.apply()` 时，commit 匹配结果以 `project.commit` 检查项写入 OptimizationReport。目标代码证据不匹配仍会阻断相应 Group。
-
-### 4.3 show 和 diff
-
-```bash
-turbo-physai optimization show configs/optimization.yaml
-turbo-physai optimization diff configs/old.yaml configs/new.yaml
-```
-
-`show` 输出加载并解析后的 JSON。`diff` 比较两个解析结果，输出 unified diff，用于评审 Group 选择和目标证据变化。
 
 ## 5. generate 与 check 的边界
 

@@ -74,6 +74,7 @@ replace(
 
 `target` 和 `replacement` 均为可导入的 Python 对象路径。Engine 会解析实际对象，并检查对象类型和函数签名是否兼容。`replace` 不读取 Group 的 `options`。
 
+
 ### 2.1 函数和方法替换
 
 以 MMDetection3D Gaussian 公共优化为例，Replacement 实现位于 `turbo_physai/optimizations/common/mmdet3d/gaussian.py`：
@@ -197,7 +198,7 @@ def compile_wrapper(original, options):
 
 `functools.wraps(original)` 保留原函数的名称、文档、签名视图和 `__wrapped__` 引用，但 `wrapped` 与原函数仍是不同的 Python 对象。
 
-`check()` 会导入 Wrapper 所在模块并调用 Wrapper Factory 构造包装对象，但不会把包装对象安装到目标位置。因此 Wrapper Factory 不应修改无法恢复的全局状态，实际计算应在返回对象被调用时执行。
+Wrapper Factory 负责构造并返回包装函数，实际计算应在包装函数中执行。
 
 ## 4. replace_import
 
@@ -337,7 +338,7 @@ MDC = group(
 
 ![runtime_condition 根据当前输入选择 Replacement 或原对象](../../assets/runtime-condition-flow.svg)
 
-条件函数在 `check()` 和 `apply()` 的准备阶段只进行解析和签名检查，不会执行。条件函数或 Replacement 在训练期间抛出的异常会直接向上传播，不会触发原实现。
+每次调用目标函数时，框架先用本次输入执行条件函数：返回 `True` 时调用优化实现，返回 `False` 时调用原实现。条件函数或优化实现报错时，直接报告错误，不会自动改用原实现重试。
 
 使用约束：
 

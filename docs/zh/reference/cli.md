@@ -14,40 +14,6 @@ turbo-physai optimization init <name> [--output <directory>]
 - `--output`：输出目录；未指定时，框架将名称转为小写、将 `-` 转为 `_`，并使用 `<normalized_name>_optimization`；
 - 已存在路径不会覆盖。
 
-## optimization validate
-
-```bash
-turbo-physai optimization validate <optimization-config.yaml>
-```
-
-加载 OptimizationConfig，校验 Schema 和字段类型，展开 `extends`，并导入 `optimization_modules`。成功时输出 OptimizationConfig ID 和版本。
-
-该命令不检查模型仓库和 target Hash。声明模块及其 Python 依赖必须能够在当前环境中导入。
-
-## optimization show
-
-```bash
-turbo-physai optimization show <optimization-config.yaml>
-```
-
-输出加载并展开后的 JSON 表示。该命令与 `optimization validate` 使用相同的加载过程，也会导入 `optimization_modules`。
-
-## optimization check
-
-```bash
-turbo-physai optimization check <generated-optimization-config.yaml> [--repo <model-repo>]
-```
-
-检查已生成的 OptimizationConfig 与当前模型仓库是否一致。`--repo` 默认为当前目录。该命令要求模型工作区干净，并检查 Group 依赖闭包、执行顺序、Group 组合以及 target 的 source/AST Hash。模型仓库 commit 不同本身不会导致检查失败。
-
-## optimization diff
-
-```bash
-turbo-physai optimization diff <left.yaml> <right.yaml>
-```
-
-加载并展开两个 OptimizationConfig，比较其 JSON 表示并输出 unified diff。该命令比较的是解析后的配置，不是 YAML 原始文本。
-
 ## optimization generate
 
 ```bash
@@ -67,8 +33,6 @@ turbo-physai optimization generate \
 - 从当前模型仓库提取 target source/AST Hash；
 - 输出已存在时默认返回错误；
 - `--force` 明确覆盖输出文件。
-
-已生成的 OptimizationConfig 使用 `optimization check` 重新核对。
 
 ## run
 
@@ -133,6 +97,17 @@ turbo-physai run \
 `--disable-group` 仅对本次启动有效，不修改 OptimizationConfig。多个 Group ID 使用逗号分隔。依赖被禁用 Group 的其他 Group 同时跳过。报告分别使用 `disabled_by_user` 和 `dependency_disabled` 记录两类原因。同一 Group 不能同时强制放行和禁用。
 
 `run` 用 `exec` 替换自身执行训练命令，进程树中不留中间进程。`SIGINT`、`SIGTERM` 等信号由训练进程直接接收，不经过转发。
+
+## optimization check
+
+用于在不启动训练的情况下，排查配置加载、Group 依赖及目标代码匹配问题。检查通过不能代替实际运行验证。
+
+```bash
+turbo-physai optimization check <optimization-config.yaml> \
+  [--repo <model-repo>]
+```
+
+检查已生成的 OptimizationConfig 与当前模型仓库是否一致。`--repo` 默认为当前目录。该命令要求模型工作区干净，并校验配置格式、字段类型和 Catalog 导入，检查 Group 依赖闭包、执行顺序、Group 组合以及已记录的 target Hash。模型仓库 commit 不同本身不会导致检查失败。
 
 ## 返回码
 

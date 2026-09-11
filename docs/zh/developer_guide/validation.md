@@ -21,7 +21,6 @@ OptimizationReport 中的 `applied` 仅表示 Group 已成功安装到当前训�
 
 - Catalog 可以加载，Group ID 和成员 ID 不重复；
 - `target`、Replacement 和 `aliases` 均可解析；
-- `turbo_physai.check()` 只完成检查，不安装 Replacement；
 - Group 可以独立应用，OptimizationReport 中记录正确的规划决策和执行结果；
 - 任一成员应用失败时，已经修改的成员能够按 Group 边界恢复；
 - Replacement 抛出的 Python 异常保留原始 Traceback，并能定位到具体优化实现。
