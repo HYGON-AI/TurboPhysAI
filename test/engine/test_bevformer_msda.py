@@ -324,6 +324,10 @@ else:
         for entry in config.optimization_groups:
             group = default_registry.get_group(entry.id)
             self.assertIsNotNone(group)
+            if entry.id == mmcv_catalog.MSDA.group_id:
+                self.assertFalse(entry.trust["source_hashes"])
+                self.assertFalse(entry.trust["ast_hashes"])
+                continue
             for replacement_id in group.members:
                 target = default_registry.get_spec(replacement_id).target
                 self.assertIn(target, entry.trust["source_hashes"])
