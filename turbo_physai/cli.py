@@ -62,10 +62,16 @@ def _parser() -> argparse.ArgumentParser:
     generate.add_argument("--output", required=True)
     generate.add_argument("--force", action="store_true")
     check = optimization_commands.add_parser("check")
+    check_mode = check.add_mutually_exclusive_group()
+    check_mode.add_argument(
+        "--generated-only",
+        action="store_true",
+        help="verify generation record and content fingerprints without model imports",
+    )
     check.add_argument(
         "optimization_config", help="generated OptimizationConfig YAML"
     )
-    check.add_argument(
+    check_mode.add_argument(
         "--repo",
         default=".",
         help="model repository to verify (default: current directory)",
@@ -241,6 +247,12 @@ def main(argv=None) -> int:
     args = _parser().parse_args(argv)
     try:
         if args.resource == "optimization" and args.command == "check":
+            if args.generated_only:
+                from .engine.config.generation_record import verify_generated
+
+                verify_generated(Path(args.optimization_config))
+                print(f"verified generated files: {args.optimization_config}")
+                return 0
             from .engine.config.generator import check_optimization_config
 
             config = check_optimization_config(
@@ -262,7 +274,11 @@ def main(argv=None) -> int:
                 args.repo,
                 "--commit",
                 args.commit,
+                "--output",
+                args.output,
             ]
+            if args.force:
+                command.append("--force")
             completed = subprocess.run(
                 command,
                 text=True,
@@ -272,13 +288,7 @@ def main(argv=None) -> int:
             if completed.returncode:
                 print(completed.stderr.strip(), file=sys.stderr)
                 return completed.returncode
-            output = Path(args.output)
-            if output.exists() and not args.force:
-                print(f"refusing to overwrite existing file: {output}", file=sys.stderr)
-                return 2
-            output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text(completed.stdout, encoding="utf-8")
-            print(output)
+            print(completed.stdout.strip())
             return 0
         if args.resource == "optimization" and args.command == "init":
             from .development import create_optimization_project

@@ -432,8 +432,44 @@ class TransactionsAndCliTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("unrecognized arguments: --check", stderr.getvalue())
 
+    def test_cli_generated_only_does_not_check_model_repository(self):
+        with patch(
+            "turbo_physai.engine.config.generation_record.verify_generated"
+        ) as verify, patch(
+            "turbo_physai.engine.config.generator.check_optimization_config"
+        ) as check, redirect_stdout(io.StringIO()):
+            result = cli_main([
+                "optimization", "check", "--generated-only", "config.yaml",
+            ])
+        self.assertEqual(result, 0)
+        verify.assert_called_once_with(Path("config.yaml"))
+        check.assert_not_called()
 
+    def test_cli_default_check_keeps_model_check_behavior(self):
+        checked = OptimizationConfig(
+            "turbophysai/optimization-config/v1", "OptimizationConfig",
+            OptimizationConfigMetadata("checked", "1"),
+        )
+        with patch(
+            "turbo_physai.engine.config.generator.check_optimization_config",
+            return_value=checked,
+        ) as check, patch(
+            "turbo_physai.engine.config.generation_record.verify_generated"
+        ) as verify, redirect_stdout(io.StringIO()):
+            result = cli_main(["optimization", "check", "config.yaml"])
+        self.assertEqual(result, 0)
+        check.assert_called_once_with(Path("config.yaml"), Path("."))
+        verify.assert_not_called()
 
+    def test_cli_rejects_combined_check_modes_and_removed_subcommand(self):
+        for args in (
+            ["check", "config.yaml", "--generated-only", "--repo", "model"],
+            ["verify-generated", "config.yaml"],
+        ):
+            with self.subTest(args=args), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    cli_main(["optimization", *args])
+                self.assertEqual(raised.exception.code, 2)
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import os
 import subprocess
 import sys
@@ -35,6 +36,7 @@ from ..execution.replacements.base import (
 from ..execution.replacements import default_handlers
 from .loader import OptimizationConfigCatalog, load_optimization_config, resolve_optimization_config
 from .schema import optimization_config_from_dict, optimization_config_to_dict
+from .generation_record import describe_input, record_path, write_generated
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -376,11 +378,12 @@ def _validate_evidence(
         )
 
 
-def generate(recipe: Path, repo: Path, commit: str) -> str:
+def generate(recipe: Path, repo: Path, commit: str, *, generation_inputs=None, output=None) -> str:
     repo = repo.resolve()
     _validate_repository(repo, expected_commit=commit)
 
-    recipe_raw = yaml.safe_load(recipe.read_text(encoding="utf-8"))
+    recipe_text = recipe.read_text(encoding="utf-8")
+    recipe_raw = yaml.safe_load(recipe_text)
     if not isinstance(recipe_raw, Mapping):
         raise OptimizationConfigError("OptimizationConfig recipe must be a mapping")
     recipe_raw = dict(recipe_raw)
@@ -397,6 +400,8 @@ def generate(recipe: Path, repo: Path, commit: str) -> str:
     config = resolve_optimization_config(recipe_config, catalog=catalog)
     config = _expand_group_dependencies(config)
     _validate_group_composition(config)
+    if generation_inputs is not None:
+        generation_inputs.extend(_generation_inputs(recipe, recipe_config, config, catalog, output))
     _validate_public_replacement_references(config, inherited_group_ids, repo)
 
     # Flatten inherited and dependent Group selection into the generated file.
@@ -408,7 +413,51 @@ def generate(recipe: Path, repo: Path, commit: str) -> str:
         if entry.get("enabled", True):
             entry["trust"] = evidence[entry["id"]]
 
-    return yaml.safe_dump(raw, sort_keys=False, allow_unicode=True)
+    # Preserve the Recipe's leading notices, including their original years.
+    header = []
+    for line in recipe_text.splitlines(keepends=True):
+        if line.strip() and not line.lstrip().startswith("#"):
+            break
+        header.append(line)
+    return "".join(header) + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True)
+
+
+def _generation_inputs(recipe, recipe_config, config, catalog, output):
+    from .loader import PACKAGED_OPTIMIZATION_ROOT
+
+    paths = [(recipe, "recipe")]
+    builtin_paths = {}
+    for path in PACKAGED_OPTIMIZATION_ROOT.glob("**/configs/optimization.yaml"):
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        builtin_paths[raw["metadata"]["id"]] = path
+    visited = set()
+
+    def inherited(config_id):
+        if config_id in visited:
+            return
+        visited.add(config_id)
+        paths.append((builtin_paths[config_id], "inherited_config"))
+        for parent in catalog.get(config_id).extends:
+            inherited(parent)
+
+    for config_id in recipe_config.extends:
+        inherited(config_id)
+    for name in config.optimization_modules:
+        module = importlib.import_module(name)
+        path = getattr(module, "__file__", None)
+        if path is None or not Path(path).is_file():
+            raise OptimizationConfigError(f"Catalog source file unavailable: {name}")
+        paths.append((Path(path), "catalog"))
+    return [describe_input(path, role, output) for path, role in paths]
+
+
+def generate_to_file(recipe: Path, repo: Path, commit: str, output: Path, *, force=False):
+    if not force and (output.exists() or record_path(output).exists()):
+        raise OptimizationConfigError(f"refusing to overwrite generated files: {output}; use --force")
+    inputs = []
+    content = generate(recipe, repo, commit, generation_inputs=inputs, output=output)
+    _validate_repository(repo.resolve(), expected_commit=commit)
+    write_generated(output, content, inputs, commit, force=force)
 
 
 def check_optimization_config(
@@ -437,12 +486,18 @@ def main(argv=None) -> int:
     parser.add_argument("--recipe", required=True)
     parser.add_argument("--repo", required=True)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--output")
+    parser.add_argument("--force", action="store_true")
     args = parser.parse_args(argv)
     try:
-        sys.stdout.write(
-            generate(Path(args.recipe), Path(args.repo), args.commit)
-        )
-    except OptimizationConfigError as exc:
+        if args.output:
+            generate_to_file(
+                Path(args.recipe), Path(args.repo), args.commit, Path(args.output), force=args.force
+            )
+            print(args.output)
+        else:
+            sys.stdout.write(generate(Path(args.recipe), Path(args.repo), args.commit))
+    except (OptimizationConfigError, OSError) as exc:
         print(str(exc), file=sys.stderr)
         return 2
     return 0

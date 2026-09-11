@@ -31,8 +31,9 @@ turbo-physai optimization generate \
 - 展开 `extends` 和 Group 依赖，确定最终 Group 顺序；
 - 检查 Group 组合冲突和模型 Replacement 对公共 Replacement 的直接引用；
 - 从当前模型仓库提取 target source/AST Hash；
-- 输出已存在时默认返回错误；
-- `--force` 明确覆盖输出文件。
+- 同时输出配置和隐藏生成记录 `.<配置文件名>.generation.json`；
+- 配置或记录已存在时默认返回错误；
+- `--force` 同时更新配置和生成记录。
 
 ## run
 
@@ -104,10 +105,20 @@ turbo-physai run \
 
 ```bash
 turbo-physai optimization check <optimization-config.yaml> \
-  [--repo <model-repo>]
+  [--repo <model-repo> | --generated-only]
 ```
 
-检查已生成的 OptimizationConfig 与当前模型仓库是否一致。`--repo` 默认为当前目录。该命令要求模型工作区干净，并校验配置格式、字段类型和 Catalog 导入，检查 Group 依赖闭包、执行顺序、Group 组合以及已记录的 target Hash。模型仓库 commit 不同本身不会导致检查失败。
+默认检查已生成的 OptimizationConfig 与当前模型仓库是否一致。`--repo` 默认为当前目录。该模式要求模型工作区干净，并校验配置格式、字段类型和 Catalog 导入，检查 Group 依赖闭包、执行顺序、Group 组合以及已记录的 target Hash。模型仓库 commit 不同本身不会导致检查失败。默认模式不检查隐藏生成记录。
+
+使用 `--generated-only` 检查生成记录，防止交付时遗漏 CLI 生成步骤或修改配套文件后未重新生成。该模式不需要模型环境，不能与 `--repo` 同时使用：
+
+```bash
+turbo-physai optimization check --generated-only <optimization-config.yaml>
+```
+
+该模式读取配置同目录的隐藏生成记录 `.<配置文件名>.generation.json`，核对 Config、Recipe、声明的 Catalog 文件和继承配置规范化后的 SHA-256。YAML 按解析后的数据计算，Python Catalog 按 AST 计算；不导入 Catalog 或模型，也不需要克隆模型仓库。
+
+注释、空行及不改变解析结果的排版变化不会触发失败。配置值、列表顺序、Catalog 代码结构及字符串内容的变化仍会触发失败。记录缺失、格式错误、关联文件缺失、无法解析或指纹不匹配时返回 `2`，需要修正文件并重新执行 `optimization generate`。
 
 ## 返回码
 

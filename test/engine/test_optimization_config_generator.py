@@ -315,7 +315,8 @@ class OptimizationConfigGeneratorTest(unittest.TestCase):
             self.assertEqual(raw["kind"], "OptimizationConfig")
             self.assertNotIn("extends", raw)
             self.assertEqual(raw["compatibility"]["commits"], ["abc123"])
-            trust = raw["optimization_groups"][0]["trust"]
+            trust = next(entry["trust"] for entry in raw["optimization_groups"]
+                         if entry["id"] == "bevformer.msda")
             self.assertEqual(len(trust["source_hashes"]), 2)
             self.assertEqual(len(trust["ast_hashes"]), 2)
             self.assertNotIn("# digest:", rendered)
