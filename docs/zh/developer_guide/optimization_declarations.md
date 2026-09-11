@@ -69,11 +69,13 @@ replace(
     replacement="optimization.module.optimized_forward",
     aliases=(),
     runtime_condition=None,
+    collect_target_hash=True,
 )
 ```
 
 `target` 和 `replacement` 均为可导入的 Python 对象路径。Engine 会解析实际对象，并检查对象类型和函数签名是否兼容。`replace` 不读取 Group 的 `options`。
 
+`replace` 和 `wrap` 均支持 `collect_target_hash`，默认为 `True`。设为 `False` 时，生成器仍解析该目标，但不采集其 source、AST 或原生扩展文件 Hash；同组其他目标不受影响。该参数在 Catalog 中声明，不写入 Recipe 或生成的 Config。
 
 ### 2.1 函数和方法替换
 

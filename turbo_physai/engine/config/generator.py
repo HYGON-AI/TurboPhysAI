@@ -248,6 +248,8 @@ def _collect_group_evidence(
                         raise OptimizationConfigError(
                             f"cannot resolve evidence object {spec.target}: {exc}"
                         ) from exc
+                    if not spec.collect_target_hash:
+                        continue
                     source = source_hash(original)
                     syntax = ast_hash(original)
                     if source is not None:
@@ -339,6 +341,10 @@ def _validate_evidence(
     failures = []
     for entry in config.optimization_groups:
         if not entry.enabled:
+            continue
+        # Generation may deliberately omit target hashes for a whole Group.
+        # There is no expected identity to compare in that case.
+        if not any(entry.trust.get(key) for key in ("source_hashes", "ast_hashes")):
             continue
         actual = actual_by_group.get(entry.id, {})
         for category in ("source_hashes", "ast_hashes"):
