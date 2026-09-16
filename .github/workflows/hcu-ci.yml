@@ -4,12 +4,19 @@
 name: TurboPhysAI HCU CI
 
 on:
-  pull_request:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled]
     branches:
       - main
   push:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '**/*.rst'
+      - 'LICENSE'
+      - 'NOTICE'
   schedule:
     - cron: "0 18 * * *"
   workflow_dispatch:
@@ -30,14 +37,42 @@ env:
   TURBOPHYSAI_CI_ARTIFACT_RETENTION_DAYS: "14"
 
 jobs:
+  authorize:
+    name: Authorize HCU execution
+    if: >-
+      github.event_name != 'pull_request_target' ||
+      (github.event.action != 'labeled' && github.event.action != 'unlabeled') ||
+      github.event.label.name == 'ready-hcu'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      statuses: write
+    outputs:
+      authorized: ${{ steps.authorization.outputs.authorized }}
+      sha: ${{ steps.authorization.outputs.sha }}
+    steps:
+      # pull_request_target uses the upstream workflow and authorization code.
+      - name: Check out trusted CI helpers
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check contributor or ready-hcu label authority
+        id: authorization
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { prepare } = require('./.github/scripts/hcu_authorization.cjs');
+            await prepare({ github, context, core });
+
   wheel-and-tests:
     name: Build wheel and run the complete single-HCU suite
-    # Never execute an untrusted fork directly on an internal self-hosted
-    # runner. A maintainer can approve it by moving the commit to a trusted
-    # branch and starting workflow_dispatch from that branch.
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+    needs: authorize
+    if: needs.authorize.outputs.authorized == 'true'
+    # PR code receives only a read token; status writes run on GitHub-hosted jobs.
     runs-on:
       group: ci-general
       labels: [self-hosted, ci, nmz1]
@@ -52,7 +87,10 @@ jobs:
       - name: Check out the tested commit
         uses: actions/checkout@v4
         with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ needs.authorize.outputs.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Prepare artifact directory
         shell: bash
@@ -211,3 +249,35 @@ jobs:
               -mtime "+${retention_days}" -print0
           )
           echo "Removed ${deleted} local CI artifact directorie(s) older than ${retention_days} days."
+
+  report:
+    name: Report HCU result
+    needs: [authorize, wheel-and-tests]
+    if: >-
+      always() && github.event_name == 'pull_request_target' &&
+      needs.authorize.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      statuses: write
+    steps:
+      - name: Check out trusted CI helpers
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Publish result on the tested PR commit
+        uses: actions/github-script@v7
+        env:
+          AUTHORIZATION_RESULT: ${{ needs.authorize.result }}
+          TEST_RESULT: ${{ needs.wheel-and-tests.result }}
+        with:
+          script: |
+            const { finish } = require('./.github/scripts/hcu_authorization.cjs');
+            await finish({ github, context, core }, {
+              authorizationResult: process.env.AUTHORIZATION_RESULT,
+              testResult: process.env.TEST_RESULT,
+            });
