@@ -18,6 +18,58 @@ from turbo_physai.optimizations.models.bevfusion import training
 from turbo_physai.optimizations.models.bevfusion import transfusion
 
 
+def test_ddp_forward_supports_new_pytorch():
+    from mmcv.parallel import MMDistributedDataParallel
+
+    model = MMDistributedDataParallel.__new__(MMDistributedDataParallel)
+    torch.nn.Module.__init__(model)
+    model.module = torch.nn.Linear(2, 1)
+    model.device_ids = []
+    wrapped = training.ddp_forward_compat_wrapper(
+        MMDistributedDataParallel._run_ddp_forward, {}
+    )
+
+    assert wrapped(model, torch.ones(1, 2)).shape == (1, 1)
+    assert model._use_replicated_tensor_module is False
+
+
+@pytest.mark.parametrize("compiled", [False, True])
+def test_bev_pool_fp16_casts_factorized_namedtuples(monkeypatch, compiled):
+    def pool(self, geometry, factors):
+        return geometry, factors
+
+    monkeypatch.setattr(depth, "base_transform_bev_pool", pool)
+    wrapped = depth.base_transform_bev_pool_wrapper(None, {})
+    if compiled:
+        wrapped = torch.compile(wrapped, backend="eager")
+
+    model = torch.nn.Module()
+    model.fp16_enabled = True
+    geometry = depth.PreparedGeometry(
+        torch.ones(1, dtype=torch.float16),
+        torch.ones(1, dtype=torch.long),
+        torch.ones(1, dtype=torch.bool),
+        1,
+    )
+    factors = depth.DepthFeatureFactorization(
+        torch.ones(1, dtype=torch.float16),
+        torch.ones(1, dtype=torch.float16),
+    )
+    actual_geometry, actual_factors = wrapped(model, geometry, factors)
+    assert isinstance(actual_geometry, depth.PreparedGeometry)
+    assert isinstance(actual_factors, depth.DepthFeatureFactorization)
+    assert actual_geometry.coords.dtype == torch.float32
+    assert actual_geometry.ranks.dtype == torch.long
+    assert actual_geometry.kept.dtype == torch.bool
+    assert actual_factors.depth.dtype == torch.float32
+    assert actual_factors.features.dtype == torch.float32
+
+    model.fp16_enabled = False
+    unchanged_geometry, unchanged_factors = wrapped(model, geometry, factors)
+    assert unchanged_geometry is geometry
+    assert unchanged_factors is factors
+
+
 def test_extract_camera_features_preserves_camera_contract(monkeypatch):
     captured = {}
 
