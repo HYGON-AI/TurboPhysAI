@@ -4,35 +4,48 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { authorize, prepare, finish } = require("../hcu_authorization.cjs");
+// Match the REST API: triage maps to read, maintain maps to write.
+const ROLES = {
+  admin: { permission: "admin", role_name: "admin" },
+  maintain: { permission: "write", role_name: "maintain" },
+  write: { permission: "write", role_name: "write" },
+  triage: { permission: "read", role_name: "triage" },
+  read: { permission: "read", role_name: "read" },
+  none: { permission: "none", role_name: "none" },
+};
 
-function fixture({ permission = "read", labels = [], events = [], draft = false,
-  state = "open", currentSha = "pr-sha", permissions = {}, apiError = false,
+function fixture({ role = "read", labels = [], events = [], draft = false,
+  state = "open", currentSha = "pr-sha", currentBase = "base-sha", roles = {},
   files = [{ filename: "turbo_physai/__init__.py" }], changedFiles = files.length } = {}) {
   const outputs = {};
-  const statuses = [];
   const failures = [];
+  const messages = [];
   const permissionRequests = [];
   const context = {
+    eventName: "pull_request",
     repo: { owner: "example", repo: "project" },
-    sha: "base-sha",
-    runId: 42,
-    serverUrl: "https://github.com",
-    payload: { pull_request: { number: 9, head: { sha: "pr-sha" } } },
+    sha: "merge-sha",
+    payload: { action: "opened", pull_request: {
+      number: 9, head: { sha: "pr-sha", repo: { full_name: "contributor/project" } },
+      base: { sha: "base-sha", repo: { full_name: "example/project" } },
+    } },
+  };
+  const pr = {
+    number: 9, state, draft, head: { sha: currentSha }, base: { sha: currentBase },
+    changed_files: changedFiles, user: { login: "contributor" },
+    labels: labels.map((name) => ({ name })),
   };
   const github = {
     rest: {
-      pulls: { get: async () => ({ data: {
-        number: 9, state, draft, head: { sha: currentSha },
-        changed_files: changedFiles,
-        user: { login: "contributor" }, labels: labels.map((name) => ({ name })),
-      } }), listFiles: Symbol("listFiles") },
+      pulls: { get: async () => ({ data: structuredClone(pr) }), listFiles: Symbol("listFiles") },
       repos: {
         getCollaboratorPermissionLevel: async ({ username }) => {
           permissionRequests.push(username);
-          if (apiError) throw new Error("GitHub API unavailable");
-          return { data: { permission: permissions[username] ?? permission } };
+          const value = roles[username] ?? role;
+          return { data: structuredClone(typeof value === "string" ?
+            ROLES[value] ?? { permission: value, role_name: value } : value) };
         },
-        createCommitStatus: async (value) => { statuses.push(value); },
+        createCommitStatus: async () => { throw new Error("Read-only token: status writes forbidden"); },
       },
       issues: { listEvents: Symbol("listEvents") },
     },
@@ -48,168 +61,187 @@ function fixture({ permission = "read", labels = [], events = [], draft = false,
   };
   const core = {
     setOutput: (key, value) => { outputs[key] = value; },
-    info: () => {},
-    setFailed: (message) => { failures.push(message); },
+    info: (message) => messages.push(message),
+    setFailed: (message) => failures.push(message),
   };
-  return { github, context, core, outputs, statuses, failures, permissionRequests };
+  return { github, context, core, outputs, failures, messages, permissionRequests, pr };
 }
 
 const labeled = (actor, event = "labeled") => ({
   event, actor: { login: actor }, label: { name: "ready-hcu" },
 });
 
-for (const permission of ["admin", "maintain", "write", "triage"]) {
-  test(`${permission} contributor is automatically authorized`, async () => {
-    const args = fixture({ permission });
+for (const role of ["admin", "maintain", "write", "triage"]) {
+  test(`${role} is authorized with the real REST permission/role combination`, async () => {
+    const args = fixture({ role });
     await prepare(args);
     assert.equal(args.outputs.authorized, "true");
-    assert.equal(args.outputs.sha, "pr-sha");
-    assert.equal(args.statuses[0].state, "pending");
-    assert.equal(args.statuses[0].sha, "pr-sha");
-    assert.equal(args.statuses[0].context, "HCU CI");
-    assert.equal(args.statuses[0].target_url, "https://github.com/example/project/actions/runs/42");
+    assert.equal(args.outputs.sha, "merge-sha");
+    await finish(args, { authorizationResult: "success", testResult: "success" });
+    assert.deepEqual(args.failures, []);
+  });
+  test(`${role} can authorize an external contributor with ready-hcu`, async () => {
+    const args = fixture({ labels: ["ready-hcu"], events: [labeled("maintainer")],
+      roles: { maintainer: role } });
+    assert.equal((await authorize(args)).authorized, true);
+    assert.deepEqual(args.permissionRequests, ["contributor", "maintainer"]);
   });
 }
 
-for (const permission of ["read", "none", "unknown"]) {
-  test(`${permission} contributor requires authorization`, async () => {
-    const args = fixture({ permission });
+for (const role of ["read", "none", "unknown", {},
+  { permission: "read", role_name: "custom-reader" },
+  { permission: "write", role_name: "custom-writer" }]) {
+  test(`unknown/read roles cannot gain hardware access: ${JSON.stringify(role)}`, async () => {
+    const args = fixture({ role });
     await prepare(args);
-    assert.equal(args.outputs.authorized, "false");
-    assert.equal(args.statuses[0].state, "failure");
+    assert.equal(args.outputs.authorized, String(role.permission === "write"));
   });
 }
 
-test("external contributor is authorized by a trusted label actor", async () => {
-  const args = fixture({ labels: ["ready-hcu"], events: [labeled("maintainer")],
-    permissions: { maintainer: "maintain" } });
-  assert.equal((await authorize(args)).authorized, true);
-  assert.deepEqual(args.permissionRequests, ["contributor", "maintainer"]);
+test("organization membership alone does not grant hardware access", async () => {
+  const args = fixture();
+  args.pr.author_association = "MEMBER";
+  assert.equal((await authorize(args)).authorized, false);
 });
 
 test("the current label also authorizes subsequent PR commits", async () => {
   const args = fixture({ currentSha: "new-pr-sha", labels: ["ready-hcu"],
-    events: [labeled("maintainer")], permissions: { maintainer: "write" } });
+    events: [labeled("maintainer")], roles: { maintainer: "write" } });
   args.context.payload.pull_request.head.sha = "new-pr-sha";
+  args.context.sha = "new-merge-sha";
   await prepare(args);
   assert.equal(args.outputs.authorized, "true");
-  assert.equal(args.statuses[0].sha, "new-pr-sha");
+  assert.equal(args.outputs.sha, "new-merge-sha");
 });
 
 for (const events of [[], [labeled("reader")],
   [labeled("maintainer"), labeled("reader")],
   [labeled("maintainer"), labeled("maintainer", "unlabeled")]]) {
   test(`unverified or revoked label fails closed: ${JSON.stringify(events)}`, async () => {
-    const args = fixture({ labels: ["ready-hcu"], events,
-      permissions: { maintainer: "maintain" } });
+    const args = fixture({ labels: ["ready-hcu"], events, roles: { maintainer: "maintain" } });
     assert.equal((await authorize(args)).authorized, false);
   });
 }
 
-test("a removed label does not authorize using an older label event", async () => {
-  const args = fixture({ events: [labeled("maintainer")],
-    permissions: { maintainer: "maintain" } });
+test("a removed label cannot authorize using historical events", async () => {
+  const args = fixture({ events: [labeled("maintainer")], roles: { maintainer: "maintain" } });
   assert.equal((await authorize(args)).authorized, false);
 });
 
-for (const overrides of [{ draft: true }, { state: "closed" }]) {
-  test(`trusted contributors still need an open ready PR: ${JSON.stringify(overrides)}`, async () => {
-    assert.equal((await authorize(fixture({ permission: "write", ...overrides }))).authorized, false);
+test("label removed during permission lookup fails closed", async () => {
+  const args = fixture({ labels: ["ready-hcu"], events: [labeled("maintainer")],
+    roles: { maintainer: "write" } });
+  const lookup = args.github.rest.repos.getCollaboratorPermissionLevel;
+  args.github.rest.repos.getCollaboratorPermissionLevel = async (query) => {
+    if (query.username === "maintainer") args.pr.labels = [];
+    return lookup(query);
+  };
+  assert.equal((await authorize(args)).authorized, false);
+});
+
+for (const options of [{ draft: true }, { state: "closed" },
+  { currentSha: "new-pr-sha" }]) {
+  test(`ineligible PR does not get a passing result: ${JSON.stringify(options)}`, async () => {
+    const args = fixture({ role: "write", ...options });
+    await prepare(args);
+    assert.equal(args.outputs.authorized, "false");
+    await finish(args, { authorizationResult: "success", testResult: "success" });
+    assert.equal(args.failures.length, 1);
   });
 }
 
-test("a stale event neither runs hardware nor overwrites a newer status", async () => {
-  const args = fixture({ permission: "maintain", currentSha: "new-pr-sha" });
-  await prepare(args);
-  await finish(args, { authorizationResult: "success", testResult: "success" });
-  assert.equal(args.outputs.authorized, "false");
-  assert.deepEqual(args.statuses, []);
-});
-
-test("API failure cannot authorize hardware and is reported as an error", async () => {
-  const args = fixture({ permission: "write", apiError: true });
-  await assert.rejects(prepare(args), /GitHub API unavailable/);
-  assert.equal(args.outputs.authorized, "false");
-  await assert.rejects(finish(args, { authorizationResult: "failure", testResult: "skipped" }),
-    /GitHub API unavailable/);
-  assert.equal(args.statuses[0].state, "error");
-});
-
-test("publishing the pending status must succeed before granting authorization", async () => {
-  const args = fixture({ permission: "write" });
-  args.github.rest.repos.createCommitStatus = async () => { throw new Error("Forbidden"); };
-  await assert.rejects(prepare(args), /Forbidden/);
-  assert.equal(args.outputs.authorized, "false");
-});
-
-for (const testResult of ["success", "failure", "cancelled", "skipped"]) {
-  test(`hardware outcome ${testResult} is reported on the PR head`, async () => {
-    const args = fixture({ permission: "write" });
-    await finish(args, { authorizationResult: "success", testResult });
-    assert.equal(args.statuses[0].state, testResult === "success" ? "success" : "failure");
-    assert.equal(args.statuses[0].sha, "pr-sha");
-    assert.equal(args.failures.length, testResult === "success" ? 0 : 1);
+for (const endpoint of ["permission", "files", "pull", "events"]) {
+  test(`${endpoint} API error cannot authorize hardware`, async () => {
+    const args = fixture({ labels: ["ready-hcu"] });
+    const fail = async () => { throw new Error("GitHub API unavailable"); };
+    if (endpoint === "permission") args.github.rest.repos.getCollaboratorPermissionLevel = fail;
+    if (endpoint === "pull") args.github.rest.pulls.get = fail;
+    if (["files", "events"].includes(endpoint)) {
+      const paginate = args.github.paginate;
+      args.github.paginate = (method, options) =>
+        method === args.github.rest[endpoint === "files" ? "pulls" : "issues"]
+          [endpoint === "files" ? "listFiles" : "listEvents"] ? fail() : paginate(method, options);
+    }
+    await assert.rejects(prepare(args), /GitHub API unavailable/);
+    assert.equal(args.outputs.authorized, "false");
+    await assert.rejects(finish(args, { authorizationResult: "success", testResult: "success" }),
+      /GitHub API unavailable/);
   });
 }
 
-test("failed authorization cannot be turned into a passing check", async () => {
-  const args = fixture({ permission: "write" });
-  await finish(args, { authorizationResult: "failure", testResult: "success" });
-  assert.equal(args.statuses[0].state, "failure");
-});
+for (const authorizationResult of ["success", "failure", "cancelled", "skipped"]) {
+  for (const testResult of ["success", "failure", "cancelled", "skipped"]) {
+    test(`gate: authorization=${authorizationResult}, hardware=${testResult}`, async () => {
+      const args = fixture({ role: "write" });
+      await finish(args, { authorizationResult, testResult });
+      const passed = authorizationResult === "success" && testResult === "success";
+      assert.equal(args.failures.length, passed ? 0 : 1);
+    });
+  }
+}
 
-test("authorization is rechecked before reporting successful hardware tests", async () => {
-  const args = fixture(); // The ready-hcu label has since been removed.
-  await finish(args, { authorizationResult: "success", testResult: "success" });
-  assert.equal(args.statuses[0].state, "failure");
-});
-
-test("push, schedule and manual runs retain existing execution without PR status", async () => {
-  const args = fixture();
-  args.context.payload = {};
+test("withdrawn authorization cannot produce a passing gate", async () => {
+  const args = fixture({ labels: ["ready-hcu"], events: [labeled("maintainer")],
+    roles: { maintainer: "write" } });
   await prepare(args);
-  await finish(args, { authorizationResult: "success", testResult: "success" });
   assert.equal(args.outputs.authorized, "true");
-  assert.equal(args.outputs.sha, "base-sha");
-  assert.deepEqual(args.statuses, []);
-  assert.deepEqual(args.permissionRequests, []);
+  args.pr.labels = [];
+  await finish(args, { authorizationResult: "success", testResult: "success" });
+  assert.equal(args.failures.length, 1);
 });
 
-test("documentation-only PR needs no hardware authorization and reports the skip", async () => {
+for (const eventName of ["push", "schedule", "workflow_dispatch"]) {
+  test(`${eventName} tests the selected revision without PR API calls`, async () => {
+    const args = fixture();
+    args.context.eventName = eventName;
+    args.context.payload = {};
+    args.context.sha = "repository-sha";
+    await prepare(args);
+    assert.equal(args.outputs.authorized, "true");
+    assert.equal(args.outputs.sha, "repository-sha");
+    await finish(args, { authorizationResult: "success", testResult: "failure" });
+    assert.equal(args.failures.length, 1);
+    assert.deepEqual(args.permissionRequests, []);
+  });
+}
+
+for (const eventName of ["pull_request", "pull_request_target", "issue_comment"]) {
+  test(`missing or unsupported ${eventName} payload is rejected`, async () => {
+    const args = fixture();
+    args.context.eventName = eventName;
+    args.context.payload = {};
+    await assert.rejects(prepare(args), /Expected a pull_request/);
+    assert.equal(args.outputs.authorized, "false");
+  });
+}
+
+test("documentation-only PR skips hardware without permission lookups", async () => {
   const args = fixture({ files: ["README.md", "docs/assets/flow.svg", "guide.rst",
     ".github/workflows/README.md", "LICENSE", "NOTICE"].map((filename) => ({ filename })) });
   await prepare(args);
   await finish(args, { authorizationResult: "success", testResult: "skipped" });
   assert.equal(args.outputs.authorized, "false");
   assert.deepEqual(args.permissionRequests, []);
-  assert.equal(args.statuses.length, 2);
-  for (const item of args.statuses) {
-    assert.equal(item.state, "success");
-    assert.match(item.description, /Documentation-only.*skipped/);
-  }
   assert.deepEqual(args.failures, []);
+  assert.match(args.messages.at(-1), /Documentation-only.*skipped/);
 });
 
 for (const filename of ["turbo_physai/engine.py", "test/test_runner.py",
   "config.yaml", "requirements.txt", ".github/workflows/hcu-ci.yml", "scripts/check_docs.py"]) {
-  test(`documentation mixed with ${filename} still runs tests`, async () => {
-    const args = fixture({ permission: "maintain", files: [
-      { filename: "docs/README.md" }, { filename },
-    ] });
-    await prepare(args);
-    assert.equal(args.outputs.authorized, "true");
-    assert.equal(args.statuses[0].state, "pending");
+  test(`documentation mixed with ${filename} needs hardware`, async () => {
+    const args = fixture({ role: "maintain", files: [{ filename: "docs/README.md" }, { filename }] });
+    assert.equal((await authorize(args)).authorized, true);
   });
 }
 
-test("renaming source code into a documentation path still needs tests", async () => {
-  const args = fixture({ permission: "write", files: [
+test("renaming source code into documentation still needs tests", async () => {
+  const args = fixture({ role: "write", files: [
     { filename: "docs/example.md", previous_filename: "turbo_physai/engine.py", status: "renamed" },
   ] });
   assert.equal((await authorize(args)).authorized, true);
 });
 
-test("documentation deletion and documentation renames can skip tests", async () => {
+test("documentation deletion and renaming can skip tests", async () => {
   const args = fixture({ files: [
     { filename: "docs/old.md", status: "removed" },
     { filename: "docs/new.md", previous_filename: "README.md", status: "renamed" },
@@ -217,31 +249,28 @@ test("documentation deletion and documentation renames can skip tests", async ()
   assert.equal((await authorize(args)).skipTests, true);
 });
 
-for (const options of [{ files: [] },
-  { files: [{ filename: "README.md" }], changedFiles: 3001 }]) {
+for (const options of [{ files: [] }, { files: [{ filename: "README.md" }], changedFiles: 3001 }]) {
   test(`empty or incomplete file list cannot skip tests: ${JSON.stringify(options)}`, async () => {
-    const args = fixture({ permission: "write", ...options });
-    assert.equal((await authorize(args)).authorized, true);
+    assert.equal((await authorize(fixture({ role: "write", ...options }))).authorized, true);
   });
 }
 
-test("changed head during file listing cannot publish a documentation-only success", async () => {
-  const args = fixture({ files: [{ filename: "README.md" }] });
-  const get = args.github.rest.pulls.get;
-  let calls = 0;
-  args.github.rest.pulls.get = async (...params) => {
-    const response = await get(...params);
-    if (++calls > 1) response.data.head.sha = "new-pr-sha";
-    return response;
-  };
-  await prepare(args);
-  assert.equal(args.outputs.authorized, "false");
-  assert.deepEqual(args.statuses, []);
-});
+for (const update of [{ head: { sha: "new-pr-sha" } },
+  { draft: true }, { state: "closed" }]) {
+  test(`PR changing during file listing cannot skip tests: ${JSON.stringify(update)}`, async () => {
+    const args = fixture({ files: [{ filename: "README.md" }] });
+    const paginate = args.github.paginate;
+    args.github.paginate = (...params) => {
+      Object.assign(args.pr, update);
+      return paginate(...params);
+    };
+    assert.equal((await authorize(args)).skipTests, undefined);
+  });
+}
 
-test("failure to list changed files cannot skip tests or authorize execution", async () => {
-  const args = fixture({ permission: "write" });
-  args.github.paginate = async () => { throw new Error("Files API unavailable"); };
-  await assert.rejects(prepare(args), /Files API unavailable/);
-  assert.equal(args.outputs.authorized, "false");
+test("base metadata changing does not invalidate the pinned merge revision", async () => {
+  const args = fixture({ role: "write", currentBase: "new-base-sha" });
+  await prepare(args);
+  assert.equal(args.outputs.authorized, "true");
+  assert.equal(args.outputs.sha, "merge-sha");
 });

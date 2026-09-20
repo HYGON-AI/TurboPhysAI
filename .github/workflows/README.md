@@ -1,34 +1,41 @@
 # HCU CI
 
+Pull requests to `main` use `pull_request` and test the temporary merge of the PR
+with its base branch. Push, scheduled, and manual runs test their selected commit.
+The HCU build and tests share one device and run serially. The concurrency group
+keeps one running and one pending run; a new run replaces the pending run.
+
+PR authors with `Triage`, `Write`, `Maintain`, or `Admin` access to this repository
+are automatically authorized. Other authors need a user with one of these roles
+to apply `ready-hcu`. Organization membership alone does not grant hardware access.
+The label remains valid for new commits until removed. For authors requiring the
+label, removing it prevents later runs and a passing final check; it does not
+terminate an already running test.
+Draft, closed, and outdated PR events do not authorize hardware execution.
+
 Changes limited to `docs/**`, Markdown (`*.md`), reStructuredText (`*.rst`),
-`LICENSE`, and `NOTICE` skip the HCU build and tests and authorization unit tests.
-A PR containing any other file change runs tests normally. The `HCU CI` status
-reports documentation-only PRs as successful with an explicit skip description.
-The existing Quality Gate compliance and static checks still run.
+`LICENSE`, and `NOTICE` skip HCU build and tests and authorization unit tests.
+The `HCU CI` job reports the documentation-only skip as success. Quality Gate
+checks still run. For other changes, `HCU CI` passes only after authorization,
+build, and tests succeed. All workflow jobs use read permissions; the aggregate
+result is an Actions check. Authorization is checked again before reporting success.
 
-Pull requests to `main` run HCU CI automatically when the author has `Triage`,
-`Write`, `Maintain`, or `Admin` access to this repository. Other contributors need
-someone with one of these roles to add the `ready-hcu` label to their PR.
+GitHub's repository approval policy may require **Approve workflows** before a
+fork PR workflow starts. `ready-hcu` does not bypass that policy and does not
+approve the PR for merging. The workflow and helpers are part of the PR merge;
+label checks are an execution policy, not an isolation boundary against modified
+workflows. Maintainers must review CI changes before allowing them to run on the
+privileged, persistent HCU runner.
 
-The label authorizes execution on the internal HCU runner. While the label remains,
-new commits are tested automatically. Removing the label withdraws authorization
-for subsequent runs; it does not stop an already running test. Draft and closed PRs
-are not authorized. CI authorization does not approve the PR for merging.
+The base image comes from repository variable `IMAGE_URL`.
+`HCU_PIP_INDEX_URL` and `HCU_PIP_TRUSTED_HOST` are optional.
 
-Authorization and status reporting use upstream code on GitHub-hosted runners.
-The HCU runner checks out the authorized PR commit and builds and tests it with a
-read-only GitHub token and without persisted checkout credentials. The `HCU CI`
-commit status links to the workflow logs. For changes requiring tests, it passes
-only when the build and tests succeed. Authorization is checked again before
-reporting success.
+An administrator can require the `HCU CI` Actions check in the branch rules.
+After changing the workflow, PR branches must include the updated workflow.
+GitHub event delivery, fork token permissions, runner configuration, and an actual
+HCU build and test run must be verified on GitHub before relying on the check.
 
-To enable this flow, merge the workflow changes into `main` and create the
-`ready-hcu` repository label. To require HCU CI for merging, an administrator can
-add `HCU CI` to the required status checks. Existing PRs can trigger the
-new workflow by pushing a commit or adding the label.
-
-Pushes to `main` also skip documentation-only changes. Scheduled and manual runs
-continue to test their selected repository commit. Test the authorization logic locally with:
+Run authorization tests from the repository root with Node.js:
 
 ```bash
 node --test .github/scripts/tests/hcu_authorization.test.cjs

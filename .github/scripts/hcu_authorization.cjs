@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 const TRUSTED_PERMISSIONS = new Set(["admin", "maintain", "write", "triage"]);
-const STATUS_CONTEXT = "HCU CI";
 
 function isDocumentation(path) {
   return typeof path === "string" &&
@@ -12,21 +11,30 @@ function isDocumentation(path) {
 
 async function authorize({ github, context }) {
   const eventPr = context.payload.pull_request;
-  if (!eventPr) {
+  if (["push", "schedule", "workflow_dispatch"].includes(context.eventName) && !eventPr) {
     return { authorized: true, sha: context.sha, reason: "Repository workflow" };
+  }
+  if (context.eventName !== "pull_request" || !eventPr?.head?.sha) {
+    throw new Error("Expected a pull_request event with a head revision");
   }
 
   const { data: pr } = await github.rest.pulls.get({
     ...context.repo,
     pull_number: eventPr.number,
   });
-  const sha = eventPr.head.sha;
-  if (pr.head.sha !== sha) {
-    return { authorized: false, sha, stale: true, reason: "PR head has changed" };
+  // pull_request's SHA identifies the tested merge, not the fork head.
+  const sha = context.sha;
+  function ineligible(current) {
+    if (current.head.sha !== eventPr.head.sha) {
+      return { authorized: false, sha, stale: true, reason: "PR head has changed" };
+    }
+    if (current.state !== "open" || current.draft) {
+      return { authorized: false, sha, reason: "PR must be open and ready for review" };
+    }
+    return null;
   }
-  if (pr.state !== "open" || pr.draft) {
-    return { authorized: false, sha, reason: "PR must be open and ready for review" };
-  }
+  const rejected = ineligible(pr);
+  if (rejected) return rejected;
 
   const files = await github.paginate(github.rest.pulls.listFiles, {
     ...context.repo,
@@ -39,9 +47,8 @@ async function authorize({ github, context }) {
     ...context.repo,
     pull_number: pr.number,
   });
-  if (currentPr.head.sha !== sha) {
-    return { authorized: false, sha, stale: true, reason: "PR head has changed" };
-  }
+  const changed = ineligible(currentPr);
+  if (changed) return changed;
   if (files.length > 0 && files.length === pr.changed_files &&
     files.every((file) => isDocumentation(file.filename) &&
       (!file.previous_filename || isDocumentation(file.previous_filename)))) {
@@ -54,13 +61,15 @@ async function authorize({ github, context }) {
       ...context.repo,
       username,
     });
-    return TRUSTED_PERMISSIONS.has(data.permission);
+    // GitHub reports triage as permission=read, role_name=triage.
+    return TRUSTED_PERMISSIONS.has(data.permission) ||
+      TRUSTED_PERMISSIONS.has(data.role_name);
   }
 
   if (await trusted(pr.user.login)) {
     return { authorized: true, sha, reason: `Auto-authorized for ${pr.user.login}` };
   }
-  if (!pr.labels.some((label) => label.name === "ready-hcu")) {
+  if (!currentPr.labels.some((label) => label.name === "ready-hcu")) {
     return { authorized: false, sha, reason: "Waiting for a trusted ready-hcu label" };
   }
 
@@ -77,57 +86,39 @@ async function authorize({ github, context }) {
   if (labelEvent?.event !== "labeled" || !actor || !(await trusted(actor))) {
     return { authorized: false, sha, reason: "ready-hcu requires a trusted label author" };
   }
+  const { data: latestPr } = await github.rest.pulls.get({
+    ...context.repo, pull_number: pr.number,
+  });
+  const latestRejection = ineligible(latestPr);
+  if (latestRejection) return latestRejection;
+  if (!latestPr.labels.some((label) => label.name === "ready-hcu")) {
+    return { authorized: false, sha, reason: "ready-hcu has been removed" };
+  }
   return { authorized: true, sha, reason: `ready-hcu authorized by ${actor}` };
 }
 
-async function status({ github, context }, sha, state, description) {
-  await github.rest.repos.createCommitStatus({
-    ...context.repo,
-    sha,
-    state,
-    context: STATUS_CONTEXT,
-    description,
-    target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-  });
-}
-
 async function prepare(args) {
-  const { core, context } = args;
+  const { core } = args;
   // Fail closed: the HCU job requires this output to be explicitly true.
   core.setOutput("authorized", "false");
   const decision = await authorize(args);
   core.setOutput("sha", decision.sha);
   core.info(decision.reason);
-  if (context.payload.pull_request && !decision.stale) {
-    await status(args, decision.sha,
-      decision.skipTests ? "success" : decision.authorized ? "pending" : "failure",
-      decision.authorized ? "HCU tests queued or running" : decision.reason);
-  }
   core.setOutput("authorized", String(decision.authorized));
 }
 
 async function finish(args, { authorizationResult, testResult }) {
-  const { core, context } = args;
-  if (!context.payload.pull_request) return;
-  let decision;
-  try {
-    // Recheck current head and authorization before publishing a passing result.
-    decision = await authorize(args);
-  } catch (error) {
-    await status(args, context.payload.pull_request.head.sha, "error",
-      "Unable to verify HCU authorization; see workflow logs");
-    throw error;
-  }
-  if (decision.stale) {
-    core.info(decision.reason);
-    return;
-  }
-  const passed = authorizationResult === "success" &&
+  const { core } = args;
+  // Native Actions job results work with a fork's read-only token.
+  // Recheck authorization so withdrawn permission cannot produce a green gate.
+  const decision = await authorize(args);
+  const passed = authorizationResult === "success" && !decision.stale &&
     (decision.skipTests ? testResult === "skipped" :
       decision.authorized && testResult === "success");
-  const description = decision.skipTests || !decision.authorized ? decision.reason :
+  const description = authorizationResult !== "success" ? "HCU authorization job did not succeed" :
+    decision.skipTests || !decision.authorized ? decision.reason :
     passed ? "HCU build and tests passed" : "HCU build or tests did not complete successfully";
-  await status(args, decision.sha, passed ? "success" : "failure", description);
+  core.info(description);
   if (!passed) core.setFailed(description);
 }
 

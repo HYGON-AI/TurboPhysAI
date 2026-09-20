@@ -4,7 +4,7 @@
 name: TurboPhysAI HCU CI
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled]
     branches:
       - main
@@ -39,23 +39,18 @@ env:
 jobs:
   authorize:
     name: Authorize HCU execution
-    if: >-
-      github.event_name != 'pull_request_target' ||
-      (github.event.action != 'labeled' && github.event.action != 'unlabeled') ||
-      github.event.label.name == 'ready-hcu'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       issues: read
       pull-requests: read
-      statuses: write
     outputs:
       authorized: ${{ steps.authorization.outputs.authorized }}
       sha: ${{ steps.authorization.outputs.sha }}
     steps:
-      # pull_request_target uses the upstream workflow and authorization code.
-      - name: Check out trusted CI helpers
+      # Authorization runs on a hosted runner before requesting HCU hardware.
+      - name: Check out CI helpers
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
@@ -72,7 +67,7 @@ jobs:
     name: Build wheel and run the complete single-HCU suite
     needs: authorize
     if: needs.authorize.outputs.authorized == 'true'
-    # PR code receives only a read token; status writes run on GitHub-hosted jobs.
+    # Fork PRs use read-only permissions; results are native Actions checks.
     runs-on:
       group: ci-general
       labels: [self-hosted, ci, nmz1]
@@ -87,10 +82,25 @@ jobs:
       - name: Check out the tested commit
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ needs.authorize.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify tested revision
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ needs.authorize.outputs.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          if [[ -n "$PR_HEAD_SHA" ]]; then
+            # The tested base branch can be newer than pull_request.base.sha.
+            read -r base_parent head_parent extra_parent <<< "$(git show -s --format=%P HEAD)"
+            test -n "$base_parent"
+            test "$head_parent" = "$PR_HEAD_SHA"
+            test -z "$extra_parent"
+          fi
 
       - name: Prepare artifact directory
         shell: bash
@@ -251,25 +261,22 @@ jobs:
           echo "Removed ${deleted} local CI artifact directorie(s) older than ${retention_days} days."
 
   report:
-    name: Report HCU result
+    name: HCU CI
     needs: [authorize, wheel-and-tests]
-    if: >-
-      always() && github.event_name == 'pull_request_target' &&
-      needs.authorize.result != 'skipped'
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       issues: read
       pull-requests: read
-      statuses: write
     steps:
-      - name: Check out trusted CI helpers
+      - name: Check out CI helpers
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Publish result on the tested PR commit
+      - name: Enforce HCU result
         uses: actions/github-script@v7
         env:
           AUTHORIZATION_RESULT: ${{ needs.authorize.result }}
