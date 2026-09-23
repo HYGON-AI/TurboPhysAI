@@ -22,6 +22,7 @@ class BuiltinMsdaTest(unittest.TestCase):
         self.assertEqual(group, catalog.MSDA.definition)
         self.assertEqual(catalog.MSDA.group_id, "mmcv.msda")
         self.assertEqual(len(catalog.MSDA.specs), 2)
+        self.assertTrue(all(not spec.collect_target_hash for spec in catalog.MSDA.specs))
         self.assertEqual(
             tuple(spec.target for spec in catalog.MSDA.specs),
             (
@@ -43,6 +44,12 @@ class BuiltinMsdaTest(unittest.TestCase):
                 "turbo_physai.operators.multi_scale_deformable_attention."
                 "ms_deform_attn_backward",
             ),
+        )
+        self.assertEqual(
+            tuple(spec.runtime_condition for spec in catalog.MSDA.specs),
+            tuple("turbo_physai.optimizations.common.mmcv.msda."
+                  + "is_supported_msda_" + direction
+                  for direction in ("forward", "backward")),
         )
 
     def test_public_group_is_selected_by_mmcv_config(self):
@@ -84,10 +91,14 @@ class BuiltinMsdaTest(unittest.TestCase):
         )
         replacement.ms_deform_attn_forward = replacement_forward
         replacement.ms_deform_attn_backward = replacement_backward
+        conditions = types.ModuleType("turbo_physai.optimizations.common.mmcv.msda")
+        conditions.is_supported_msda_forward = mock.Mock(return_value=True)
+        conditions.is_supported_msda_backward = mock.Mock(return_value=True)
         modules = {
             "mmcv": mmcv,
             "mmcv._ext": ext,
             replacement.__name__: replacement,
+            conditions.__name__: conditions,
         }
         registry = Registry()
         catalog.MSDA.register(registry)
@@ -99,8 +110,8 @@ class BuiltinMsdaTest(unittest.TestCase):
                 prepared = handler.prepare(registry.get_spec(replacement_id), {})
                 snapshots.append(handler.snapshot(prepared))
                 handler.apply(prepared)
-            self.assertIs(ext.ms_deform_attn_forward, replacement_forward)
-            self.assertIs(ext.ms_deform_attn_backward, replacement_backward)
+            self.assertIs(ext.ms_deform_attn_forward.__turbo_physai_optimized__, replacement_forward)
+            self.assertIs(ext.ms_deform_attn_backward.__turbo_physai_optimized__, replacement_backward)
             for snapshot in reversed(snapshots):
                 handler.restore(snapshot)
 

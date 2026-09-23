@@ -118,13 +118,7 @@ Group 之间只有在 Catalog 明确声明 `depends_on` 时才形成依赖。配
 
 ## 4. 校验配置
 
-校验 YAML Schema、字段类型、继承关系和声明模块导入：
-
-```bash
-turbo-physai optimization validate ./configs/optimization.yaml
-```
-
-核对已生成配置与模型仓库中的 target 证据：
+校验配置并核对已记录的模型目标证据：
 
 ```bash
 turbo-physai optimization check \
@@ -132,7 +126,7 @@ turbo-physai optimization check \
   --repo /path/to/model-repository
 ```
 
-`optimization check` 要求模型工作区干净，并检查 Group 依赖闭包、顺序、组合冲突及 target 证据。两条命令的完整参数见 [CLI 参考](../reference/cli.md)。
+`optimization check` 校验配置格式、字段类型、继承关系和声明模块导入，并检查模型工作区干净、Group 依赖闭包、顺序、组合冲突及已记录的 target 证据。完整参数见 [CLI 参考](../reference/cli.md)。
 
 ## 5. 配置维护
 
@@ -160,4 +154,4 @@ report = turbo_physai.apply(
 
 每个训练进程只能调用一次 `apply()`，且应在导入目标模型前执行。多进程训练推荐使用 `turbo-physai run`，由 Runner 在每个训练 rank 中完成调用。`log_report` 默认值为 `False`；设为 `True` 时，Rank 0 将 OptimizationReport 输出到标准日志。该参数不影响报告对象的返回值，也不改变优化检查和应用行为。
 
-完整参数、配置选择顺序、返回值、调用约束和 `turbo_physai.check()` 说明见[Python API 参考](../reference/python_api.md)。
+完整参数、配置选择顺序、返回值和调用约束见[Python API 参考](../reference/python_api.md)。

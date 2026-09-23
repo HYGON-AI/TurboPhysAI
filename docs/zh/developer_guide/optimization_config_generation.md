@@ -15,6 +15,7 @@ Recipe 和 Catalog 是开发阶段的输入：Recipe 选择需要交付的 Group
 | Optimization Catalog | Python 代码 | Group、`target`、`aliases`、Replacement 和 `depends_on` |
 | `recipe.yaml` | 优化开发者维护 | 配置身份、Optimization Catalog 模块、继承配置、Group 选择和 `options` |
 | `optimization.yaml` | `optimization generate` 生成 | 展开的 Group、目标的 source、AST 或原生扩展文件证据；模型配置同时记录参考 commit |
+| `.optimization.yaml.generation.json` | 与配置同时生成 | Config、Recipe、声明的 Catalog 文件、继承配置规范化后的 SHA-256，以及生成时确认的模型 commit |
 
 内置模型的 `optimization.yaml` 随 TurboPhysAI 交付。训练用户通过 `turbo-physai run --model <model>` 启动时，Runner 自动选择对应配置；自定义交付可以通过 `--optimization-config` 显式指定配置路径。
 
@@ -59,7 +60,7 @@ turbo-physai optimization generate \
 5. 检查模型 Replacement 是否直接引用继承配置中的公共 Replacement；
 6. 解析 `replace`、`wrap` 等运行时替换的目标对象；
 7. 生成 `source-v1`、`ast-v1` 或 `artifact-v1` 目标证据；
-8. 展开继承与依赖，将结果写入 `optimization.yaml`。
+8. 展开继承与依赖，写入 `optimization.yaml` 及同目录的隐藏生成记录 `.optimization.yaml.generation.json`。
 
 证据生成遵循以下规则：
 
@@ -68,7 +69,7 @@ turbo-physai optimization generate \
 - `replace_import`、`import_alias`、`optional_import` 和 `registry_override` 不生成目标 Hash；
 - Replacement 源码和底层 Kernel 不写入 OptimizationConfig，其一致性由 TurboPhysAI 包版本、代码评审和测试保证。
 
-输出文件已存在时，命令默认拒绝覆盖。确认需要更新生成结果时使用 `--force`：
+配置或生成记录已存在时，命令默认拒绝覆盖。确认需要同时更新二者时使用 `--force`：
 
 ```bash
 turbo-physai optimization generate \
@@ -81,20 +82,13 @@ turbo-physai optimization generate \
 
 ## 4. 检查命令
 
-### 4.1 validate
+### 4.1 check --generated-only
 
 ```bash
-turbo-physai optimization validate configs/optimization.yaml
+turbo-physai optimization check --generated-only configs/optimization.yaml
 ```
 
-`validate` 加载 OptimizationConfig，并检查：
-
-- `schema_version`、`kind` 和字段类型；
-- 未知字段和重复 Group；
-- `extends` 引用；
-- `optimization_modules` 导入。
-
-该命令不需要模型仓库，也不计算目标代码证据。
+该命令用于在交付流程中防止误操作，例如未通过 CLI 生成 Config，或修改配套文件后未重新生成。它通过隐藏生成记录，检查 Config、Recipe、Catalog 和继承配置是否与生成时一致；记录缺失或内容不匹配时报错。检查无需模型环境，忽略注释和不影响内容的排版变化。
 
 ### 4.2 check
 
@@ -105,22 +99,13 @@ turbo-physai optimization check configs/optimization.yaml \
 
 `check` 用于确认生成后的 OptimizationConfig 与指定模型工作区仍然匹配，检查内容包括：
 
+- 配置格式、字段类型、继承关系和 Catalog 导入；
 - 模型工作区是否存在未提交修改；
 - Group 依赖闭包和执行顺序；
 - Group 内和 Group 间的目标冲突；
-- Python 目标的 source、AST 证据；
-- 原生扩展目标的文件证据。
+- 已记录的 Python 目标 source、AST 证据及原生扩展目标文件证据。
 
 模型 `optimization.yaml` 保存生成时使用的模型 commit，公共配置不记录该字段。`optimization check` 不因当前 HEAD 与模型配置中的参考 commit 不同而失败；运行 `turbo-physai run` 或调用 `turbo_physai.apply()` 时，commit 匹配结果以 `project.commit` 检查项写入 OptimizationReport。目标代码证据不匹配仍会阻断相应 Group。
-
-### 4.3 show 和 diff
-
-```bash
-turbo-physai optimization show configs/optimization.yaml
-turbo-physai optimization diff configs/old.yaml configs/new.yaml
-```
-
-`show` 输出加载并解析后的 JSON。`diff` 比较两个解析结果，输出 unified diff，用于评审 Group 选择和目标证据变化。
 
 ## 5. generate 与 check 的边界
 

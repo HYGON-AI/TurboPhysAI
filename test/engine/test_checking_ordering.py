@@ -283,6 +283,31 @@ class CheckingOrderingTest(unittest.TestCase):
         self.assertEqual(identity.status, CheckStatus.PASS)
         self.assertEqual(prepared_execution.groups[0].decision, Decision.APPLY)
 
+    def test_native_runtime_condition_checks_replacement_contract(self):
+        for condition, status, decision in (
+            ("positive", CheckStatus.PASS, Decision.APPLY),
+            ("condition_without_arguments", CheckStatus.FAIL, Decision.BLOCK),
+        ):
+            with self.subTest(condition=condition):
+                registry = Registry()
+                registry.register_spec(ReplacementSpec(
+                    "native.replacement", Mechanism.REPLACE,
+                    "optimization_engine_fake.native",
+                    "optimization_engine_fake.replacement",
+                    runtime_condition="optimization_engine_fake." + condition,
+                ))
+                registry.register_group(OptimizationGroup(
+                    "native.group", ("native.replacement",),
+                ))
+                prepared = self.prepare(
+                    registry, config(OptimizationGroupConfig("native.group")),
+                )
+                check = next(item for item in prepared.groups[0].checks
+                             if item.code == "runtime_condition.signature")
+                self.assertEqual(check.status, status)
+                self.assertIn("replacement signature", check.detail)
+                self.assertEqual(prepared.groups[0].decision, decision)
+
     def test_standard_model_wrapper_still_checks_target_identity(self):
         registry = Registry()
         registry.register_spec(

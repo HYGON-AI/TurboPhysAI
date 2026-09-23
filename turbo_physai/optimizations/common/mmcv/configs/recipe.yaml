@@ -5,16 +5,12 @@ schema_version: turbophysai/optimization-config/v1
 kind: OptimizationConfig
 metadata:
   id: framework.mmcv.hcu
-  version: 0.1.0
+  version: "0.1.0"
   description: Reusable MMCV HCU optimizations
-model: {}
-compatibility: {}
-optimization_groups:
-- id: mmcv.msda
-  enabled: true
-  options: {}
-  trust:
-    source_hashes: {}
-    ast_hashes: {}
+
 optimization_modules:
-- turbo_physai.optimizations.common.mmcv.catalog
+  - turbo_physai.optimizations.common.mmcv.catalog
+
+optimization_groups:
+  - id: mmcv.msda
+    enabled: true

@@ -80,16 +80,3 @@ OptimizationConfig 顶层 commit 检查匹配时为 `pass`，不匹配或无法�
 - Replacement 在后续训练调用时失败：不触发启动期事务回滚，也不自动 fallback，应根据 Traceback 修复或禁用 Group。声明 `runtime_condition` 的调用仅在条件明确返回 `False` 时使用原实现；条件函数或 Replacement 异常仍向上传播。
 
 动态库加载、Torch Operator 注册、设备上下文和模块导入副作用不能通过 Python 对象重新赋值完整回滚。
-
-## 7. check 的边界
-
-`check()` 复用解析、检查和 Preparation 过程，不安装普通 Replacement。为解析后续 target，导入兼容 Group 会在检查期间临时应用，并在检查完成后恢复。Engine 同时尽力还原 `sys.modules` 映射。
-
-检查过程仍可能：
-
-- 导入 target 和 Replacement 模块；
-- 构造 Wrapper；
-- 触发动态库或 Torch Operator 注册；
-- 产生编译对象和其他导入期副作用。
-
-因此，`check()` 不改变普通 target 和 Alias 的最终指向，但不是无进程副作用的隔离环境。导入模块、Wrapper 构造和原生扩展注册产生的副作用不一定能够完整撤销。

@@ -175,7 +175,3 @@ turbo_physai.apply() may only be called once per process
 ```
 
 `apply()` 每个进程只能调用一次，失败后也不支持在原进程重试。默认使用 `turbo-physai run` 时，Runner 会在每个训练 rank 中管理调用时机。直接集成 Python API 时，应保证调用早于模型业务导入，并避免模块顶层代码被 worker 重复执行。
-
-### `check()` 产生初始化开销
-
-`turbo_physai.check()` 不安装 Replacement，但会导入 target 和 Replacement 模块；`wrap()` 还会执行 Wrapper 构造函数。导入动态库、注册算子和 Wrapper 构造产生的外部副作用不一定可以撤销，因此优化模块的导入和 Wrapper 构造应避免不可逆的全局修改。

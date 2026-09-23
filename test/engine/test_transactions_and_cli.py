@@ -4,7 +4,6 @@
 import io
 import sys
 import tempfile
-import textwrap
 import types
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -348,41 +347,14 @@ class TransactionsAndCliTest(unittest.TestCase):
         self.assertEqual(outcome.groups[0].status, ExecutionStatus.FAILED)
         self.assertIn("does not match", outcome.groups[0].error)
 
-    def test_cli_validate_and_diff(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            first_config = root / "first.yaml"
-            second_config = root / "second.yaml"
-            content = textwrap.dedent(
-                """
-                schema_version: turbophysai/optimization-config/v1
-                kind: OptimizationConfig
-                metadata: {id: cli, version: "1"}
-                optimization_groups: []
-                """
-            )
-            first_config.write_text(content, encoding="utf-8")
-            second_config.write_text(
-                content.replace('version: "1"', 'version: "2"'), encoding="utf-8"
-            )
-            validation_output = io.StringIO()
-            with redirect_stdout(validation_output):
-                self.assertEqual(
-                    cli_main(["optimization", "validate", str(first_config)]), 0
-                )
-            self.assertEqual(
-            validation_output.getvalue(), "valid OptimizationConfig: cli 1\n"
-            )
-            self.assertEqual(
-                cli_main(["optimization", "diff", str(first_config), str(second_config)]), 0
-            )
-
-    def test_cli_does_not_expose_obsolete_inspect(self):
-        stderr = io.StringIO()
-        with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
-            cli_main(["optimization", "inspect", "config.yaml"])
-        self.assertEqual(raised.exception.code, 2)
-        self.assertIn("invalid choice", stderr.getvalue())
+    def test_cli_does_not_expose_removed_commands(self):
+        for command in ("inspect", "validate", "show", "diff"):
+            with self.subTest(command=command):
+                stderr = io.StringIO()
+                with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
+                    cli_main(["optimization", command, "config.yaml"])
+                self.assertEqual(raised.exception.code, 2)
+                self.assertIn("invalid choice", stderr.getvalue())
 
     def test_cli_optimization_check_validates_generated_config(self):
         checked = OptimizationConfig(
@@ -412,6 +384,33 @@ class TransactionsAndCliTest(unittest.TestCase):
             stdout.getvalue(), "checked OptimizationConfig: checked 1\n"
         )
 
+    def test_cli_check_rejects_invalid_config_before_repository_checks(self):
+        base = (
+            "schema_version: turbophysai/optimization-config/v1\n"
+            "kind: OptimizationConfig\n"
+            "metadata: {id: cli, version: '1'}\n"
+        )
+        cases = (
+            ("optimization_groups: invalid\n", "optimization_groups must be a list"),
+            ("extends: [missing.config]\n", "unknown OptimizationConfig ID"),
+            ("optimization_modules: [missing_test_catalog_for_cli]\n",
+             "failed to import optimization module"),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "config.yaml"
+            for extra, expected in cases:
+                with self.subTest(extra=extra):
+                    config.write_text(base + extra, encoding="utf-8")
+                    stderr = io.StringIO()
+                    with redirect_stderr(stderr):
+                        result = cli_main([
+                            "optimization", "check", str(config),
+                            "--repo", str(root / "absent-repo"),
+                        ])
+                    self.assertEqual(result, 2)
+                    self.assertIn(expected, stderr.getvalue())
+
     def test_cli_generate_no_longer_accepts_check_flag(self):
         stderr = io.StringIO()
         with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
@@ -432,6 +431,45 @@ class TransactionsAndCliTest(unittest.TestCase):
             )
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("unrecognized arguments: --check", stderr.getvalue())
+
+    def test_cli_generated_only_does_not_check_model_repository(self):
+        with patch(
+            "turbo_physai.engine.config.generation_record.verify_generated"
+        ) as verify, patch(
+            "turbo_physai.engine.config.generator.check_optimization_config"
+        ) as check, redirect_stdout(io.StringIO()):
+            result = cli_main([
+                "optimization", "check", "--generated-only", "config.yaml",
+            ])
+        self.assertEqual(result, 0)
+        verify.assert_called_once_with(Path("config.yaml"))
+        check.assert_not_called()
+
+    def test_cli_default_check_keeps_model_check_behavior(self):
+        checked = OptimizationConfig(
+            "turbophysai/optimization-config/v1", "OptimizationConfig",
+            OptimizationConfigMetadata("checked", "1"),
+        )
+        with patch(
+            "turbo_physai.engine.config.generator.check_optimization_config",
+            return_value=checked,
+        ) as check, patch(
+            "turbo_physai.engine.config.generation_record.verify_generated"
+        ) as verify, redirect_stdout(io.StringIO()):
+            result = cli_main(["optimization", "check", "config.yaml"])
+        self.assertEqual(result, 0)
+        check.assert_called_once_with(Path("config.yaml"), Path("."))
+        verify.assert_not_called()
+
+    def test_cli_rejects_combined_check_modes_and_removed_subcommand(self):
+        for args in (
+            ["check", "config.yaml", "--generated-only", "--repo", "model"],
+            ["verify-generated", "config.yaml"],
+        ):
+            with self.subTest(args=args), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    cli_main(["optimization", *args])
+                self.assertEqual(raised.exception.code, 2)
 
 if __name__ == "__main__":
     unittest.main()
