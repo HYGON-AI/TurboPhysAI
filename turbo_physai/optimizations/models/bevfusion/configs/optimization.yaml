@@ -17,7 +17,11 @@ optimization_groups:
   enabled: true
   options: {}
   trust:
-    source_hashes: {}
+    source_hashes:
+      mmcv._ext.ms_deform_attn_forward:
+      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
+      mmcv._ext.ms_deform_attn_backward:
+      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
     ast_hashes: {}
 - id: mmdet3d.gaussian
   enabled: true
@@ -124,9 +128,13 @@ optimization_groups:
     source_hashes:
       mmdet3d.apis.train.train_model:
       - source-v1:6215bc796d762e6fea35f7289bf6edc46f9f406e377520e00bc7a500144080b1
+      mmcv.parallel.distributed.MMDistributedDataParallel._run_ddp_forward:
+      - source-v1:f4e196a85655850dbae1bf752ea1519a86083ba518b95a34cc5afbcf76bb5274
     ast_hashes:
       mmdet3d.apis.train.train_model:
       - ast-v1:b1e7df6eca71976ac570963e0ee3419fa294faa6501a9c9321613779442bf2a7
+      mmcv.parallel.distributed.MMDistributedDataParallel._run_ddp_forward:
+      - ast-v1:7d601b5fefa14e6288d8b597d1b68043025af1567dc704226bdd24c17faab5d9
 - id: bevfusion.gaussian
   enabled: true
   options: {}

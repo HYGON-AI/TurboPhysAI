@@ -36,6 +36,20 @@ def _option_flag(options, name, env_name, default=False):
     return _env_flag(env_name, default)
 
 
+def ddp_forward_compat_wrapper(original, options):
+    """Support MMCV's DDP forward on newer PyTorch versions."""
+
+    del options
+
+    @functools.wraps(original)
+    def wrapped(self, *args, **kwargs):
+        if not hasattr(self, "_use_replicated_tensor_module"):
+            self._use_replicated_tensor_module = False
+        return original(self, *args, **kwargs)
+
+    return wrapped
+
+
 def parse_losses(self, losses):
     """Reduce all scalar losses with one collective and one host transfer."""
 
