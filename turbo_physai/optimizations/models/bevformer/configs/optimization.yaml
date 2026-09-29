@@ -17,11 +17,7 @@ optimization_groups:
   enabled: true
   options: {}
   trust:
-    source_hashes:
-      mmcv._ext.ms_deform_attn_forward:
-      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
-      mmcv._ext.ms_deform_attn_backward:
-      - artifact-v1:097e3e04f24888c9ae5f1de1ea870f0a0f7992a2b554f1a9e430889323505b8f
+    source_hashes: {}
     ast_hashes: {}
 - id: bevformer.mdc
   enabled: true

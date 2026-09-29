@@ -1,0 +1,41 @@
+{
+  "schema_version": "turbophysai/generation-record/v2",
+  "generator": "turbo-physai optimization generate",
+  "model_commit": "326653dc06e0938edf1aae7d01efcd158ba83de5",
+  "config": {
+    "path": "optimization.yaml",
+    "sha256": "68fb72d741f3bad706953dee5b4ab511eee1aaefc25905f7aa4082a327541997"
+  },
+  "inputs": [
+    {
+      "role": "recipe",
+      "base": "package",
+      "path": "optimizations/common/configs/recipe.yaml",
+      "sha256": "59d153e173e5588dd569088994c76497248c5bf244679b318b8fa3fc1b63f5f0"
+    },
+    {
+      "role": "inherited_config",
+      "base": "package",
+      "path": "optimizations/common/mmcv/configs/optimization.yaml",
+      "sha256": "fdd35f3a9a1d7b1801bf6a134b93b6fe31c63346da49a4630e77d592f2c64a2b"
+    },
+    {
+      "role": "inherited_config",
+      "base": "package",
+      "path": "optimizations/common/mmdet3d/configs/optimization.yaml",
+      "sha256": "77ae5f8b131f5ae2742ddc4c6fea127a01560fadca62f7c5f68a9ff9bb38cd46"
+    },
+    {
+      "role": "catalog",
+      "base": "package",
+      "path": "optimizations/common/mmcv/catalog.py",
+      "sha256": "c77898cab07030b1fb23ba9eec264ab51de92b09c26d938f3cf07c8b1058bbe3"
+    },
+    {
+      "role": "catalog",
+      "base": "package",
+      "path": "optimizations/common/mmdet3d/catalog.py",
+      "sha256": "a2b3abbf8dd7aadafe53a50afc894b6602037e293ecf87d7b1713c6bf388bfe5"
+    }
+  ]
+}

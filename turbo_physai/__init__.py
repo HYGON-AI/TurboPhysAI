@@ -4,7 +4,8 @@
 """TurboPhysAI public API.
 
 The optimization engine entry points are intentionally pure Python. Operator modules
-are loaded lazily so planning and checking work without Torch or HCU installed.
+are loaded lazily so configuration tooling works without Torch or HCU installed.
+Runtime application loads the dependencies required by the selected optimizations.
 """
 
 from __future__ import annotations
@@ -31,11 +32,6 @@ def apply(*args: Any, **kwargs: Any):
 
     return _apply(*args, **kwargs)
 
-
-def check(*args: Any, **kwargs: Any):
-    from .engine import check as _check
-
-    return _check(*args, **kwargs)
 
 
 _LAZY_OPERATORS = {
@@ -72,7 +68,6 @@ def __getattr__(name: str) -> Any:
 
 __all__ = [
     "apply",
-    "check",
     "OptimizationExecutionError",
     "OptimizationRollbackError",
     "OptimizationConfigNotFoundError",

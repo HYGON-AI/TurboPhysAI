@@ -119,6 +119,7 @@ class ReplacementSpec:
     aliases: Tuple[str, ...] = ()
     runtime_condition: Optional[str] = None
     mechanism_options: FrozenDict = field(default_factory=FrozenDict)
+    collect_target_hash: bool = True
 
     def __post_init__(self) -> None:
         if (
@@ -129,6 +130,8 @@ class ReplacementSpec:
             raise ValueError("replacement_id, target and replacement are required")
         if self.runtime_condition is not None and not self.runtime_condition:
             raise ValueError("runtime_condition must be a non-empty object path")
+        if not isinstance(self.collect_target_hash, bool):
+            raise ValueError("collect_target_hash must be boolean")
         if len(set((self.target,) + tuple(self.aliases))) != 1 + len(
             tuple(self.aliases)
         ):

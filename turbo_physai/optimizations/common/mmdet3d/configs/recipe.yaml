@@ -1,0 +1,26 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: framework.mmdet3d.hcu
+  version: "0.1.0"
+  description: Reusable MMDetection3D HCU optimizations
+
+optimization_modules:
+  - turbo_physai.optimizations.common.mmdet3d.catalog
+
+optimization_groups:
+  - id: mmdet3d.gaussian
+    enabled: true
+  - id: mmdet3d.bev_pool
+    enabled: true
+  - id: mmdet3d.quick_cumsum
+    enabled: true
+  - id: mmdet3d.voxelization
+    enabled: true
+  - id: mmdet3d.canonical_indice_pairs
+    enabled: true
+  - id: mmdet3d.sparse_tensor
+    enabled: true

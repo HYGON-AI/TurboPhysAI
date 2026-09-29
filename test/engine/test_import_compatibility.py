@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from turbo_physai.engine.contracts import Mechanism
-from turbo_physai.engine import apply, check
+from turbo_physai.engine import apply
 from turbo_physai.engine.definitions import (
     group,
     import_alias,
@@ -333,21 +333,6 @@ class ImportCompatibilityTest(unittest.TestCase):
                 clear=False,
             ):
                 try:
-                    prepared = check(
-                        optimization_config_path=config,
-                        registry=registry,
-                    )
-                    self.assertEqual(
-                        tuple(group.decision.value for group in prepared.groups),
-                        ("apply", "apply"),
-                    )
-                    self.assertFalse(hasattr(vendor, "FlashMHA"))
-                    self.assertNotIn("stage_model", sys.modules)
-                    self.assertIs(
-                        external_registry.module_dict["SparseConv3d"],
-                        ExistingSparseConv3d,
-                    )
-
                     with mock.patch("turbo_physai.engine._apply_called", False):
                         report = apply(
                             optimization_config_path=config,
@@ -414,10 +399,13 @@ class ImportCompatibilityTest(unittest.TestCase):
                 sys.modules, {"blocked_vendor": vendor}, clear=False
             ):
                 try:
-                    prepared = check(
-                        optimization_config_path=config,
-                        registry=registry,
-                    )
+                    with mock.patch("turbo_physai.engine._apply_called", False):
+                        report = apply(
+                            optimization_config_path=config,
+                            registry=registry,
+                        )
+                    prepared = report.prepared_execution
+                    self.assertEqual(report.summary["blocked"], 2)
                     self.assertEqual(
                         tuple(item.decision.value for item in prepared.groups),
                         ("block", "block"),

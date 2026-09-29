@@ -430,6 +430,9 @@ setup(
             "optimizations/common/configs/*.yaml",
             "optimizations/common/*/configs/*.yaml",
             "optimizations/models/*/configs/*.yaml",
+            "optimizations/common/configs/.*.generation.json",
+            "optimizations/common/*/configs/.*.generation.json",
+            "optimizations/models/*/configs/.*.generation.json",
             "optimizations/models/cosmos3/configs/*.json",
             "optimizations/models/cosmos3/licenses/*",
             # _sitedir is deliberately not a package: it must contribute

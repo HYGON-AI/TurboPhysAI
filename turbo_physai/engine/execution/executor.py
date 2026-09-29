@@ -6,7 +6,7 @@ from __future__ import annotations
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from ..contracts import (
     ExecutionStatus,
@@ -23,7 +23,6 @@ class ExecutionOutcome:
     groups: Tuple[GroupExecutionResult, ...]
     terminal_error: Optional[str] = None
     rollback_failed: bool = False
-    applied_snapshots: Tuple[Tuple[str, Any, Any], ...] = ()
 
 
 class Executor:
@@ -40,7 +39,6 @@ class Executor:
         results: List[GroupExecutionResult] = []
         terminal_error = None
         rollback_failed = False
-        applied_snapshots = []
 
         for index, group_id in enumerate(prepared_execution.execution_order):
             prepared_group = prepared_groups_by_id[group_id]
@@ -63,14 +61,13 @@ class Executor:
                 results.append(result)
                 completed_groups[group_id] = result
                 continue
-            result, group_snapshots = self._execute_group(
+            result = self._execute_group(
                 group_id,
                 prepared_group.members,
                 prepared_group,
                 prepared_groups.get(group_id, ()),
             )
             results.append(result)
-            applied_snapshots.extend(group_snapshots)
             completed_groups[group_id] = result
             if result.status == ExecutionStatus.APPLIED:
                 continue
@@ -98,28 +95,7 @@ class Executor:
             tuple(results),
             terminal_error,
             rollback_failed,
-            tuple(applied_snapshots),
         )
-
-    @staticmethod
-    def restore_applied(
-        snapshots: Sequence[Tuple[str, Any, Any]],
-    ) -> Tuple[RestoreResult, ...]:
-        """Restore successfully applied units retained for a temporary phase."""
-
-        results = []
-        for _, handler, snapshot in reversed(tuple(snapshots)):
-            try:
-                results.extend(handler.restore(snapshot))
-            except Exception as exc:
-                results.append(
-                    RestoreResult(
-                        "temporary import compatibility",
-                        RestoreStatus.FAILED,
-                        str(exc),
-                    )
-                )
-        return tuple(results)
 
     def _execute_group(
         self,
@@ -127,7 +103,7 @@ class Executor:
         replacement_ids: Sequence[str],
         prepared_group,
         prepared_units,
-    ) -> Tuple[GroupExecutionResult, Tuple[Tuple[str, Any, Any], ...]]:
+    ) -> GroupExecutionResult:
         prepared = list(prepared_units)
         unit_results: List[ReplacementResult] = []
         snapshots = []
@@ -159,15 +135,12 @@ class Executor:
                 )
                 for index, replacement_id in enumerate(replacement_ids)
             ]
-            return (
-                GroupExecutionResult(
-                    group_id,
-                    ExecutionStatus.FAILED,
-                    tuple(unit_results),
-                    forced=prepared_group.forced,
-                    error=str(exc),
-                ),
-                (),
+            return GroupExecutionResult(
+                group_id,
+                ExecutionStatus.FAILED,
+                tuple(unit_results),
+                forced=prepared_group.forced,
+                error=str(exc),
             )
 
         failure = None
@@ -196,17 +169,11 @@ class Executor:
                 break
 
         if failure is None:
-            return (
-                GroupExecutionResult(
-                    group_id,
-                    ExecutionStatus.APPLIED,
-                    tuple(unit_results),
-                    forced=prepared_group.forced,
-                ),
-                tuple(
-                    (replacement_id, handler, snapshot)
-                    for replacement_id, handler, snapshot in snapshots
-                ),
+            return GroupExecutionResult(
+                group_id,
+                ExecutionStatus.APPLIED,
+                tuple(unit_results),
+                forced=prepared_group.forced,
             )
 
         completed = len(unit_results)
@@ -237,14 +204,11 @@ class Executor:
                 )
             else:
                 rolled_units.append(unit)
-        return (
-            GroupExecutionResult(
-                group_id,
-                ExecutionStatus.ROLLED_BACK if rollback_ok else ExecutionStatus.FAILED,
-                tuple(rolled_units),
-                tuple(restore_results),
-                prepared_group.forced,
-                f"{failure[0]}: {failure[1]}",
-            ),
-            (),
+        return GroupExecutionResult(
+            group_id,
+            ExecutionStatus.ROLLED_BACK if rollback_ok else ExecutionStatus.FAILED,
+            tuple(rolled_units),
+            tuple(restore_results),
+            prepared_group.forced,
+            f"{failure[0]}: {failure[1]}",
         )

@@ -9,6 +9,7 @@ import types
 import unittest
 from pathlib import Path
 from contextlib import redirect_stdout
+from unittest.mock import patch
 
 import turbo_physai
 import turbo_physai.engine as engine_module
@@ -86,28 +87,32 @@ class EngineExecutorTest(unittest.TestCase):
         registry.register_group(OptimizationGroup("demo.group", ("demo.replacement",)))
         return registry
 
-    def test_check_does_not_mutate_target_or_modules(self):
+    def test_apply_blocks_alias_mismatch_without_mutation(self):
         registry = self.registry()
+        self.module.alias = replacement
         with tempfile.TemporaryDirectory() as directory:
-            optimization_config_path = Path(directory) / "config.yaml"
-            write_optimization_config(optimization_config_path)
-            before_modules = dict(sys.modules)
-            before = self.module.original
-            resolved = turbo_physai.check(optimization_config_path=optimization_config_path, registry=registry)
-        self.assertIs(self.module.original, before)
-        self.assertIs(self.module.alias, before)
-        self.assertEqual(set(sys.modules), set(before_modules))
-        self.assertEqual(resolved.execution_order, ("demo.group",))
+            path = Path(directory) / "config.yaml"
+            write_optimization_config(path)
+            report = turbo_physai.apply(optimization_config_path=path, registry=registry)
+        self.assertIs(self.module.original, original)
+        self.assertIs(self.module.alias, replacement)
+        self.assertEqual(report.summary["blocked"], 1)
+        self.assertTrue(any(
+            item.code == "alias.identity" and item.status.value == "fail"
+            for item in report.prepared_execution.groups[0].checks
+        ))
 
-    def test_public_api_exposes_check_instead_of_inspect(self):
-        self.assertTrue(callable(turbo_physai.check))
+    def test_public_api_exposes_apply_without_check_or_inspect(self):
+        self.assertTrue(callable(turbo_physai.apply))
+        self.assertFalse(hasattr(turbo_physai, "check"))
+        self.assertFalse(hasattr(engine_module, "check"))
         self.assertFalse(hasattr(turbo_physai, "inspect"))
 
     def test_public_api_no_longer_accepts_execution_mode(self):
         with self.assertRaisesRegex(TypeError, "unexpected keyword argument 'mode'"):
-            turbo_physai.check(mode="safe")
+            turbo_physai.apply(mode="safe")
 
-    def test_check_force_groups_directly_allows_overrideable_check(self):
+    def test_apply_force_groups_directly_allows_overrideable_check(self):
         registry = self.registry()
         with tempfile.TemporaryDirectory() as directory:
             optimization_config_path = Path(directory) / "config.yaml"
@@ -129,16 +134,19 @@ class EngineExecutorTest(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            blocked = turbo_physai.check(optimization_config_path=optimization_config_path, registry=registry)
-            forced = turbo_physai.check(
-                optimization_config_path=optimization_config_path,
-                registry=registry,
-                force_groups=("demo.group",),
-            )
+            blocked = turbo_physai.apply(optimization_config_path=optimization_config_path, registry=registry)
+            self.assertIs(self.module.original, original)
+            # Model a fresh process for the independent forced application.
+            with patch.object(engine_module, "_apply_called", False):
+                forced = turbo_physai.apply(
+                    optimization_config_path=optimization_config_path,
+                    registry=registry,
+                    force_groups=("demo.group",),
+                )
 
-        self.assertEqual(blocked.groups[0].decision, Decision.BLOCK)
-        self.assertEqual(forced.groups[0].decision, Decision.APPLY)
-        self.assertTrue(forced.groups[0].forced)
+        self.assertEqual(blocked.prepared_execution.groups[0].decision, Decision.BLOCK)
+        self.assertEqual(forced.prepared_execution.groups[0].decision, Decision.APPLY)
+        self.assertTrue(forced.prepared_execution.groups[0].forced)
 
     def test_force_groups_rejects_group_not_enabled_by_config(self):
         registry = self.registry()
@@ -149,7 +157,7 @@ class EngineExecutorTest(unittest.TestCase):
                 OptimizationConfigError,
                 "must reference enabled OptimizationGroups",
             ):
-                turbo_physai.check(
+                turbo_physai.apply(
                     optimization_config_path=optimization_config_path,
                     registry=registry,
                     force_groups=("other.group",),
@@ -160,15 +168,15 @@ class EngineExecutorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             optimization_config_path = Path(directory) / "config.yaml"
             write_optimization_config(optimization_config_path)
-            prepared = turbo_physai.check(
+            prepared = turbo_physai.apply(
                 optimization_config_path=optimization_config_path,
                 registry=registry,
                 disable_groups=["demo.group"],
             )
 
-        self.assertEqual(prepared.groups[0].decision, Decision.SKIP)
-        self.assertEqual(prepared.groups[0].reason, "disabled_by_user")
-        self.assertEqual(prepared.execution_order, ())
+        self.assertEqual(prepared.prepared_execution.groups[0].decision, Decision.SKIP)
+        self.assertEqual(prepared.prepared_execution.groups[0].reason, "disabled_by_user")
+        self.assertEqual(prepared.prepared_execution.execution_order, ())
 
     def test_disable_groups_skip_dependent_groups(self):
         registry = self.registry()
@@ -202,16 +210,16 @@ class EngineExecutorTest(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            prepared = turbo_physai.check(
+            prepared = turbo_physai.apply(
                 optimization_config_path=optimization_config_path,
                 registry=registry,
                 disable_groups=["demo.group"],
             )
 
-        reasons = {group.group_id: group.reason for group in prepared.groups}
+        reasons = {group.group_id: group.reason for group in prepared.prepared_execution.groups}
         self.assertEqual(reasons["demo.group"], "disabled_by_user")
         self.assertEqual(reasons["dependent.group"], "dependency_disabled")
-        self.assertEqual(prepared.execution_order, ())
+        self.assertEqual(prepared.prepared_execution.execution_order, ())
 
     def test_group_cannot_be_forced_and_disabled(self):
         registry = self.registry()
@@ -222,7 +230,7 @@ class EngineExecutorTest(unittest.TestCase):
                 OptimizationConfigError,
                 "cannot be both forced and disabled",
             ):
-                turbo_physai.check(
+                turbo_physai.apply(
                     optimization_config_path=optimization_config_path,
                     registry=registry,
                     force_groups=["demo.group"],

@@ -29,16 +29,24 @@ MSDA = group(
     "mmcv.msda",
     replace(
         target="mmcv._ext.ms_deform_attn_forward",
+        collect_target_hash=False,
         replacement=(
             "turbo_physai.operators.multi_scale_deformable_attention."
             "ms_deform_attn_forward"
         ),
+        runtime_condition=(
+            "turbo_physai.optimizations.common.mmcv.msda.is_supported_msda_forward"
+        ),
     ),
     replace(
         target="mmcv._ext.ms_deform_attn_backward",
+        collect_target_hash=False,
         replacement=(
             "turbo_physai.operators.multi_scale_deformable_attention."
             "ms_deform_attn_backward"
+        ),
+        runtime_condition=(
+            "turbo_physai.optimizations.common.mmcv.msda.is_supported_msda_backward"
         ),
     ),
 )

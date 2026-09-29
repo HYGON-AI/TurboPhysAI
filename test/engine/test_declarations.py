@@ -7,7 +7,7 @@ import types
 import unittest
 from unittest import mock
 
-from turbo_physai.engine.contracts import Mechanism
+from turbo_physai.engine.contracts import Mechanism, ReplacementSpec
 from turbo_physai.engine.definitions.registry import Registry
 from turbo_physai.engine.definitions import group, replace, replace_import, wrap
 from turbo_physai.engine.execution.replacements import HandlerError, default_handlers
@@ -80,6 +80,30 @@ class SimplifiedDeclarationTest(unittest.TestCase):
                 registry=Registry(),
             ).definition.members,
         )
+
+    def test_target_hash_policy_is_preserved_per_member(self):
+        declaration = group(
+            "hash.policy",
+            replace("original.default", "replacement.default"),
+            replace("original.skipped", "replacement.skipped", collect_target_hash=False),
+            wrap("original.wrapped", "replacement.wrapper", collect_target_hash=False),
+            registry=self.registry,
+        )
+        self.assertEqual(tuple(item.collect_target_hash for item in declaration.replacements),
+                         (True, False, False))
+        self.assertEqual(tuple(item.collect_target_hash for item in declaration.specs),
+                         (True, False, False))
+
+    def test_target_hash_policy_requires_boolean(self):
+        for value in ("false", 0, 1, None, [], {}):
+            for helper in (replace, wrap):
+                with self.subTest(helper=helper.__name__, value=value):
+                    with self.assertRaisesRegex(ValueError, "collect_target_hash must be boolean"):
+                        helper("original.target", "replacement.target", collect_target_hash=value)
+            with self.subTest(contract=True, value=value):
+                with self.assertRaisesRegex(ValueError, "collect_target_hash must be boolean"):
+                    ReplacementSpec("member", Mechanism.REPLACE, "original.target",
+                                    "replacement.target", collect_target_hash=value)
 
     def test_group_declares_only_direct_dependencies(self):
         declaration = group(

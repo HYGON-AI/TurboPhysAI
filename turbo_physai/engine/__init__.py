@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import os
 import re
-import sys
 import uuid
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
@@ -175,7 +174,6 @@ def _resolve(
     model: Optional[str],
     force_groups: Sequence[str],
     disable_groups: Sequence[str],
-    restore_imports: bool,
 ) -> Tuple[
     OptimizationConfig,
     PreparedExecution,
@@ -200,166 +198,147 @@ def _resolve(
         force_groups,
         disable_groups,
     )
-    before_modules = dict(sys.modules) if restore_imports else {}
     compatibility_outcome = ExecutionOutcome(())
-    try:
-        run_id = _resolve_run_id()
-        compatibility_entries = []
-        regular_entries = []
-        compatibility_ids = set()
-        for entry in config.optimization_groups:
-            group_definition = active_registry.get_group(entry.id)
-            mechanisms = {
-                active_registry.get_spec(member).mechanism.value
-                for member in (group_definition.members if group_definition else ())
-                if active_registry.get_spec(member) is not None
-            }
-            compatibility = bool(mechanisms & _IMPORT_COMPATIBILITY_MECHANISMS)
-            if compatibility and not mechanisms.issubset(
-                _IMPORT_COMPATIBILITY_MECHANISMS
-            ):
-                raise OptimizationConfigError(
-                    "import compatibility and runtime replacements must use "
-                    f"separate OptimizationGroups: {entry.id}"
-                )
-            if compatibility:
-                compatibility_entries.append(entry)
-                compatibility_ids.add(entry.id)
-            else:
-                regular_entries.append(entry)
-
-        for group_id in compatibility_ids:
-            definition = active_registry.get_group(group_id)
-            invalid = tuple(
-                dependency
-                for dependency in definition.depends_on
-                if dependency not in compatibility_ids
-            )
-            if invalid:
-                raise OptimizationConfigError(
-                    "import compatibility Group dependencies must also be import "
-                    f"compatibility Groups: {group_id}: {', '.join(invalid)}"
-                )
-
-        compatibility_prepared = None
-        compatibility_runtime = {}
-        if compatibility_entries:
-            compatibility_config = dataclass_replace(
-                config, optimization_groups=tuple(compatibility_entries)
-            )
-            compatibility_preparation = Preparation(active_registry, handlers)
-            compatibility_prepared = compatibility_preparation.prepare(
-                run_id=run_id,
-                config=compatibility_config,
-                environment=context,
-                force_groups=tuple(
-                    group_id for group_id in forced if group_id in compatibility_ids
-                ),
-                disabled_reasons=disabled_reasons,
-                import_missing=True,
-            )
-            compatibility_runtime = compatibility_preparation.prepared_groups
-            compatibility_outcome = Executor().execute(
-                compatibility_prepared,
-                prepared_groups=compatibility_runtime,
-            )
-
-        compatibility_checks_ok = all(
-            group.decision in {Decision.APPLY, Decision.SKIP}
-            for group in (
-                compatibility_prepared.groups if compatibility_prepared else ()
-            )
-        )
-        compatibility_ok = compatibility_checks_ok and all(
-            item.status == ExecutionStatus.APPLIED
-            for item in compatibility_outcome.groups
-        ) and not compatibility_outcome.terminal_error
-
-        regular_config = dataclass_replace(
-            config, optimization_groups=tuple(regular_entries)
-        )
-        preparation = Preparation(active_registry, handlers)
-        if not compatibility_entries or compatibility_ok:
-            regular_prepared = preparation.prepare(
-                run_id=run_id,
-                config=regular_config,
-                environment=context,
-                force_groups=tuple(
-                    group_id for group_id in forced if group_id not in compatibility_ids
-                ),
-                disabled_reasons=disabled_reasons,
-                import_missing=True,
-            )
-        else:
-            blocked_groups = []
-            for entry in regular_entries:
-                definition = active_registry.get_group(entry.id)
-                check_result = CheckResult(
-                    "import_compatibility.blocked",
-                    CheckStatus.FAIL,
-                    expected="all import compatibility Groups applied",
-                    actual="import compatibility application failed",
-                )
-                blocked_groups.append(
-                    PreparedGroup(
-                        entry.id,
-                        definition.depends_on if definition else (),
-                        definition.members if definition else (),
-                        (check_result,),
-                        Decision.BLOCK,
-                        "import_compatibility_blocked",
-                    )
-                )
-            regular_prepared = PreparedExecution(
-                run_id,
-                context,
-                tuple(blocked_groups),
-                (),
-                (),
-            )
-
-        prepared_by_id = {
-            group.group_id: group
-            for group in (
-                (compatibility_prepared.groups if compatibility_prepared else ())
-                + regular_prepared.groups
-            )
+    run_id = _resolve_run_id()
+    compatibility_entries = []
+    regular_entries = []
+    compatibility_ids = set()
+    for entry in config.optimization_groups:
+        group_definition = active_registry.get_group(entry.id)
+        mechanisms = {
+            active_registry.get_spec(member).mechanism.value
+            for member in (group_definition.members if group_definition else ())
+            if active_registry.get_spec(member) is not None
         }
-        prepared_execution = PreparedExecution(
+        compatibility = bool(mechanisms & _IMPORT_COMPATIBILITY_MECHANISMS)
+        if compatibility and not mechanisms.issubset(
+            _IMPORT_COMPATIBILITY_MECHANISMS
+        ):
+            raise OptimizationConfigError(
+                "import compatibility and runtime replacements must use "
+                f"separate OptimizationGroups: {entry.id}"
+            )
+        if compatibility:
+            compatibility_entries.append(entry)
+            compatibility_ids.add(entry.id)
+        else:
+            regular_entries.append(entry)
+
+    for group_id in compatibility_ids:
+        definition = active_registry.get_group(group_id)
+        invalid = tuple(
+            dependency
+            for dependency in definition.depends_on
+            if dependency not in compatibility_ids
+        )
+        if invalid:
+            raise OptimizationConfigError(
+                "import compatibility Group dependencies must also be import "
+                f"compatibility Groups: {group_id}: {', '.join(invalid)}"
+            )
+
+    compatibility_prepared = None
+    compatibility_runtime = {}
+    if compatibility_entries:
+        compatibility_config = dataclass_replace(
+            config, optimization_groups=tuple(compatibility_entries)
+        )
+        compatibility_preparation = Preparation(active_registry, handlers)
+        compatibility_prepared = compatibility_preparation.prepare(
+            run_id=run_id,
+            config=compatibility_config,
+            environment=context,
+            force_groups=tuple(
+                group_id for group_id in forced if group_id in compatibility_ids
+            ),
+            disabled_reasons=disabled_reasons,
+            import_missing=True,
+        )
+        compatibility_runtime = compatibility_preparation.prepared_groups
+        compatibility_outcome = Executor().execute(
+            compatibility_prepared,
+            prepared_groups=compatibility_runtime,
+        )
+
+    compatibility_checks_ok = all(
+        group.decision in {Decision.APPLY, Decision.SKIP}
+        for group in (
+            compatibility_prepared.groups if compatibility_prepared else ()
+        )
+    )
+    compatibility_ok = compatibility_checks_ok and all(
+        item.status == ExecutionStatus.APPLIED
+        for item in compatibility_outcome.groups
+    ) and not compatibility_outcome.terminal_error
+
+    regular_config = dataclass_replace(
+        config, optimization_groups=tuple(regular_entries)
+    )
+    preparation = Preparation(active_registry, handlers)
+    if not compatibility_entries or compatibility_ok:
+        regular_prepared = preparation.prepare(
+            run_id=run_id,
+            config=regular_config,
+            environment=context,
+            force_groups=tuple(
+                group_id for group_id in forced if group_id not in compatibility_ids
+            ),
+            disabled_reasons=disabled_reasons,
+            import_missing=True,
+        )
+    else:
+        blocked_groups = []
+        for entry in regular_entries:
+            definition = active_registry.get_group(entry.id)
+            check_result = CheckResult(
+                "import_compatibility.blocked",
+                CheckStatus.FAIL,
+                expected="all import compatibility Groups applied",
+                actual="import compatibility application failed",
+            )
+            blocked_groups.append(
+                PreparedGroup(
+                    entry.id,
+                    definition.depends_on if definition else (),
+                    definition.members if definition else (),
+                    (check_result,),
+                    Decision.BLOCK,
+                    "import_compatibility_blocked",
+                )
+            )
+        regular_prepared = PreparedExecution(
             run_id,
             context,
-            tuple(
-                prepared_by_id[entry.id]
-                for entry in config.optimization_groups
-                if entry.id in prepared_by_id
-            ),
-            (
-                (compatibility_prepared.conflicts if compatibility_prepared else ())
-                + regular_prepared.conflicts
-            ),
-            (
-                (compatibility_prepared.execution_order if compatibility_prepared else ())
-                + regular_prepared.execution_order
-            ),
-            regular_prepared.checks,
+            tuple(blocked_groups),
+            (),
+            (),
         )
-    finally:
-        if restore_imports:
-            restore_results = Executor.restore_applied(
-                compatibility_outcome.applied_snapshots
-            )
-            failed_restore = [
-                item for item in restore_results if item.status.value == "failed"
-            ]
-            for name in set(sys.modules) - set(before_modules):
-                sys.modules.pop(name, None)
-            for name, module in before_modules.items():
-                sys.modules[name] = module
-            if failed_restore:
-                raise OptimizationConfigError(
-                    "failed to restore temporary import compatibility state: "
-                    + "; ".join(item.error or item.path for item in failed_restore)
-                )
+
+    prepared_by_id = {
+        group.group_id: group
+        for group in (
+            (compatibility_prepared.groups if compatibility_prepared else ())
+            + regular_prepared.groups
+        )
+    }
+    prepared_execution = PreparedExecution(
+        run_id,
+        context,
+        tuple(
+            prepared_by_id[entry.id]
+            for entry in config.optimization_groups
+            if entry.id in prepared_by_id
+        ),
+        (
+            (compatibility_prepared.conflicts if compatibility_prepared else ())
+            + regular_prepared.conflicts
+        ),
+        (
+            (compatibility_prepared.execution_order if compatibility_prepared else ())
+            + regular_prepared.execution_order
+        ),
+        regular_prepared.checks,
+    )
     return (
         config,
         prepared_execution,
@@ -368,42 +347,6 @@ def _resolve(
         compatibility_outcome,
         regular_prepared,
     )
-
-
-def check(
-    *,
-    optimization_config_path: Optional[PathLike] = None,
-    model: Optional[str] = None,
-    registry: Optional[Registry] = None,
-    catalog: Optional[OptimizationConfigCatalog] = None,
-    force_groups: Sequence[str] = (),
-    disable_groups: Sequence[str] = (),
-) -> PreparedExecution:
-    """Check applicability and resolve decisions without installing replacements.
-
-    ``model`` selects a packaged model OptimizationConfig when no explicit path is
-    provided. ``disable_groups`` skips the named Groups and their dependents for
-    this call only.
-    ``force_groups`` accepts only failed checks explicitly marked overrideable;
-    structural errors remain blocked and are still included in the result.
-
-    Target and fixed replacement resolution may import modules once.  A function
-    declared through ``wrap()`` is called to construct its replacement, so wrapper
-    construction must not perform irreversible side effects.
-    The engine restores the ``sys.modules`` mapping on a best-effort basis, but it does
-    not claim to undo arbitrary module import-time side effects.
-    """
-
-    _, prepared_execution, _, _, _, _ = _resolve(
-        optimization_config_path=optimization_config_path,
-        registry=registry,
-        catalog=catalog,
-        model=model,
-        force_groups=force_groups,
-        disable_groups=disable_groups,
-        restore_imports=True,
-    )
-    return prepared_execution
 
 
 def apply(
@@ -445,7 +388,6 @@ def apply(
         model=model,
         force_groups=force_groups,
         disable_groups=disable_groups,
-        restore_imports=False,
     )
     regular_outcome: ExecutionOutcome = Executor().execute(
         regular_prepared, prepared_groups=prepared_groups
@@ -477,7 +419,6 @@ def apply(
 __all__ = [
     "Optimization",
     "apply",
-    "check",
     "group",
     "import_alias",
     "optional_import",

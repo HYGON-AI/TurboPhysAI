@@ -1,0 +1,41 @@
+{
+  "schema_version": "turbophysai/generation-record/v2",
+  "generator": "turbo-physai optimization generate",
+  "model_commit": "326653dc06e0938edf1aae7d01efcd158ba83de5",
+  "config": {
+    "path": "optimization.yaml",
+    "sha256": "eadc1cf9155cf8279fad9fdae9188d24b9e136edecf6abb920175fd71ba4aed1"
+  },
+  "inputs": [
+    {
+      "role": "recipe",
+      "base": "package",
+      "path": "optimizations/models/bevfusion/configs/recipe.yaml",
+      "sha256": "3a7632092e2df4ef6adde6540fa89cff5a69d824d667da5b89b763ea9f20c37d"
+    },
+    {
+      "role": "inherited_config",
+      "base": "package",
+      "path": "optimizations/common/configs/optimization.yaml",
+      "sha256": "68fb72d741f3bad706953dee5b4ab511eee1aaefc25905f7aa4082a327541997"
+    },
+    {
+      "role": "catalog",
+      "base": "package",
+      "path": "optimizations/common/mmcv/catalog.py",
+      "sha256": "c77898cab07030b1fb23ba9eec264ab51de92b09c26d938f3cf07c8b1058bbe3"
+    },
+    {
+      "role": "catalog",
+      "base": "package",
+      "path": "optimizations/common/mmdet3d/catalog.py",
+      "sha256": "a2b3abbf8dd7aadafe53a50afc894b6602037e293ecf87d7b1713c6bf388bfe5"
+    },
+    {
+      "role": "catalog",
+      "base": "package",
+      "path": "optimizations/models/bevfusion/catalog.py",
+      "sha256": "309abcd7ea5c9f7cd64a89fab30ded23b62922397e711018fa155f5af9f88e21"
+    }
+  ]
+}

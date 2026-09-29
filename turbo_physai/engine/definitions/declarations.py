@@ -33,12 +33,15 @@ class Replacement:
     aliases: Tuple[str, ...] = ()
     runtime_condition: Optional[str] = None
     mechanism_options: Optional[Mapping[str, Any]] = None
+    collect_target_hash: bool = True
 
     def __post_init__(self) -> None:
         if not self.target or not self.replacement:
             raise ValueError("target and replacement are required")
         if self.runtime_condition is not None and not self.runtime_condition:
             raise ValueError("runtime_condition must be a non-empty object path")
+        if not isinstance(self.collect_target_hash, bool):
+            raise ValueError("collect_target_hash must be boolean")
         object.__setattr__(self, "aliases", tuple(self.aliases))
         object.__setattr__(
             self, "mechanism_options", dict(self.mechanism_options or {})
@@ -85,6 +88,7 @@ def replace(
     *,
     aliases: Iterable[str] = (),
     runtime_condition: Optional[str] = None,
+    collect_target_hash: bool = True,
 ) -> Replacement:
     """Declare a direct replacement; function/class type is inferred on check."""
 
@@ -94,6 +98,7 @@ def replace(
         Mechanism.REPLACE,
         tuple(aliases),
         runtime_condition,
+        collect_target_hash=collect_target_hash,
     )
 
 
@@ -160,6 +165,7 @@ def wrap(
     *,
     aliases: Iterable[str] = (),
     runtime_condition: Optional[str] = None,
+    collect_target_hash: bool = True,
 ) -> Replacement:
     """Declare a wrapper receiving ``(original, group_options)``."""
 
@@ -169,6 +175,7 @@ def wrap(
         Mechanism.WRAPPER,
         tuple(aliases),
         runtime_condition,
+        collect_target_hash=collect_target_hash,
     )
 
 
@@ -228,6 +235,7 @@ def group(
             aliases=item.aliases,
             runtime_condition=item.runtime_condition,
             mechanism_options=item.mechanism_options,
+            collect_target_hash=item.collect_target_hash,
         )
         for replacement_id, item in zip(replacement_ids, replacements)
     )

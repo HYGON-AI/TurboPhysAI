@@ -322,8 +322,15 @@ class Checker:
                 )
             )
             if checked_spec.runtime_condition is not None:
+                condition_contract = original
+                condition_detail = checked_spec.runtime_condition
+                if native_artifact and _signature_shape(original) is None:
+                    # Native entries may not expose an inspectable signature.
+                    # Check the condition against the adapter's Python contract.
+                    condition_contract = prepared.implementation
+                    condition_detail += " (checked against replacement signature)"
                 condition_signature_ok = _signature_compatible(
-                    original,
+                    condition_contract,
                     prepared.runtime_condition,
                 )
                 checks.append(
@@ -339,9 +346,9 @@ class Checker:
                             )
                         ),
                         replacement_id=replacement_id,
-                        expected=_signature_shape(original),
+                        expected=_signature_shape(condition_contract),
                         actual=_signature_shape(prepared.runtime_condition),
-                        detail=checked_spec.runtime_condition,
+                        detail=condition_detail,
                     )
                 )
             # Every direct replacement and wrapper is bound to the target

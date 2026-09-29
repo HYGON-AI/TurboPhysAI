@@ -54,8 +54,8 @@ def ms_deform_attn_backward(
     attention_weights,
     grad_output,
     grad_value,
-    grad_sampling_locations,
-    grad_attention_weights,
+    grad_sampling_loc,
+    grad_attn_weight,
     im2col_step,
 ):
     """Execute the LightOp MSDA backward operator."""
@@ -70,8 +70,8 @@ def ms_deform_attn_backward(
         attention_weights,
         grad_output,
         grad_value,
-        grad_sampling_locations,
-        grad_attention_weights,
+        grad_sampling_loc,
+        grad_attn_weight,
         im2col_step,
     )
 

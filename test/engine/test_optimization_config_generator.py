@@ -35,6 +35,102 @@ TEMPLATE = textwrap.dedent(
 
 
 class OptimizationConfigGeneratorTest(unittest.TestCase):
+    def test_evidence_check_skips_unrecorded_group_but_checks_recorded_group(self):
+        config = optimization_config_from_dict({
+            "schema_version": "turbophysai/optimization-config/v1",
+            "kind": "OptimizationConfig",
+            "metadata": {"id": "generated", "version": "1"},
+            "optimization_groups": [
+                {"id": "skipped", "trust": {"source_hashes": {}, "ast_hashes": {}}},
+                {"id": "checked", "trust": {
+                    "source_hashes": {"checked.target": ["source-digest"]},
+                    "ast_hashes": {"checked.target": ["ast-digest"]},
+                }},
+            ],
+        })
+        actual = {
+            "skipped": {"source_hashes": {"skipped.target": ["unrecorded"]}},
+            "checked": {
+                "source_hashes": {"checked.target": ["source-digest"]},
+                "ast_hashes": {"checked.target": ["ast-digest"]},
+            },
+        }
+        generator._validate_evidence(config, actual)
+        for changed in ({"checked.target": ["changed"]}, {}):
+            with self.subTest(changed=changed):
+                actual["checked"]["source_hashes"] = changed
+                with self.assertRaisesRegex(OptimizationConfigError, "group=checked"):
+                    generator._validate_evidence(config, actual)
+
+    def test_catalog_target_hash_option_controls_individual_targets(self):
+        from turbo_physai.engine.definitions import group, replace, wrap
+
+        for helper in (replace, wrap):
+            for option in (None, True, False):
+                for inherited in (False, True):
+                    with self.subTest(helper=helper.__name__, option=option, inherited=inherited), \
+                            tempfile.TemporaryDirectory() as directory:
+                        root = Path(directory)
+                        registry = Registry()
+                        kwargs = {} if option is None else {"collect_target_hash": option}
+                        group("mixed",
+                              helper("selected.target", "selected.replacement", **kwargs),
+                              replace("other.target", "other.replacement"),
+                              registry=registry)
+                        base = optimization_config_from_dict({
+                            "schema_version": "turbophysai/optimization-config/v1",
+                            "kind": "OptimizationConfig",
+                            "metadata": {"id": "public.base", "version": "1"},
+                            "optimization_groups": [{"id": "mixed"}],
+                        })
+                        catalog = OptimizationConfigCatalog({"public.base": base})
+                        recipe = root / "recipe.yaml"
+                        recipe.write_text(yaml.safe_dump({
+                            "metadata": {"id": "generated", "version": "1"},
+                            "extends": ["public.base"] if inherited else [],
+                            "optimization_groups": [] if inherited else [{"id": "mixed"}],
+                        }))
+                        with patch.object(generator, "_git", return_value=""), \
+                                patch.object(generator, "_validate_repository"), \
+                                patch.object(generator, "default_registry", registry), \
+                                patch.object(OptimizationConfigCatalog, "from_builtin_files", return_value=catalog), \
+                                patch.object(generator, "resolve_attribute",
+                                             return_value=SimpleNamespace(original=object())) as resolve, \
+                                patch.object(generator, "source_hash", return_value="source-digest") as source, \
+                                patch.object(generator, "ast_hash", return_value="ast-digest") as syntax:
+                            rendered = generator.generate(recipe, root, "abc123")
+                            raw = yaml.safe_load(rendered)
+                            self.assertNotIn("collect_target_hash", rendered)
+                            self.assertEqual(resolve.call_count, 2)
+                            self.assertEqual(source.call_count, 1 if option is False else 2)
+                            self.assertEqual(syntax.call_count, source.call_count)
+                            targets = ["other.target"] if option is False else ["selected.target", "other.target"]
+                            trust = raw["optimization_groups"][0]["trust"]
+                            self.assertEqual(trust, {
+                                "source_hashes": {t: ["source-digest"] for t in targets},
+                                "ast_hashes": {t: ["ast-digest"] for t in targets},
+                            })
+                            output = root / "optimization.yaml"
+                            output.write_text(rendered)
+                            generator.check_optimization_config(output, root)
+                            with patch.object(generator, "source_hash", return_value="changed"):
+                                with self.assertRaisesRegex(OptimizationConfigError, "target=other.target"):
+                                    generator.check_optimization_config(output, root)
+
+    def test_recipe_rejects_target_hash_option(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            recipe = root / "recipe.yaml"
+            recipe.write_text(yaml.safe_dump({
+                "metadata": {"id": "generated", "version": "1"},
+                "optimization_groups": [{"id": "selected", "collect_target_hash": False}],
+            }))
+            with patch.object(generator, "_validate_repository"), \
+                    patch.object(generator, "resolve_attribute") as resolve:
+                with self.assertRaisesRegex(OptimizationConfigError, "unknown fields.*collect_target_hash"):
+                    generator.generate(recipe, root, "abc123")
+                resolve.assert_not_called()
+
     def test_import_replace_does_not_generate_replacement_hash_evidence(self):
         registry = Registry()
         registry.register_spec(
@@ -219,7 +315,8 @@ class OptimizationConfigGeneratorTest(unittest.TestCase):
             self.assertEqual(raw["kind"], "OptimizationConfig")
             self.assertNotIn("extends", raw)
             self.assertEqual(raw["compatibility"]["commits"], ["abc123"])
-            trust = raw["optimization_groups"][0]["trust"]
+            trust = next(entry["trust"] for entry in raw["optimization_groups"]
+                         if entry["id"] == "bevformer.msda")
             self.assertEqual(len(trust["source_hashes"]), 2)
             self.assertEqual(len(trust["ast_hashes"]), 2)
             self.assertNotIn("# digest:", rendered)
