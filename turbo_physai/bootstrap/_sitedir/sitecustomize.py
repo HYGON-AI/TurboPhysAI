@@ -43,6 +43,12 @@ except Exception:  # noqa: BLE001 - a broken user hook must not mask ours
 if os.environ.get("TURBO_PHYSAI_BOOTSTRAP") == "1":
     try:
         from turbo_physai.bootstrap import activate
+        from turbo_physai.bootstrap._toml import ensure_tomllib
+
+        # Launchers and spawned workers need this too, even when activate()
+        # skips model patching. Missing tomli must fail before training starts.
+        if sys.version_info < (3, 11):
+            ensure_tomllib()
     except BaseException as error:
         # Importing turbo_physai can fail on its own (e.g. it is not installed
         # in this interpreter), which would leave activate() -- and therefore
@@ -52,7 +58,7 @@ if os.environ.get("TURBO_PHYSAI_BOOTSTRAP") == "1":
 
         traceback.print_exc()
         sys.stderr.write(
-            "turbo-physai: cannot import turbo_physai in this interpreter "
+            "turbo-physai: cannot initialize bootstrap in this interpreter "
             "(%s); aborting instead of training unoptimized\n" % (error,)
         )
         sys.stderr.flush()

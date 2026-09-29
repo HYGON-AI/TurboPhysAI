@@ -1,0 +1,87 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.cosmos3.hcu
+  version: 0.2.1
+  description: Cosmos3 Generator, Action Policy and Reasoner HCU optimizations
+model:
+  name: Cosmos3
+optimization_modules:
+- turbo_physai.optimizations.models.cosmos3.catalog
+compatibility:
+  commits:
+  - 9726697a83315540c6885baefd2fe353d9c74920
+  - 291c4e231809273d850910f07e9cdb252e9bd244
+optimization_groups:
+- id: cosmos3.compile_options
+  enabled: true
+  trust:
+    source_hashes:
+      cosmos_framework.utils.misc.set_torch_compile_options:
+      - source-v1:42527d1519abb1db2edc57dce381050d5128219418fa604251561594e6fa2596
+      - source-v1:8530d78c765ed45d50c4eedfa34cabc57c63e6df49aa8caf0f865a186952cfb9
+- id: cosmos3.device_monitor
+  enabled: true
+  trust:
+    source_hashes:
+      cosmos_framework.callbacks.device_monitor.DeviceMonitor.on_train_start:
+      - source-v1:10554be5ca5c0497f11ca15f4ad64e0faf368cdb659f4fb3e71a389f25b4a897
+      - source-v1:6b3c28e6f557d1d8289db11b0ae6ad1cb1c69705c4a9826204f0549fb5c22a6f
+      cosmos_framework.callbacks.device_monitor.DeviceMonitor.every_n_impl:
+      - source-v1:1a0ae03f3b6e4f505f421d90cf0ddc720978cb3e3886defc150ce6f58ff734e2
+      - source-v1:669e60bbd5831ee0769ae7e51b3d1019846280754662cbbb110b7dd3a30c5e61
+- id: cosmos3.dtensor_norm
+  enabled: true
+  trust:
+    source_hashes:
+      cosmos_framework.callbacks.grad_clip._clip_grad:
+      - source-v1:24c14bf8a075e26cfacd191acf37568515c53c8164f66b071e655590b88f7c3f
+      - source-v1:605f4a25dadd4b43c25447c6d40a4685c2b42fc2d178899e05d660871ce154fb
+- id: cosmos3.dataflow_context
+  enabled: true
+  trust:
+    source_hashes:
+      cosmos_framework.data.generator.dataflow.loader.CosmosDataLoader.__init__:
+      - source-v1:0b6af84623c92e423b9e413e36e8f81efe93918e53dd61d1f7ddb37c8962d32e
+      - source-v1:f8a78c1fc9cfb4478c47d6c54fdc2fdfc876dfced9d228b1db365a9e23489274
+# Groups below were migrated in the full-coverage pass; their source-identity
+# trust hashes must be regenerated inside a Cosmos environment (turbo-physai
+# check --generate-config) before enforcing identity verification.
+- id: cosmos3.flash2_hip
+  enabled: true
+- id: cosmos3.hf_attention
+  enabled: true
+- id: cosmos3.sequence_packing
+  enabled: true
+- id: cosmos3.fsdp_vlm
+  enabled: true
+- id: cosmos3.generator_model
+  enabled: true
+- id: cosmos3.vae_layout
+  enabled: true
+- id: cosmos3.vae_compile
+  enabled: true
+- id: cosmos3.qwen_encoder
+  enabled: true
+- id: cosmos3.checkpoint_dcp
+  enabled: true
+- id: cosmos3.data_pipeline
+  enabled: true
+- id: cosmos3.runtime_init
+  enabled: true
+
+# Shared data handling and Action Policy / Reasoner optimizations.
+- id: cosmos3.video_decode
+  enabled: true
+- id: cosmos3.training_workers
+  enabled: true
+- id: cosmos3.load_only
+  enabled: true
+- id: cosmos3.action_policy
+  enabled: true
+- id: cosmos3.action_recipe
+  enabled: true
+- id: cosmos3.reasoner_video
+  enabled: true
+- id: cosmos3.reasoner_recipes
+  enabled: true

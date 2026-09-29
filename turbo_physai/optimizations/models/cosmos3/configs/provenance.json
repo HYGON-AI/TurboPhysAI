@@ -1,0 +1,362 @@
+{
+  "base_commit": "9726697a83315540c6885baefd2fe353d9c74920",
+  "source_commit": "291c4e231809273d850910f07e9cdb252e9bd244",
+  "validation": "Local syntax/config checks, Engine regression tests and CPU-isolated NVML fallback checks; three-scenario HCU runtime pending",
+  "python_toml_compatibility": "bootstrap._toml.ensure_tomllib preserves existing tomllib or aliases tomli on Python 3.10; shared by sitecustomize and Cosmos catalog, not an Engine replace_import group",
+  "groups": {
+    "cosmos3.compile_options": {
+      "source_files": [
+        "cosmos_framework/utils/misc.py"
+      ],
+      "symbols": [
+        "set_torch_compile_options"
+      ]
+    },
+    "cosmos3.device_monitor": {
+      "source_files": [
+        "cosmos_framework/callbacks/device_monitor.py"
+      ],
+      "symbols": [
+        "DeviceMonitor.on_train_start",
+        "DeviceMonitor.every_n_impl"
+      ]
+    },
+    "cosmos3.dtensor_norm": {
+      "source_files": [
+        "cosmos_framework/callbacks/grad_clip.py",
+        "cosmos_framework/utils/fsdp_ordered_comm.py"
+      ],
+      "symbols": [
+        "_clip_grad",
+        "materialize_dtensor_norm"
+      ]
+    },
+    "cosmos3.dataflow_context": {
+      "source_files": [
+        "cosmos_framework/data/generator/dataflow/loader.py"
+      ],
+      "symbols": [
+        "CosmosDataLoader.__init__"
+      ]
+    },
+    "cosmos3.flash2_hip": {
+      "source_files": [
+        "cosmos_framework/model/attention/flash2/__init__.py",
+        "cosmos_framework/model/attention/flash2/functions.py",
+        "cosmos_framework/model/attention/flash2/checks.py",
+        "cosmos_framework/model/attention/backends.py",
+        "cosmos_framework/model/attention/utils/__init__.py"
+      ],
+      "symbols": [
+        "FLASH_ATTENTION_V2_MAX_VERSION",
+        "flash2_supported",
+        "_CosmosFlashAttnVarlenFunc",
+        "_cosmos_flash_attn_varlen_func",
+        "flash2_attention",
+        "flash2_attention_check",
+        "get_backend_list",
+        "get_arch_tag"
+      ]
+    },
+    "cosmos3.hf_attention": {
+      "source_files": [
+        "cosmos_framework/utils/generator/hf_attention_cosmos.py"
+      ],
+      "symbols": [
+        "hf_attention_cosmos"
+      ]
+    },
+    "cosmos3.sequence_packing": {
+      "source_files": [
+        "cosmos_framework/data/generator/sequence_packing/runtime.py",
+        "cosmos_framework/model/generator/mot/attention.py"
+      ],
+      "symbols": [
+        "FLASH_ATTN_MAX_SEQLEN_BUCKETS",
+        "_bucket_flash_attn_max_seqlen",
+        "init_sequence_pack",
+        "_fa_max_len",
+        "two_way_attention",
+        "three_way_attention",
+        "multi_control_two_way_attention",
+        "dispatch_attention"
+      ]
+    },
+    "cosmos3.fsdp_vlm": {
+      "source_files": [
+        "cosmos_framework/model/generator/parallelize_vlm.py",
+        "cosmos_framework/utils/fsdp_ordered_comm.py",
+        "cosmos_framework/model/generator/algorithm/loss/cross_entropy.py",
+        "cosmos_framework/model/generator/vlm_model.py",
+        "cosmos_framework/configs/base/defaults/parallelism.py",
+        "cosmos_framework/configs/toml_config/sft_config.py"
+      ],
+      "symbols": [
+        "apply_fsdp",
+        "OrderedAllGather",
+        "OrderedReduceScatter",
+        "ordered_all_reduce",
+        "cross_entropy_loss",
+        "VLMModel.training_step"
+      ],
+      "notes": "fsdp_layers_per_group is read via getattr with default 1, so the upstream ParallelismConfig (which lacks the field) works unchanged; the TOML field addition itself stays in the model repo."
+    },
+    "cosmos3.generator_model": {
+      "source_files": [
+        "cosmos_framework/model/generator/omni_mot_model.py",
+        "cosmos_framework/utils/memory_format.py",
+        "cosmos_framework/utils/misc.py",
+        "cosmos_framework/trainer/__init__.py"
+      ],
+      "symbols": [
+        "OmniMoTModel.build_net",
+        "OmniMoTModel.training_step",
+        "OmniMoTModel.set_up_parallelism",
+        "apply_channels_last_conv_weights",
+        "training_batch_to_device"
+      ],
+      "notes": "trainer batch transfer is applied by wrapping misc.to with a payload-shape dispatch instead of copying the trainer loop."
+    },
+    "cosmos3.vae_layout": {
+      "source_files": [
+        "cosmos_framework/model/generator/tokenizers/wan2pt2_vae_4x16x16.py",
+        "cosmos_framework/model/generator/tokenizers/fused_ops/__init__.py",
+        "cosmos_framework/model/generator/tokenizers/fused_ops/_hipdnn.py",
+        "cosmos_framework/model/generator/tokenizers/fused_ops/concat_conv_bias.py",
+        "cosmos_framework/model/generator/tokenizers/fused_ops/conv_bias.py",
+        "cosmos_framework/utils/memory_format.py"
+      ],
+      "symbols": [
+        "_contiguous_clone",
+        "_update_cache_and_apply",
+        "CausalConv3d.forward",
+        "Resample.forward",
+        "AttentionBlock.forward",
+        "AvgDown3D.forward",
+        "DupUp3D.forward",
+        "WanVAE_._encode_chunk_impl",
+        "WanVAE_.encode",
+        "WanVAE.encode",
+        "WanVAE.decode",
+        "WanVAE.__init__ (is_amp/channels-last weights)",
+        "Wan2pt2VAEInterface.__init__ (720p chunk 12)"
+      ],
+      "notes": "fused ops copied whole (Hygon-authored new files); custom-op namespace renamed cosmos3:: -> turbo_physai:: to avoid double registration against an already-adapted source tree. Fused path default OFF (COSMOS_WAN_VAE_CLEAN_FUSED_OP)."
+    },
+    "cosmos3.vae_compile": {
+      "source_files": [
+        "cosmos_framework/model/generator/tokenizers/wan2pt2_vae_4x16x16.py"
+      ],
+      "symbols": [
+        "_collect_warmup_shapes",
+        "Wan2pt2VAEInterface.compile_encode"
+      ],
+      "notes": "adapted-source AOT path: (H,W) unpack fix, lazy per-rank reference caches, no correctness-gate variant validation, simplified cache-dir reset."
+    },
+    "cosmos3.qwen_encoder": {
+      "source_files": [
+        "cosmos_framework/model/generator/reasoner/qwen3_vl/__init__.py",
+        "cosmos_framework/model/generator/reasoner/qwen3_vl/qwen3_vl.py",
+        "cosmos_framework/model/generator/reasoner/qwen3_vl/utils.py",
+        "cosmos_framework/model/generator/reasoner/qwen3_vl_moe/qwen3_vl_moe.py",
+        "cosmos_framework/model/generator/hf_model.py",
+        "cosmos_framework/utils/generator/monkey_patch.py"
+      ],
+      "symbols": [
+        "Auto-class registration (exist_ok)",
+        "Qwen3VLVisionPatchEmbed.forward",
+        "Qwen3VLMoeVisionPatchEmbed.forward",
+        "Qwen3VLVisionAttention.forward",
+        "Qwen3VLVisionBlock.forward",
+        "Qwen3VLVisionModel aux cache + forward",
+        "get_rope_index"
+      ],
+      "notes": "monkey_patch.py import-source change (transformers -> local Qwen3VLModel) is subsumed by the Auto-class registration wrap on HFModel.__init__; patch_qwen3_vl_forward itself is applied by the model on instances after registration."
+    },
+    "cosmos3.checkpoint_dcp": {
+      "source_files": [
+        "cosmos_framework/checkpoint/dcp.py"
+      ],
+      "symbols": [
+        "DistributedCheckpointer.__init__ (metadata group slot)",
+        "_get_dcp_metadata_process_group",
+        "get_storage_writer",
+        "_checkpoint_async_with_pinned_memory",
+        "save_state_dict_worker",
+        "load"
+      ]
+    },
+    "cosmos3.data_pipeline": {
+      "source_files": [
+        "cosmos_framework/data/generator/joint_dataloader.py",
+        "cosmos_framework/data/generator/augmentors/video_parsing.py"
+      ],
+      "symbols": [
+        "RankPartitionedDataLoader.__init__",
+        "VideoParsing._extract_audio_chunk"
+      ]
+    },
+    "cosmos3.runtime_init": {
+      "source_files": [
+        "cosmos_framework/utils/distributed.py"
+      ],
+      "symbols": [
+        "init (NVML-optional affinity)"
+      ]
+    }
+  },
+  "shared_implementations": {
+    "turbo_physai.optimizations.common.pytorch.compile_options": "cosmos_framework/utils/misc.py:set_torch_compile_options",
+    "turbo_physai.optimizations.common.pytorch.fsdp_ordered_comm": "cosmos_framework/utils/fsdp_ordered_comm.py (full: streams, OrderedAllGather, OrderedReduceScatter, ordered_all_reduce, materialize_dtensor_norm)",
+    "turbo_physai.optimizations.common.pytorch.memory_format": "cosmos_framework/utils/memory_format.py"
+  },
+  "action_reasoner_source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+  "action_reasoner_validation": "HCU end-to-end validation pending.",
+  "action_reasoner_ports": {
+    "video_decode.py": {
+      "source_file": "cosmos_framework/utils/video_decode.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "2e18909a79315fa6fb3ad499b13b92bc40dc02d82f0b8a434d8cfdf0fa43c35a",
+      "symbols": [
+        "create_video_decoder",
+        "decode_video_to_pil_frames"
+      ]
+    },
+    "load_only.py": {
+      "source_file": "cosmos_framework/checkpoint/load_only.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "76d2b0892037e5bfb7374f27004d45bb1c5d480b233b40019139cc8ecf04bc64",
+      "symbols": [
+        "LoadOnlyDistributedCheckpointer"
+      ]
+    },
+    "action_lerobot.py": {
+      "source_file": "cosmos_framework/data/generator/action/datasets/cosmos3_action_lerobot.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "a3baea6a68badac26f0b59d39ac50e047f0643c7402d7d11642dab5cd178e38d",
+      "symbols": [
+        "_LRUVideoDecoderCache",
+        "_patch_decoder_cache",
+        "BaseActionLeRobotDataset.__init__",
+        "BaseActionLeRobotDataset._register_sources",
+        "BaseActionLeRobotDataset._get_dataset"
+      ]
+    },
+    "action_droid.py": {
+      "source_file": "cosmos_framework/data/generator/action/datasets/droid_lerobot_dataset.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "a082d309e69d5e283cc5fc74ecfec6d2561564d6fc62061d37a25e590c26cdc2",
+      "symbols": [
+        "DROIDLeRobotDataset.__init__"
+      ]
+    },
+    "action_sft.py": {
+      "source_file": "cosmos_framework/data/generator/action/datasets/action_sft_dataset.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "6aaff4c256553cd569553cdd1d1b2d40339037403a14d312963bca51ac3e1567",
+      "symbols": [
+        "get_action_droid_sft_dataset"
+      ]
+    },
+    "reasoner_video.py": {
+      "source_file": "cosmos_framework/data/generator/reasoner/video_decoder_qwen.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "97978407984f87bf9a9c53928dccee3dfbe9d5f061ff9e84f543e728b67339fe",
+      "symbols": [
+        "_video_decoder_qwen_func"
+      ]
+    },
+    "interleaved_video.py": {
+      "source_file": "cosmos_framework/data/generator/augmentors/interleaved_video_parsing.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "cacd94c1455a4816412d82193f8a3b7cecb6d230c0a7161ab203ad74c0c97a7f",
+      "symbols": [
+        "_create_video_decoder",
+        "VideoTransferAlignedFullFramesParsing._probe_video_len"
+      ]
+    },
+    "recipes/videophy2_dataflow_roles.py": {
+      "source_file": "cosmos_framework/configs/base/reasoner/experiment/videophy2_dataflow_roles.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "ab7d2731091c4bcd66c63125adfae04877e008fab802e1d678197d18aca4e8b5",
+      "symbols": [
+        "module"
+      ]
+    },
+    "recipes/videophy2_sft_nano.py": {
+      "source_file": "cosmos_framework/configs/base/reasoner/experiment/videophy2_sft_nano.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "7f491ef14a3d059fbad5695e4693dd6e706618f259d610f27c0903e718b2f777",
+      "symbols": [
+        "module"
+      ]
+    },
+    "recipes/videophy2_sft_edge.py": {
+      "source_file": "cosmos_framework/configs/base/reasoner/experiment/videophy2_sft_edge.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "63564fec0ffe69f1991891a9373980dd3ad2546c7b450d6e6f9d3644c30dd4eb",
+      "symbols": [
+        "module"
+      ]
+    },
+    "recipes/action_policy_droid_nano.py": {
+      "source_file": "cosmos_framework/configs/base/experiment/action/posttrain_config/action_policy_droid_nano.py",
+      "source_commit": "fb7c6facdfed9bd5ae8442ccd501d23be573c3ac",
+      "source_sha256": "74616a445a4750c11098e08a818c5a2255e8636a4b402329ecf08551c3c6c002",
+      "symbols": [
+        "module"
+      ]
+    }
+  },
+  "generator_diff_disposition_at_original_migration": {
+    "migrated": [
+      "callbacks/device_monitor.py",
+      "callbacks/grad_clip.py",
+      "checkpoint/dcp.py",
+      "data/generator/dataflow/loader.py",
+      "data/generator/joint_dataloader.py (RankPartitionedDataLoader worker kwargs)",
+      "data/generator/sequence_packing/runtime.py",
+      "data/generator/augmentors/video_parsing.py (audio probe)",
+      "model/attention/backends.py",
+      "model/attention/flash2/*",
+      "model/attention/utils/__init__.py",
+      "model/generator/algorithm/loss/cross_entropy.py",
+      "model/generator/mot/attention.py",
+      "model/generator/omni_mot_model.py (build_net/training_step/set_up_parallelism)",
+      "model/generator/parallelize_vlm.py",
+      "model/generator/reasoner/qwen3_vl/*",
+      "model/generator/reasoner/qwen3_vl_moe/qwen3_vl_moe.py",
+      "model/generator/tokenizers/fused_ops/*",
+      "model/generator/tokenizers/wan2pt2_vae_4x16x16.py",
+      "model/generator/vlm_model.py (training_step)",
+      "trainer/__init__.py (batch transfer, via misc.to wrap)",
+      "utils/distributed.py (init)",
+      "utils/fsdp_ordered_comm.py",
+      "utils/generator/hf_attention_cosmos.py",
+      "utils/memory_format.py",
+      "utils/misc.py (set_torch_compile_options, training_batch_to_device)",
+      "utils/generator/monkey_patch.py (local-class import via registration wrap)"
+    ],
+    "upstream_or_cosmetic": [
+      "checkpoint header 'Modified by Hygon' banners",
+      "import reordering in dcp.py/vision_sft_nano.py",
+      "omni_mot_model.py bulk diff beyond the three ported methods: the adapted branch predates upstream multiview/prefix-encode/inference-KV features (upstream-only code retained, not regressions to port)",
+      "mot/attention.py removal of _is_split_info_compatible and flex_attention: adapted-branch divergence handled by the ported dispatch (SplitInfo-typed)",
+      "joint_dataloader.py removal of _AsyncBatchBuilder/action_raw/multiview: upstream-only features absent from the adapted branch; NOT ported (kept upstream)",
+      "cosmos3_vfm_network.py: adapted branch predates upstream _embed_packed_timesteps/video_temporal_causal-override; upstream behavior retained",
+      "configs/base/experiment/* and reasoner videophy2 recipes: Reasoner-scope",
+      "unified_mot.py recompile_limit try/except: superseded by cosmos3.compile_options"
+    ],
+    "out_of_scope": [
+      "Action training: action datasets (cosmos3_action_lerobot.py, droid_lerobot_dataset.py, action_sft_dataset.py), action launchers, tests/action_hcu/*",
+      "Reasoner standalone training: videophy2 recipes, video_decoder_qwen.py, interleaved_video_parsing.py, utils/video_decode.py torchcodec indirection (dataflow-only; Generator vision_sft path decodes via video_parsing.py which is covered by the audio probe port), utils/generator/torchcodec_video.py",
+      "Inference: inference/* Python-3.10 typing shims, inference/model.py _chdir, tools/run_framework_inference_local_assets.py, inference launchers, inputs/*",
+      "scripts/convert_model_to_dcp.py local-asset redirects: conversion runs inside the model repo (documented in README as a manual step)",
+      "scripts/train.py deferred toml import, checkpoint/load_only.py LoadOnlyDistributedCheckpointer, examples/* launchers and summarize_sft_perf.py: launch-layer, superseded by turbo-physai run (README documents log/summary expectations)",
+      "configs/toml_config/* tomllib fallback and num_workers/prefetch_factor TOML fields: Python>=3.11 target env has tomllib; dataloader workers are overridable via hydra tail overrides",
+      "docs/setup.md, docs/training.md: replaced by model_examples/Cosmos3/README.md"
+    ],
+    "blocked": []
+  },
+  "action_reasoner_execution": "Generator, Action Policy and Reasoner share the default Cosmos3 optimization config selected by --model cosmos3."
+}
