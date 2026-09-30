@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from functools import partial
 from test.utils import allclose, run_benchmark
-from turbo_physai import deformable_aggregation_function as hcu_deformable_aggregation_function
+from turbo_physai.operators import deformable_aggregation_function as hcu_deformable_aggregation_function
 from test.deformable_aggregation_reference import deformable_aggregation_reference
 from test.deformable_aggregation_reference import (
     deformable_aggregation_reference_gradients,

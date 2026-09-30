@@ -33,8 +33,9 @@ class GenerationRecordTest(unittest.TestCase):
         self.repo = self.root / "model"
         self.repo.mkdir()
         (self.repo / "tiny_model.py").write_text("def forward(x):\n    return x + 1\n")
+        (self.repo / ".gitignore").write_text("__pycache__/\n*.pyc\n")
         self.git("init", "-q")
-        self.git("add", "tiny_model.py")
+        self.git("add", "tiny_model.py", ".gitignore")
         self.git("-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "baseline")
         self.commit = self.git("rev-parse", "HEAD").strip()
         self.project = self.root / "project"
@@ -62,6 +63,13 @@ class GenerationRecordTest(unittest.TestCase):
     def git(self, *args):
         return subprocess.check_output(["git", "-C", str(self.repo), *args], text=True)
 
+    def remove_repo(self):
+        def onerror(function, path, _exc_info):
+            os.chmod(path, 0o700)
+            function(path)
+
+        shutil.rmtree(self.repo, onerror=onerror)
+
     def cli(self, *args):
         env = dict(os.environ, PYTHONPATH=os.pathsep.join(
             (str(ROOT), str(self.project), str(self.repo))
@@ -88,7 +96,7 @@ class GenerationRecordTest(unittest.TestCase):
         self.assertEqual(record_path(self.output).name, ".optimization.yaml.generation.json")
         self.assertEqual([entry["role"] for entry in record["inputs"]], ["recipe", "catalog", "catalog"])
         self.assertNotIn(str(self.root), json.dumps(record))
-        shutil.rmtree(self.repo)
+        self.remove_repo()
         # The Catalog imports tiny_model, which no longer exists. Verification
         # must parse its source without importing it.
         result = self.cli("check", "--generated-only", str(self.output))
@@ -191,7 +199,7 @@ class GenerationRecordTest(unittest.TestCase):
             .replace("'tiny_model.forward'", '"tiny_model.forward"')
         )
         self.extra_catalog.write_text("# More documentation\n\n")
-        shutil.rmtree(self.repo)
+        self.remove_repo()
         result = self.cli("check", "--generated-only", str(self.output))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(record_path(self.output).read_bytes(), receipt)

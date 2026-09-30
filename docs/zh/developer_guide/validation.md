@@ -41,10 +41,16 @@ Wrapper 应保持原目标的外部调用契约。运行条件允许使用优化
 
 数值测试示例：
 
-- [`test/test_grid_sample.py`](../../../test/test_grid_sample.py) 使用 PyTorch `grid_sample` 作为参考实现，对比 TurboPhysAI 算子的前向输出、输入梯度和 Grid 梯度；
+- [`test/operators/test_grid_sample.py`](../../../test/operators/test_grid_sample.py) 使用 PyTorch `grid_sample` 作为参考实现，对比 TurboPhysAI 算子的前向输出、输入梯度和 Grid 梯度；
 - [`test/optimizations/test_hcu_implementations.py`](../../../test/optimizations/test_hcu_implementations.py) 对比公共与 BEVFormer LightOp Multi-Scale Deformable Attention 的前向与反向结果；
-- [`test/test_deformable_aggregation.py`](../../../test/test_deformable_aggregation.py) 使用参考计算验证 Deformable Aggregation 的输出和梯度；
+- [`test/operators/test_deformable_aggregation.py`](../../../test/operators/test_deformable_aggregation.py) 使用参考计算验证 Deformable Aggregation 的输出和梯度；
 - [`test/engine/test_bevfusion.py`](../../../test/engine/test_bevfusion.py) 中的 `test_factorized_depth_features_match_dense_outer_product_and_gradients` 对比 BEVFusion 稠密参考计算与优化实现，并验证输入梯度。
+
+本地执行验证时：
+
+- `bash scripts/test_unit.sh` 运行 `test/engine`、`test/test_runner.py`、`test/operators` 和 `test/optimizations`，其中标记为 `hcu` 的测试也会执行，因此需要可用的 HCU 环境；
+- `bash scripts/test_hcu.sh` 只运行标记为 `hcu` 的测试；
+- `bash scripts/test_engine.sh` 只运行 engine 覆盖率测试。
 
 训练算子应验证模型实际依赖的全部梯度。明确不需要梯度的输入，可以不做梯度对比，但必须在实现约束和测试中说明。输出形状、数据类型、设备位置以及返回值数量也属于调用契约，应一并验证。
 

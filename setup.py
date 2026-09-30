@@ -392,7 +392,7 @@ def get_extensions():
 
     extension = CUDAExtension
     ext_ops = extension(
-        name="turbo_physai.ops",
+        name="turbo_physai._C",
         sources=op_files,
         include_dirs=include_dirs,
         define_macros=define_macros,

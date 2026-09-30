@@ -19,7 +19,6 @@ from .engine.contracts import CompatibilityContext, CompatibilityResult
 from . import optimizations as _optimizations  # noqa: F401 - registers catalogs
 
 
-
 OptimizationExecutionError = _errors.OptimizationExecutionError
 OptimizationRollbackError = _errors.OptimizationRollbackError
 OptimizationConfigNotFoundError = _errors.OptimizationConfigNotFoundError
@@ -33,37 +32,12 @@ def apply(*args: Any, **kwargs: Any):
     return _apply(*args, **kwargs)
 
 
-
-_LAZY_OPERATORS = {
-    "ModulatedDeformConv2dFunction": (
-        "turbo_physai.operators.modulated_deform_conv",
-        "ModulatedDeformConv2dFunction",
-    ),
-    "modulated_deform_conv2d": (
-        "turbo_physai.operators.modulated_deform_conv",
-        "modulated_deform_conv2d",
-    ),
-    "grid_sample": ("turbo_physai.operators.grid_sample", "grid_sample"),
-    "interpolate": ("turbo_physai.operators.upsample_bilinear_2d", "interpolate"),
-    "deformable_aggregation_function": (
-        "turbo_physai.operators.deformable_aggregation",
-        "deformable_aggregation_function",
-    ),
-    "DeformableAggregationFunction": (
-        "turbo_physai.operators.deformable_aggregation",
-        "DeformableAggregationFunction",
-    ),
-}
-
-
 def __getattr__(name: str) -> Any:
-    try:
-        module_name, attribute = _LAZY_OPERATORS[name]
-    except KeyError as exc:
-        raise AttributeError(name) from exc
-    value = getattr(import_module(module_name), attribute)
-    globals()[name] = value
-    return value
+    if name == "operators":
+        value = import_module("turbo_physai.operators")
+        globals()[name] = value
+        return value
+    raise AttributeError(name)
 
 
 __all__ = [
@@ -79,4 +53,5 @@ __all__ = [
     "wrap",
     "CompatibilityContext",
     "CompatibilityResult",
-] + sorted(_LAZY_OPERATORS)
+    "operators",
+]
