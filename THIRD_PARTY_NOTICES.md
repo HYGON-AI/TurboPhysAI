@@ -149,6 +149,6 @@ Where Apache-2.0 source code was modified, the source file retains the upstream 
 
 ## Cosmos3 (OpenMDW-1.1)
 
-`turbo_physai/optimizations/models/cosmos3/` and the extracted helpers in `turbo_physai/optimizations/common/pytorch/` contain function-level adaptations extracted from NVIDIA Cosmos Framework upstream commit `9726697a83315540c6885baefd2fe353d9c74920` and Hygon adaptation commit `291c4e231809273d850910f07e9cdb252e9bd244`. The extracted implementation files retain OpenMDW-1.1 notices; they are not relicensed under the root BSD-3-Clause license. Catalog/configuration glue is separate from these implementations. The source-to-target mapping is recorded in the Cosmos3 model module's `configs/provenance.json`. Original license and attribution materials are included in the Cosmos3 model module's `licenses/` directory. 
+`patches/cosmos3/cosmos3.patch` contains modifications derived from NVIDIA Cosmos Framework. Cosmos-derived material retains OpenMDW-1.1 and applicable source-file notices. Revisions and checksums are recorded in `patches/cosmos3/manifest.json`; license, NOTICE and attribution materials are included in `patches/cosmos3/licenses/`.
 
-Action Policy and Reasoner additions under the Cosmos3 optimization module are adapted from Cosmos Framework HCU commit `fb7c6facdfed9bd5ae8442ccd501d23be573c3ac`. Their source paths, symbols and source file hashes are listed in `configs/provenance.json` (`action_reasoner_ports`). OpenMDW-1.1 continues to apply to these derived files.
+The patch export/apply tools use BSD-3-Clause.

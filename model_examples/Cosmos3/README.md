@@ -1,6 +1,6 @@
 # Cosmos3 运行指南
 
-在 `cosmos-framework` 根目录运行训练，通过 `turbo-physai run` 加载优化。以下示例使用 8 张 HCU，训练 70 步。
+在 `cosmos-framework` 根目录应用 Cosmos3 补丁，再直接启动训练。以下示例使用 8 张 HCU，训练 70 步。
 
 ## 环境准备
 
@@ -10,16 +10,40 @@ docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:cosmos-framework-das
 
 docker run -it --network=host --name=cosmos_hygon --privileged --device=/dev/kfd --device=/dev/dri --ipc=host --shm-size=512G --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -u root --ulimit stack=-1:-1 --ulimit memlock=-1:-1  -v /opt/hyhal:/opt/hyhal:ro  harbor.sourcefind.cn:5443/hcu/admin/base/custom:cosmos-framework-das-pytorch2.10.0-ubuntu22.04-dtk26.04-py3.10
 ```
-### 克隆代码并安装
+### 准备代码
 ```bash
-git clone https://github.com/HYGON-AI/TurboPhysAI.git
+git clone --branch feature/cosmos3-patch https://github.com/iMountTai/TurboPhysAI.git
 cd TurboPhysAI
-pip install -e . --no-build-isolation
 cd ..
 git clone https://github.com/NVIDIA/cosmos-framework.git
 cd cosmos-framework
 git checkout 9726697a
 ```
+
+### 应用补丁
+
+在 Cosmos 仓库根目录执行一次应用；以下假设 Turbo 和 Cosmos 是相邻目录。
+patch 工具只需要 Git 和 Python 标准库，无需安装 Turbo、编译其扩展或加载其优化引擎。
+应用不会修改 HEAD、暂存或提交文件：
+
+```bash
+python ../TurboPhysAI/tools/apply_cosmos3_patch.py check --repo .
+python ../TurboPhysAI/tools/apply_cosmos3_patch.py apply --repo .
+python ../TurboPhysAI/tools/apply_cosmos3_patch.py verify --repo .
+```
+
+补丁版本和校验信息见 `patches/cosmos3/manifest.json`。Git LFS 资源需要对应对象；
+训练依赖、数据和权重需单独准备。
+训练依赖按 Cosmos 自身环境准备；Python 3.10 需要 `tomli` 读取 TOML，缺少时在训练环境安装 `pip install tomli`。
+
+撤销自己应用到上游的 patch：
+
+```bash
+python ../TurboPhysAI/tools/apply_cosmos3_patch.py reverse --repo .
+```
+
+重复应用/撤销不会叠加修改。遇到其他 HEAD、patch 涉及文件的本地修改或混合应用状态时拒绝操作；
+其他文件的修改保留。运行前可再次执行 `verify`；训练自身不调用 patch 工具，运行期间保持源码不变。
 
 ## 数据与模型权重
 
@@ -61,14 +85,22 @@ DROID perf64 子集使用 `/data/Cosmos3-DROID-perf64/keep_ranges_perf64.json` �
 
 ## 启动训练
 
-所有命令均在 `cosmos-framework` 根目录执行。Generator、Action Policy 和 Reasoner 共用 `--model cosmos3` 默认优化配置，训练场景由 `--sft-toml` 选择。
+所有命令均在 `cosmos-framework` 根目录执行，训练场景由 `--sft-toml` 选择。
+运行环境由 Shell 明确设置，无需 Turbo runtime 配置：
+
+```bash
+export PYTHONPATH="$PWD"
+export HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export HF_HUB_OFFLINE=1 OMP_NUM_THREADS=1
+export MIOPEN_FIND_MODE=1 PYTORCH_MIOPEN_SUGGEST_NDHWC=1
+export TORCH_NCCL_HIGH_PRIORITY=1
+```
 
 ### Generator Nano
 
 设置数据与权重路径后运行：
 
 ```bash
-PYTHONPATH=/data/cosmos-test/cosmos-framework
 export HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export DATASET_PATH=/data/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge
 export BASE_CHECKPOINT_PATH=/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP
@@ -76,8 +108,7 @@ export WAN_VAE_PATH=/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22
 export LOCAL_PROCESSOR_DIR=/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano
 export IMAGINAIRE_OUTPUT_ROOT=./outputs/hcu_training
 
-turbo-physai run --model cosmos3 --log-report \
-  torchrun --nproc-per-node=8 --master_port=29712 \
+torchrun --nproc-per-node=8 --master_port=29712 \
     -m cosmos_framework.scripts.train \
     --sft-toml=examples/toml/sft_config/vision_sft_nano.toml \
     -- \
@@ -95,9 +126,6 @@ turbo-physai run --model cosmos3 --log-report \
 ### Action Policy（DROID）
 
 ```bash
-PYTHONPATH=/data/cosmos-test/cosmos-framework
-export DROID_ROOT=/data/Cosmos/datasets/Cosmos3-DROID-perf64
-export KEEP_RANGES_PATH=/data/Cosmos/datasets/Cosmos3-DROID-perf64/keep_ranges_perf64.json
 export HF_HOME=/data/cosmos-test/hf-cache
 export BASE_CHECKPOINT_PATH=/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP
 export WAN_VAE_PATH=/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth
@@ -106,9 +134,9 @@ export DROID_ROOT=/data/Cosmos/datasets/droid_plus_lerobot_640x360_20260412
 export KEEP_RANGES_PATH=/data/Cosmos/datasets/Cosmos3-DROID-perf64/keep_ranges_perf64.json
 export IMAGINAIRE_OUTPUT_ROOT=./outputs/action_policy
 export TORCHINDUCTOR_WORKER_START=spawn TORCHINDUCTOR_COMPILE_THREADS=4
+export OMP_NUM_THREADS=4
 
-turbo-physai run --model cosmos3 --log-report --set OMP_NUM_THREADS=4 \
-  torchrun --nproc_per_node=8 --master_port=29716 \
+torchrun --nproc_per_node=8 --master_port=29716 \
   -m cosmos_framework.scripts.train \
   --sft-toml=examples/toml/sft_config/action_policy_droid_nano.toml -- \
   job.wandb_mode=disabled job.name=action_policy_sft_nano_hcu_perf_8card_ops \
@@ -131,7 +159,7 @@ turbo-physai run --model cosmos3 --log-report --set OMP_NUM_THREADS=4 \
   checkpoint.save_iter=1000 checkpoint.dcp_async_mode_enabled=false
 ```
 
-本例使用 DROID perf64 子集及对应过滤文件，`MIOPEN_FIND_MODE=1` 由默认 runtime 配置提供。
+本例使用 DROID perf64 子集及对应过滤文件，`MIOPEN_FIND_MODE=1` 由前面的 Shell 设置提供。
 
 一次性性能运行如需关闭 checkpoint 写入，追加 `checkpoint.type._target_=cosmos_framework.checkpoint.load_only.LoadOnlyDistributedCheckpointer`；默认保留正常保存行为。
 
@@ -143,8 +171,7 @@ export VLM_MODEL_NAME=/path/to/Qwen3-VL-8B-Instruct
 export VLM_SAFETENSORS_PATH=/path/to/Cosmos3-Nano-VLM
 export IMAGINAIRE_OUTPUT_ROOT=./outputs/reasoner
 
-turbo-physai run --model cosmos3 --log-report \
-  torchrun --nproc_per_node=8 --master_port=29711 \
+torchrun --nproc_per_node=8 --master_port=29711 \
   -m cosmos_framework.scripts.train \
   --sft-toml=examples/toml/sft_config/videophy2_sft_nano.toml -- \
   job.wandb_mode=disabled job.name=reasoner_videophy2_nano_hcu \
@@ -160,11 +187,10 @@ turbo-physai run --model cosmos3 --log-report \
 
 ### Reasoner LLaVA-OV
 
-沿用上面的 VLM 路径；需要联网时，在 `turbo-physai run` 后添加 `--set HF_HUB_OFFLINE=0`。
+沿用上面的 VLM 路径。
 
 ```bash
-turbo-physai run --model cosmos3 --log-report \
-  torchrun --nproc_per_node=8 --master_port=29715 \
+HF_HUB_OFFLINE=0 torchrun --nproc_per_node=8 --master_port=29715 \
   -m cosmos_framework.scripts.train \
   --sft-toml=examples/toml/sft_config/llava_ov.toml -- \
   job.wandb_mode=disabled job.name=reasoner_llava_ov_hcu \
@@ -178,9 +204,8 @@ turbo-physai run --model cosmos3 --log-report \
 
 ## 运行说明
 
-- `--model cosmos3` 自动加载 `runtime.yaml`，默认将 `HF_HUB_OFFLINE`、`OMP_NUM_THREADS`、`MIOPEN_FIND_MODE`、`PYTORCH_MIOPEN_SUGGEST_NDHWC`、`TORCH_NCCL_HIGH_PRIORITY` 设为 `1`。使用 `--set NAME=VALUE` 覆盖；配置值优先于 Shell 中的 `export`。
+- 运行环境以 Shell 中的设置为准，日志与训练产物由 `IMAGINAIRE_OUTPUT_ROOT` 指定。
 - 修改卡数时，同步调整 `HIP_VISIBLE_DEVICES`、`--nproc_per_node` 和 `data_parallel_shard_degree`。
 - 调整 Reasoner 训练步数时，同步修改 `trainer.max_iter` 和 `scheduler.cycle_lengths`。
-- `--log-report` 输出各 rank 的优化加载状态；日志与训练产物由 `IMAGINAIRE_OUTPUT_ROOT` 指定。
-- 如需关闭某项优化，在 `turbo-physai run` 后添加 `--disable-group <group-id>`，例如 `--disable-group cosmos3.vae_compile`。
-- 使用 Cosmos 的 launcher 时，将 Turbo 前缀加在实际 `torchrun` 调用处，并保留注入后的 `PYTHONPATH`。
+- 单项优化通过模型的环境变量或训练配置控制。
+- 也可直接使用 patch 中的 `examples/launch_sft_*_hcu.sh`，按各脚本说明设置资产与运行参数。

@@ -433,8 +433,6 @@ setup(
             "optimizations/common/configs/.*.generation.json",
             "optimizations/common/*/configs/.*.generation.json",
             "optimizations/models/*/configs/.*.generation.json",
-            "optimizations/models/cosmos3/configs/*.json",
-            "optimizations/models/cosmos3/licenses/*",
             # _sitedir is deliberately not a package: it must contribute
             # sitecustomize.py to PYTHONPATH without being importable itself.
             "bootstrap/_sitedir/sitecustomize.py",
