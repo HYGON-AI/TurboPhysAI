@@ -106,6 +106,8 @@ def _dynamic_point_to_voxel_backward(
 class _DynamicScatterFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, feats, coors, reduce_type="max"):
+        # Save the same contiguous features consumed by the native forward kernel.
+        feats = feats.contiguous()
         reduced, out_coors, coors_idx, reduce_count = (
             _dynamic_point_to_voxel_forward(feats, coors, reduce_type)
         )
@@ -118,7 +120,7 @@ class _DynamicScatterFunction(torch.autograd.Function):
     def backward(ctx, grad_reduced, grad_coors=None):
         del grad_coors
         feats, reduced, coors_idx, reduce_count = ctx.saved_tensors
-        grad_feats = torch.empty_like(feats)
+        grad_feats = torch.empty_like(feats, memory_format=torch.contiguous_format)
         _dynamic_point_to_voxel_backward(
             grad_feats,
             grad_reduced,

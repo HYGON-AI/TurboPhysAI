@@ -85,6 +85,10 @@ def get_indice_pairs(
 ):
     """Call the bundled extension that canonicalizes generated indice pairs."""
 
+    indices = indices.contiguous()
+    if isinstance(grid, torch.Tensor) and not grid.is_contiguous():
+        raise ValueError("grid must be contiguous because the native operator mutates it")
+
     ndim = indices.shape[1] - 1
 
     def dimensions(value):
@@ -165,6 +169,10 @@ class _IndiceConvFunction(torch.autograd.Function):
         suffix = _check_dtype(features)
         if filters.dtype != features.dtype:
             raise TypeError("features and filters must have the same dtype")
+        features = features.contiguous()
+        filters = filters.contiguous()
+        indice_pairs = indice_pairs.contiguous()
+        indice_num = indice_num.contiguous()
         extension = _ops()
         function = getattr(extension, f"indice_conv_{suffix}")
         output = function(
@@ -228,6 +236,9 @@ class _IndiceMaxPoolFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, features, indice_pairs, indice_num, num_act):
         suffix = _check_dtype(features)
+        features = features.contiguous()
+        indice_pairs = indice_pairs.contiguous()
+        indice_num = indice_num.contiguous()
         function = getattr(_ops(), f"indice_maxpool_{suffix}")
         output = function(features, indice_pairs, indice_num, int(num_act))
         ctx.save_for_backward(features, output, indice_pairs, indice_num)

@@ -17,6 +17,25 @@ def _require_hcu():
     import turbo_physai._C  # noqa: F401
 
 
+def _noncontiguous(tensor, layout):
+    if layout == "transpose":
+        assert tensor.ndim == 2
+        result = tensor.detach().t().contiguous().t()
+    elif layout == "slice":
+        storage_shape = (*tensor.shape[:-1], tensor.shape[-1] * 2)
+        storage = tensor.new_empty(storage_shape)
+        result = storage[..., ::2]
+        result.copy_(tensor.detach())
+    else:
+        assert layout == "contiguous"
+        return tensor
+
+    if tensor.requires_grad:
+        result.requires_grad_(True)
+    assert not result.is_contiguous()
+    return result
+
+
 def test_get_indice_pairs_dispatches_by_rank(monkeypatch):
     calls = []
     marker = object()
@@ -53,6 +72,31 @@ def test_get_indice_pairs_dispatches_by_rank(monkeypatch):
         0,
         0,
     )
+
+
+def test_get_indice_pairs_makes_strided_indices_contiguous(monkeypatch):
+    captured = []
+
+    class Extension:
+        @staticmethod
+        def get_indice_pairs_3d(indices, *args):
+            captured.append(indices)
+            return "pairs"
+
+    monkeypatch.setattr(operator, "_ops", lambda: Extension)
+
+    storage = torch.arange(16, dtype=torch.int32).reshape(2, 8)
+    indices = storage[:, ::2]
+    assert indices.shape == (2, 4)
+    assert not indices.is_contiguous()
+
+    assert operator.get_indice_pairs(
+        indices,
+        batch_size=1,
+        spatial_shape=[4, 5, 6],
+    ) == "pairs"
+    assert captured[0].is_contiguous()
+    torch.testing.assert_close(captured[0], indices)
 
 
 def test_get_indice_pairs_dispatches_grid_path(monkeypatch):
@@ -187,7 +231,19 @@ def test_indice_maxpool_dispatch_and_backward(monkeypatch):
 
 
 @pytest.mark.hcu
-def test_indice_conv_matches_reference_forward_and_backward():
+@pytest.mark.parametrize(
+    "layout",
+    [
+        "contiguous",
+        "features_transpose",
+        "features_slice",
+        "filters_slice",
+        "indice_pairs_slice",
+        "indice_num_slice",
+        "all_slice",
+    ],
+)
+def test_indice_conv_matches_reference_forward_and_backward(layout):
     _require_hcu()
     torch.manual_seed(123)
     device = "cuda"
@@ -207,6 +263,22 @@ def test_indice_conv_matches_reference_forward_and_backward():
         device=device,
     )
     indice_num = torch.tensor([2, 2], dtype=torch.int32, device=device)
+
+    if layout == "features_transpose":
+        features = _noncontiguous(features, "transpose")
+    elif layout == "features_slice":
+        features = _noncontiguous(features, "slice")
+    elif layout == "filters_slice":
+        filters = _noncontiguous(filters, "slice")
+    elif layout == "indice_pairs_slice":
+        indice_pairs = _noncontiguous(indice_pairs, "slice")
+    elif layout == "indice_num_slice":
+        indice_num = _noncontiguous(indice_num, "slice")
+    elif layout == "all_slice":
+        features = _noncontiguous(features, "slice")
+        filters = _noncontiguous(filters, "slice")
+        indice_pairs = _noncontiguous(indice_pairs, "slice")
+        indice_num = _noncontiguous(indice_num, "slice")
 
     output = operator.indice_conv(
         features,
@@ -255,7 +327,18 @@ def test_indice_conv_matches_reference_forward_and_backward():
 
 
 @pytest.mark.hcu
-def test_indice_maxpool_matches_reference_forward_and_backward():
+@pytest.mark.parametrize(
+    "layout",
+    [
+        "contiguous",
+        "features_transpose",
+        "features_slice",
+        "indice_pairs_slice",
+        "indice_num_slice",
+        "all_slice",
+    ],
+)
+def test_indice_maxpool_matches_reference_forward_and_backward(layout):
     _require_hcu()
     torch.manual_seed(321)
     device = "cuda"
@@ -279,6 +362,19 @@ def test_indice_maxpool_matches_reference_forward_and_backward():
         device=device,
     )
     indice_num = torch.tensor([2, 2], dtype=torch.int32, device=device)
+
+    if layout == "features_transpose":
+        features = _noncontiguous(features, "transpose")
+    elif layout == "features_slice":
+        features = _noncontiguous(features, "slice")
+    elif layout == "indice_pairs_slice":
+        indice_pairs = _noncontiguous(indice_pairs, "slice")
+    elif layout == "indice_num_slice":
+        indice_num = _noncontiguous(indice_num, "slice")
+    elif layout == "all_slice":
+        features = _noncontiguous(features, "slice")
+        indice_pairs = _noncontiguous(indice_pairs, "slice")
+        indice_num = _noncontiguous(indice_num, "slice")
 
     output = operator.indice_maxpool(features, indice_pairs, indice_num, 2)
 

@@ -17,6 +17,19 @@ def _require_hcu():
     import turbo_physai._C  # noqa: F401
 
 
+def _with_feature_layout(feats, layout):
+    if layout == "transpose":
+        feats = feats.t().contiguous().t()
+    elif layout == "slice":
+        storage = feats.new_zeros(feats.shape[0], feats.shape[1] * 2)
+        storage[:, ::2].copy_(feats)
+        feats = storage[:, ::2]
+    else:
+        assert layout == "contiguous"
+    assert feats.is_contiguous() == (layout == "contiguous")
+    return feats.requires_grad_(True)
+
+
 def test_dynamic_voxelize_allocates_coordinates(monkeypatch):
     calls = []
 
@@ -126,9 +139,74 @@ def test_dynamic_scatter_rejects_unknown_reduce_type():
         )
 
 
-@pytest.mark.hcu
+@pytest.mark.parametrize("layout", ["contiguous", "transpose", "slice"])
 @pytest.mark.parametrize("reduce_type", ["max", "sum", "mean"])
-def test_dynamic_scatter_matches_reference_forward_and_backward(reduce_type):
+def test_dynamic_scatter_layout_matches_reference(monkeypatch, layout, reduce_type):
+    forward_feats = []
+
+    class Extension:
+        @staticmethod
+        def dynamic_point_to_voxel_forward(feats, coors, reduce_type):
+            assert feats.is_contiguous()
+            assert coors.is_contiguous()
+            forward_feats.append(feats)
+            if reduce_type == "max":
+                reduced = feats.max(dim=0, keepdim=True).values
+            elif reduce_type == "sum":
+                reduced = feats.sum(dim=0, keepdim=True)
+            else:
+                reduced = feats.mean(dim=0, keepdim=True)
+            return (
+                reduced,
+                coors[:1].clone(),
+                torch.zeros(feats.shape[0], dtype=torch.int32),
+                torch.tensor([feats.shape[0]], dtype=torch.int32),
+            )
+
+        @staticmethod
+        def dynamic_point_to_voxel_backward(
+            grad_feats, grad_reduced, feats, reduced, coors_idx, counts, reduce_type
+        ):
+            # Match the native kernel's requirements, including its output buffer.
+            for tensor in (grad_feats, grad_reduced, feats, reduced, coors_idx, counts):
+                assert tensor.is_contiguous()
+            assert feats is forward_feats[0]
+            grad_feats.zero_()
+            if reduce_type == "max":
+                channels = torch.arange(feats.shape[1])
+                grad_feats[feats.argmax(dim=0), channels] = grad_reduced[0]
+            else:
+                scale = 1.0 / feats.shape[0] if reduce_type == "mean" else 1.0
+                grad_feats.copy_(grad_reduced.expand_as(feats) * scale)
+
+    monkeypatch.setattr(operator, "_ops", lambda: Extension)
+    feats = _with_feature_layout(
+        torch.tensor([[1.0, 6.0], [5.0, 2.0], [3.0, 4.0]]), layout
+    )
+    reference_feats = feats.detach().clone().requires_grad_(True)
+    coors = torch.zeros(3, 3, dtype=torch.int32)
+    if reduce_type == "max":
+        expected = reference_feats.max(dim=0, keepdim=True).values
+    elif reduce_type == "sum":
+        expected = reference_feats.sum(dim=0, keepdim=True)
+    else:
+        expected = reference_feats.mean(dim=0, keepdim=True)
+
+    actual, out_coors = operator.dynamic_scatter(feats, coors, reduce_type)
+    torch.testing.assert_close(actual, expected)
+    torch.testing.assert_close(out_coors, coors[:1])
+    assert not out_coors.requires_grad
+
+    grad_reduced = torch.tensor([[2.0, 3.0]])
+    actual.backward(grad_reduced)
+    expected.backward(grad_reduced)
+    torch.testing.assert_close(feats.grad, reference_feats.grad)
+
+
+@pytest.mark.hcu
+@pytest.mark.parametrize("layout", ["contiguous", "transpose", "slice"])
+@pytest.mark.parametrize("reduce_type", ["max", "sum", "mean"])
+def test_dynamic_scatter_matches_reference_forward_and_backward(reduce_type, layout):
     _require_hcu()
     torch.manual_seed(1234)
     device = "cuda"
@@ -143,8 +221,8 @@ def test_dynamic_scatter_matches_reference_forward_and_backward(reduce_type):
             [0.0, 6.0, 4.0],
         ],
         device=device,
-        requires_grad=True,
     )
+    feats = _with_feature_layout(feats, layout)
     coors = torch.tensor(
         [
             [0, 0, 0],
