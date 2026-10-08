@@ -4,7 +4,7 @@
   "model_commit": "326653dc06e0938edf1aae7d01efcd158ba83de5",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "eadc1cf9155cf8279fad9fdae9188d24b9e136edecf6abb920175fd71ba4aed1"
+    "sha256": "ec41d78a5c8c5b8c053f47bb1996ddab72ee683e647902f71d07b951d13baf2d"
   },
   "inputs": [
     {
@@ -35,7 +35,7 @@
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/bevfusion/catalog.py",
-      "sha256": "309abcd7ea5c9f7cd64a89fab30ded23b62922397e711018fa155f5af9f88e21"
+      "sha256": "8fdfa085391af2e3bec60deaab92d1f66f0195d517c5f4877b55156eb184441c"
     }
   ]
 }
