@@ -453,7 +453,6 @@ setup(
         "scipy>=1.9.0",
         "PyYAML>=6.0",
         "packaging>=21.0",
-        'tomli>=2.0; python_version < "3.11"',
     ],
     entry_points={
         "console_scripts": [
