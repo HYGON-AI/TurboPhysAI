@@ -1,2 +1,2 @@
 # Preserve Git patch bytes, including whitespace in diff context.
-/patches/cosmos3/*.patch -text -whitespace
+/model_examples/Cosmos3/*.patch -text -whitespace

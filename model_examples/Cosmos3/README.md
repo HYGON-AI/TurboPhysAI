@@ -6,9 +6,9 @@
 
 ### 拉取镜像及创建容器
 ```
-docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:cosmos-framework-das-pytorch2.10.0-ubuntu22.04-dtk26.04-py3.10
+docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10-20260929
 
-docker run -it --network=host --name=cosmos_hygon --privileged --device=/dev/kfd --device=/dev/dri --ipc=host --shm-size=512G --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -u root --ulimit stack=-1:-1 --ulimit memlock=-1:-1  -v /opt/hyhal:/opt/hyhal:ro  harbor.sourcefind.cn:5443/hcu/admin/base/custom:cosmos-framework-das-pytorch2.10.0-ubuntu22.04-dtk26.04-py3.10
+docker run -it --network=host --name=cosmos_hygon --privileged --device=/dev/kfd --device=/dev/dri --ipc=host --shm-size=512G --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -u root --ulimit stack=-1:-1 --ulimit memlock=-1:-1  -v /opt/hyhal:/opt/hyhal:ro  harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10-20260929
 ```
 ### 准备代码
 ```bash
@@ -22,28 +22,24 @@ git checkout 9726697a
 
 ### 应用补丁
 
-在 Cosmos 仓库根目录执行一次应用；以下假设 Turbo 和 Cosmos 是相邻目录。
-patch 工具只需要 Git 和 Python 标准库，无需安装 Turbo、编译其扩展或加载其优化引擎。
-应用不会修改 HEAD、暂存或提交文件：
+在 Cosmos 仓库根目录应用补丁；以下假设 TurboPhysAI 和 cosmos-framework 是同级相邻目录：
 
 ```bash
-python ../TurboPhysAI/tools/apply_cosmos3_patch.py check --repo .
-python ../TurboPhysAI/tools/apply_cosmos3_patch.py apply --repo .
-python ../TurboPhysAI/tools/apply_cosmos3_patch.py verify --repo .
+git apply ../TurboPhysAI/model_examples/Cosmos3/cosmos-framework.patch
 ```
 
-补丁版本和校验信息见 `patches/cosmos3/manifest.json`。Git LFS 资源需要对应对象；
-训练依赖、数据和权重需单独准备。
-训练依赖按 Cosmos 自身环境准备；Python 3.10 需要 `tomli` 读取 TOML，缺少时在训练环境安装 `pip install tomli`。
-
-撤销自己应用到上游的 patch：
+如需撤销补丁：
 
 ```bash
-python ../TurboPhysAI/tools/apply_cosmos3_patch.py reverse --repo .
+git apply -R ../TurboPhysAI/model_examples/Cosmos3/cosmos-framework.patch
 ```
 
-重复应用/撤销不会叠加修改。遇到其他 HEAD、patch 涉及文件的本地修改或混合应用状态时拒绝操作；
-其他文件的修改保留。运行前可再次执行 `verify`；训练自身不调用 patch 工具，运行期间保持源码不变。
+### 安装训练依赖
+```
+cd /data/TurboPhysAI
+pip install -r model_examples/Cosmos3/requirements.txt
+pip install lerobot --no-deps
+```
 
 ## 数据与模型权重
 

@@ -258,7 +258,8 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..651c9b710ea531a0cb088871ad5c1fecc62fb471
 --- /dev/null
 +++ b/cosmos_framework/checkpoint/load_only.py
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,13 @@
++# Copyright 2026 Hygon Information Technology Co., Ltd.
 +# SPDX-License-Identifier: OpenMDW-1.1
 +
 +"""DCP loader that skips checkpoint writes for disposable performance runs."""
@@ -4512,7 +4513,7 @@ index 0000000000000000000000000000000000000000..3a327c67b371b754a8e0ff1c78d199de
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/__init__.py
 @@ -0,0 +1,30 @@
-+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# Copyright 2026 Hygon Information Technology Co., Ltd.
 +# SPDX-License-Identifier: OpenMDW-1.1
 +
 +"""Optional HCU pure fused operators used by the Wan VAE encoder.
@@ -4547,7 +4548,10 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..3df077698afbe2341a19f2b6bf9871c65146339c
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/_concat_layout.py
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,83 @@
++# Copyright 2026 Hygon Information Technology Co., Ltd.
++# SPDX-License-Identifier: OpenMDW-1.1
++
 +"""Opt-in layout experiments, executed inside the opaque concat custom op."""
 +
 +import os
@@ -4634,7 +4638,7 @@ index 0000000000000000000000000000000000000000..3b41b37d62eda37c895db7eb8bd36b2b
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/_hipdnn.py
 @@ -0,0 +1,355 @@
-+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# Copyright 2026 Hygon Information Technology Co., Ltd.
 +# SPDX-License-Identifier: OpenMDW-1.1
 +
 +"""Small, lazy hipDNN graph helpers for the pure Wan VAE fused operators.
@@ -4995,7 +4999,7 @@ index 0000000000000000000000000000000000000000..f3b76deac7fc1f470ffa0eed17d4cfe7
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/concat_conv_bias.py
 @@ -0,0 +1,484 @@
-+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# Copyright 2026 Hygon Information Technology Co., Ltd.
 +# SPDX-License-Identifier: OpenMDW-1.1
 +
 +"""Pure Concat + causal Conv3d + bias graph for Wan VAE."""
@@ -5485,7 +5489,7 @@ index 0000000000000000000000000000000000000000..49f03721ef38838eeac3865a4f01fa2f
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/conv_bias.py
 @@ -0,0 +1,304 @@
-+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# Copyright 2026 Hygon Information Technology Co., Ltd.
 +# SPDX-License-Identifier: OpenMDW-1.1
 +
 +"""Optional Conv3D + bias graph for a cache-free Wan VAE chunk."""
@@ -6659,7 +6663,7 @@ index 0000000000000000000000000000000000000000..9cd3bca12093b6bfd2dd97c6e4e8c53f
 --- /dev/null
 +++ b/cosmos_framework/utils/fsdp_ordered_comm.py
 @@ -0,0 +1,140 @@
-+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# Copyright 2026 Hygon Information Technology Co., Ltd.
 +# SPDX-License-Identifier: OpenMDW-1.1
 +
 +"""Ordered FSDP collective submission streams for HIP/RCCL.
@@ -6861,7 +6865,7 @@ index 0000000000000000000000000000000000000000..cb2f451b8caecd752d4745cff5ab0507
 --- /dev/null
 +++ b/cosmos_framework/utils/memory_format.py
 @@ -0,0 +1,65 @@
-+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# Copyright 2026 Hygon Information Technology Co., Ltd.
 +# SPDX-License-Identifier: OpenMDW-1.1
 +
 +"""Channels-last helpers enabled automatically on the HIP training path.
@@ -6932,7 +6936,7 @@ index 0000000000000000000000000000000000000000..49717a54266997005076c372b887e772
 --- /dev/null
 +++ b/cosmos_framework/utils/memory_format_test.py
 @@ -0,0 +1,43 @@
-+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# Copyright 2026 Hygon Information Technology Co., Ltd.
 +# SPDX-License-Identifier: OpenMDW-1.1
 +
 +import torch
@@ -7057,7 +7061,7 @@ index 0000000000000000000000000000000000000000..e8e3ef8bd6c0e8e4f890e1b09569bf62
 --- /dev/null
 +++ b/cosmos_framework/utils/video_decode.py
 @@ -0,0 +1,103 @@
-+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# Copyright 2026 Hygon Information Technology Co., Ltd.
 +# SPDX-License-Identifier: OpenMDW-1.1
 +
 +"""Platform-aware video decoding helpers for training data."""
@@ -7535,7 +7539,7 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..d7c290abdd4335e41b1eba811bcb8e375a1d5ae7
 --- /dev/null
 +++ b/examples/launch_sft_action_policy_libero_all_hcu.sh
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,52 @@
 +#!/usr/bin/env bash
 +set -euo pipefail
 +
@@ -7588,13 +7592,12 @@ index 0000000000000000000000000000000000000000..d7c290abdd4335e41b1eba811bcb8e37
 +    checkpoint.save_iter="$CHECKPOINT_SAVE_ITER" \
 +    checkpoint.dcp_async_mode_enabled="$DCP_ASYNC_MODE_ENABLED" \
 +    "$@"
-+
 diff --git a/examples/launch_sft_action_policy_libero_hcu.sh b/examples/launch_sft_action_policy_libero_hcu.sh
 new file mode 100644
 index 0000000000000000000000000000000000000000..2e0c28034329c0c8f6ba4181cf988de61b6134b5
 --- /dev/null
 +++ b/examples/launch_sft_action_policy_libero_hcu.sh
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,52 @@
 +#!/usr/bin/env bash
 +set -euo pipefail
 +
@@ -7647,13 +7650,12 @@ index 0000000000000000000000000000000000000000..2e0c28034329c0c8f6ba4181cf988de6
 +    checkpoint.save_iter="$CHECKPOINT_SAVE_ITER" \
 +    checkpoint.dcp_async_mode_enabled="$DCP_ASYNC_MODE_ENABLED" \
 +    "$@"
-+
 diff --git a/examples/launch_sft_generator_vision_nano_cosmosdataloader_hcu.sh b/examples/launch_sft_generator_vision_nano_cosmosdataloader_hcu.sh
 new file mode 100644
 index 0000000000000000000000000000000000000000..7d64d7c5ddd0f3044ea7e4f5c508f79c9f91df7a
 --- /dev/null
 +++ b/examples/launch_sft_generator_vision_nano_cosmosdataloader_hcu.sh
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,42 @@
 +#!/usr/bin/env bash
 +set -euo pipefail
 +
@@ -7696,7 +7698,6 @@ index 0000000000000000000000000000000000000000..7d64d7c5ddd0f3044ea7e4f5c508f79c
 +    trainer.max_iter="$MAX_ITER" \
 +    checkpoint.save_iter="$CHECKPOINT_SAVE_ITER" \
 +    "$@"
-+
 diff --git a/examples/launch_sft_generator_vision_nano_hcu.sh b/examples/launch_sft_generator_vision_nano_hcu.sh
 new file mode 100644
 index 0000000000000000000000000000000000000000..cd1bb6c1f254cb4f6622c068ea319554d7a60adc
@@ -7747,7 +7748,7 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..66367e320be8a5980c9d970f16228cfd5ed34528
 --- /dev/null
 +++ b/examples/launch_sft_generator_vision_super_hcu.sh
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,50 @@
 +#!/usr/bin/env bash
 +set -euo pipefail
 +
@@ -7798,13 +7799,12 @@ index 0000000000000000000000000000000000000000..66367e320be8a5980c9d970f16228cfd
 +    checkpoint.save_iter="$CHECKPOINT_SAVE_ITER" \
 +    checkpoint.dcp_async_mode_enabled="$DCP_ASYNC_MODE_ENABLED" \
 +    "$@"
-+
 diff --git a/examples/launch_sft_reasoner_llava_ov_hcu.sh b/examples/launch_sft_reasoner_llava_ov_hcu.sh
 new file mode 100644
 index 0000000000000000000000000000000000000000..6f139e2f3e4117f35f38274a7edf02b6550c864a
 --- /dev/null
 +++ b/examples/launch_sft_reasoner_llava_ov_hcu.sh
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,46 @@
 +#!/usr/bin/env bash
 +set -euo pipefail
 +
@@ -7851,13 +7851,12 @@ index 0000000000000000000000000000000000000000..6f139e2f3e4117f35f38274a7edf02b6
 +    checkpoint.save_iter="$CHECKPOINT_SAVE_ITER" \
 +    checkpoint.dcp_async_mode_enabled="$DCP_ASYNC_MODE_ENABLED" \
 +    "$@"
-+
 diff --git a/examples/launch_sft_reasoner_videophy2_nano_hcu.sh b/examples/launch_sft_reasoner_videophy2_nano_hcu.sh
 new file mode 100644
 index 0000000000000000000000000000000000000000..2b3a8959b29e54683b2dfe6a9b9bf058f5a4653f
 --- /dev/null
 +++ b/examples/launch_sft_reasoner_videophy2_nano_hcu.sh
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,72 @@
 +#!/usr/bin/env bash
 +set -euo pipefail
 +
@@ -7912,8 +7911,8 @@ index 0000000000000000000000000000000000000000..2b3a8959b29e54683b2dfe6a9b9bf058
 +
 +    # "trainer.profiling.enable_profiling=true"
 +    # "trainer.profiling.profile_warmup=5"
-+    # "trainer.profiling.profile_freq=9"        
-+    # "trainer.profiling.target_ranks=[0]" 
++    # "trainer.profiling.profile_freq=9"
++    # "trainer.profiling.target_ranks=[0]"
 +    # "trainer.profiling.with_stack=true"
 +    # "trainer.profiling.with_modules=true"
 +
@@ -7930,7 +7929,6 @@ index 0000000000000000000000000000000000000000..2b3a8959b29e54683b2dfe6a9b9bf058
 +echo ">>> HCU FSDP communication ordering: framework"
 +
 +source "$(dirname "${BASH_SOURCE[0]}")/_sft_launcher_common.sh"
-+
 diff --git a/examples/prepare_droid_perf_subset.py b/examples/prepare_droid_perf_subset.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..2041d5353032b947be7ab980769dac4139bdc78a
@@ -8853,10 +8851,7 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..400e3f088f767169476d29248c04afdb2d30d53c
 --- /dev/null
 +++ b/tests/wan_vae_clean_fused_op_test.py
-@@ -0,0 +1,118 @@
-+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-+# SPDX-License-Identifier: OpenMDW-1.1
-+
+@@ -0,0 +1,115 @@
 +"""Unit test for the pure Wan VAE fused operator in cosmos-framework-training-clear."""
 +
 +import os
