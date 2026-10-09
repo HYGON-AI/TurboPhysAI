@@ -641,12 +641,40 @@ def base_transform_get_geometry(
 
 
 def base_transform_bev_pool_wrapper(original, options):
-    """Retain BaseTransform's MMCV FP32 boundary around optimized pooling."""
+    """Cast pooling inputs to FP32 without MMCV's broken NamedTuple recursion."""
 
     del original, options
-    from mmcv.runner import force_fp32
+    import functools
+    import torch
 
-    return force_fp32()(base_transform_bev_pool)
+    def fp32(value):
+        if isinstance(value, torch.Tensor) and value.dtype == torch.float16:
+            return value.float()
+        return value
+
+    @functools.wraps(base_transform_bev_pool)
+    def wrapped(self, geom_feats, x):
+        if not getattr(self, "fp16_enabled", False):
+            return base_transform_bev_pool(self, geom_feats, x)
+
+        if isinstance(geom_feats, PreparedGeometry):
+            geom_feats = PreparedGeometry(
+                fp32(geom_feats.coords),
+                geom_feats.ranks,
+                geom_feats.kept,
+                geom_feats.batch_size,
+            )
+        else:
+            geom_feats = fp32(geom_feats)
+        if isinstance(x, DepthFeatureFactorization):
+            x = DepthFeatureFactorization(fp32(x.depth), fp32(x.features))
+        else:
+            x = fp32(x)
+
+        with torch.amp.autocast("cuda", enabled=False):
+            return base_transform_bev_pool(self, geom_feats, x)
+
+    return wrapped
 
 
 def base_transform_bev_pool_prepared(self, x, coords, ranks, kept):

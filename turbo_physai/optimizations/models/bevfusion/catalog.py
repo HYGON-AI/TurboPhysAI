@@ -88,6 +88,13 @@ TRAINING = group(
             "turbo_physai.optimizations.models.bevfusion.training.training_wrapper"
         ),
     ),
+    wrap(
+        target="mmcv.parallel.distributed.MMDistributedDataParallel._run_ddp_forward",
+        replacement=(
+            "turbo_physai.optimizations.models.bevfusion.training."
+            "ddp_forward_compat_wrapper"
+        ),
+    ),
 )
 
 GAUSSIAN = group(
