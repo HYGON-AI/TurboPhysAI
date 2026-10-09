@@ -99,9 +99,9 @@ export TORCH_NCCL_HIGH_PRIORITY=1
 ```bash
 export HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export DATASET_PATH=/data/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge
-export BASE_CHECKPOINT_PATH=/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP
-export WAN_VAE_PATH=/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth
-export LOCAL_PROCESSOR_DIR=/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano
+export BASE_CHECKPOINT_PATH=path/to/Cosmos3-Nano-DCP
+export WAN_VAE_PATH=path/to/Wan2.2_VAE.pth
+export LOCAL_PROCESSOR_DIR=path/to/Cosmos3-Nano
 export IMAGINAIRE_OUTPUT_ROOT=./outputs/hcu_training
 
 torchrun --nproc-per-node=8 --master_port=29712 \
@@ -123,9 +123,9 @@ torchrun --nproc-per-node=8 --master_port=29712 \
 
 ```bash
 export HF_HOME=/data/cosmos-test/hf-cache
-export BASE_CHECKPOINT_PATH=/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP
-export WAN_VAE_PATH=/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth
-export LOCAL_PROCESSOR_DIR=/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano
+export BASE_CHECKPOINT_PATH=path/to/Cosmos3-Nano-DCP
+export WAN_VAE_PATH=path/to/Wan2.2_VAE.pth
+export LOCAL_PROCESSOR_DIR=path/to/Cosmos3-Nano
 export DROID_ROOT=/data/Cosmos/datasets/droid_plus_lerobot_640x360_20260412
 export KEEP_RANGES_PATH=/data/Cosmos/datasets/Cosmos3-DROID-perf64/keep_ranges_perf64.json
 export IMAGINAIRE_OUTPUT_ROOT=./outputs/action_policy
