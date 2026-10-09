@@ -76,6 +76,6 @@ turbo-physai run --log-report <original-training-command>
 
 ## 能接入自定义原生算子吗？
 
-可以。仓库内原生算子源码通过统一构建链路编译进 `turbo_physai.ops`。接入流程、PyBind 注册方式和验证要求见[自定义算子接入](developer_guide/custom_operator.md)。
+可以。仓库内原生算子源码通过统一构建链路编译进 `turbo_physai._C`。接入流程、PyBind 注册方式和验证要求见[自定义算子接入](developer_guide/custom_operator.md)。
 
 外部动态库由其发布包或产品镜像负责安装和加载；TurboPhysAI 不管理外部动态库的安装、ABI、卸载和运行时回滚。

@@ -7,7 +7,7 @@ import numpy as np
 from functools import partial
 from test.utils import allclose, run_benchmark
 from torch.nn.functional import interpolate as torch_interpolate
-from turbo_physai import interpolate as hcu_interpolate
+from turbo_physai.operators import interpolate as hcu_interpolate
 
 
 pytestmark = pytest.mark.hcu

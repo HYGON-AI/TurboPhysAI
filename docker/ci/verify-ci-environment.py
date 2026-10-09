@@ -13,7 +13,10 @@ def main() -> int:
     parser.add_argument(
         "--require-turbophysai",
         action="store_true",
-        help="also require the CI job's just-built TurboPhysAI package and ops",
+        help=(
+            "also require the CI job's just-built TurboPhysAI package and "
+            "native extension"
+        ),
     )
     args = parser.parse_args()
 
@@ -29,10 +32,10 @@ def main() -> int:
 
     if args.require_turbophysai:
         import turbo_physai
-        import turbo_physai.ops
+        import turbo_physai._C
 
         print(f"TurboPhysAI: {turbo_physai.__file__}")
-        print(f"TurboPhysAI ops: {turbo_physai.ops.__file__}")
+        print(f"TurboPhysAI native extension: {turbo_physai._C.__file__}")
     print("TurboPhysAI CI runtime gate passed")
     return 0
 

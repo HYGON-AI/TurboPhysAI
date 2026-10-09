@@ -15,13 +15,7 @@
 #
 # Modified by Hygon.
 
-"""MMDetection3D voxelization frontend backed by the bundled extension."""
-
-
-def _ops():
-    from turbo_physai import ops
-
-    return ops
+"""MMDetection3D voxelization adapter."""
 
 
 def voxelization_forward(
@@ -34,31 +28,8 @@ def voxelization_forward(
     deterministic=True,
 ):
     del ctx
-    import torch
+    from turbo_physai import operators
 
-    extension = _ops()
-    if max_points == -1 or max_voxels == -1:
-        coords = points.new_zeros((points.size(0), 3), dtype=torch.int)
-        extension.dynamic_voxelize(points, coords, voxel_size, coors_range, 3)
-        return coords
-
-    voxels = points.new_zeros((max_voxels, max_points, points.size(1)))
-    coords = points.new_zeros((max_voxels, 3), dtype=torch.int)
-    point_counts = points.new_zeros((max_voxels,), dtype=torch.int)
-    voxel_count = extension.hard_voxelize(
-        points,
-        voxels,
-        coords,
-        point_counts,
-        voxel_size,
-        coors_range,
-        max_points,
-        max_voxels,
-        3,
-        deterministic,
-    )
-    return (
-        voxels[:voxel_count],
-        coords[:voxel_count],
-        point_counts[:voxel_count],
+    return operators.voxelize(
+        points, voxel_size, coors_range, max_points, max_voxels, deterministic
     )

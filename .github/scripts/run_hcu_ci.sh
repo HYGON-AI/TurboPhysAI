@@ -110,10 +110,10 @@ import os
 from pathlib import Path
 
 import turbo_physai
-import turbo_physai.ops
+import turbo_physai._C
 
 repo_root = Path(os.environ["TURBOPHYSAI_REPO_ROOT"]).resolve()
-for module in (turbo_physai, turbo_physai.ops):
+for module in (turbo_physai, turbo_physai._C):
     module_path = Path(module.__file__).resolve()
     print(f"{module.__name__}: {module_path}")
     assert not module_path.is_relative_to(repo_root), module_path
@@ -132,7 +132,7 @@ import torch
 import torchvision
 import triton
 import turbo_physai
-import turbo_physai.ops
+import turbo_physai._C
 
 
 def require_release(actual, expected, component):
@@ -173,10 +173,10 @@ print("HCU model:", torch.cuda.get_device_name(0))
 print("hipdnn:", hipdnn.__file__)
 print("lightop:", lightop.__file__)
 print("TurboPhysAI:", turbo_physai.__file__)
-print("TurboPhysAI ops:", turbo_physai.ops.__file__)
+print("TurboPhysAI native extension:", turbo_physai._C.__file__)
 
 repo_root = Path(os.environ["TURBOPHYSAI_REPO_ROOT"]).resolve()
-for module in (turbo_physai, turbo_physai.ops):
+for module in (turbo_physai, turbo_physai._C):
     assert not Path(module.__file__).resolve().is_relative_to(repo_root)
 PY
 

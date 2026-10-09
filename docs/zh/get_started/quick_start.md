@@ -8,7 +8,7 @@
 
 开始前应满足：
 
-- 当前 Python 环境能够导入 `turbo_physai` 和 `turbo_physai.ops`；
+- 当前 Python 环境能够导入 `turbo_physai` 和 `turbo_physai._C`；
 - 目标 Python 训练入口及其运行依赖已经准备完成。
 
 安装和环境检查方法见[安装指南](installation.md)。
