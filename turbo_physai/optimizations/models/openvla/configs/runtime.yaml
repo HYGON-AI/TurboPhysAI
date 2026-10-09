@@ -1,0 +1,25 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+# Machine-independent defaults for the OpenVLA training recipe.
+# Network interface, master address/port, CPU placement and host-specific
+# library paths stay deployer overrides because they differ between nodes
+# and schedulers.
+environment:
+  set:
+    DISABLE_ADDMM_CUDA_LT: "1"
+    MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
+    PYTORCH_HIP_ALLOC_CONF: "roundup_power2_divisions:16"
+  unset: []
+
+# Not set here on purpose: ROCBLAS_TENSILE_LIBPATH.  The rocBLAS tuning library
+# is generated per node by `rocblas-tensile` for that node's device and driver,
+# so it cannot ship as a packaged default.  Deployers who have tuned a node
+# override it on the command line:
+#   turbo-physai run --set ROCBLAS_TENSILE_LIBPATH=<tuned library directory> ...
+
+process:
+  numa: true
