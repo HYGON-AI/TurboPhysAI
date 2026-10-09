@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import numpy as np
 from functools import partial
 from test.utils import allclose, run_benchmark
-from turbo_physai import grid_sample
+from turbo_physai.operators import grid_sample
 
 pytestmark = pytest.mark.hcu
 

@@ -8,7 +8,7 @@
 import torch
 from torch.autograd.function import Function, once_differentiable
 
-from turbo_physai.ops import deformable_aggregation_forward, deformable_aggregation_backward
+from turbo_physai._C import deformable_aggregation_forward, deformable_aggregation_backward
 
 
 class DeformableAggregationFunction(Function):

@@ -10,6 +10,7 @@ torch = pytest.importorskip("torch")
 
 from turbo_physai.optimizations.common.mmdet3d.gaussian import gaussian_2d
 from turbo_physai.optimizations.common.mmdet3d import sparse_conv
+from turbo_physai.operators import sparse_conv as sparse_operators
 from turbo_physai.optimizations.common.mmdet3d.sparse_tensor import sparity
 
 
@@ -51,14 +52,14 @@ def test_sparse_tensor_sparity(spatial_shape, batch_size, rows, expected):
 
 
 def test_sparse_convolution_output_shapes_and_invalid_parameter_boundary():
-    assert sparse_conv._conv_output_size(
+    assert sparse_operators._conv_output_size(
         [8, 10, 12], [3, 3, 3], [2, 1, 1], [1, 1, 1], [1, 1, 1]
     ) == [4, 10, 12]
-    assert sparse_conv._deconv_output_size(
+    assert sparse_operators._deconv_output_size(
         [4, 5, 6], [3, 3, 3], [2, 1, 1], [1, 1, 1], [1, 1, 1], [1, 0, 0]
     ) == [8, 5, 6]
     with pytest.raises(ValueError, match="kernel_size < 0"):
-        sparse_conv._deconv_output_size(
+        sparse_operators._deconv_output_size(
             [4], [-1], [1], [0], [1], [0]
         )
 

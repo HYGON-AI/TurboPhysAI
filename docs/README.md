@@ -24,6 +24,7 @@
 
 - [CLI 参考](zh/reference/cli.md)
 - [Python API 参考](zh/reference/python_api.md)
+- [算子兼容层 API](zh/api/README.md)
 
 ## 优化开发指南
 

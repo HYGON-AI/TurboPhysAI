@@ -110,11 +110,11 @@ python setup.py bdist_wheel
 ```bash
 python -c "import torch, hipdnn; print(torch.__version__)"
 python -c "import turbo_physai; print(turbo_physai.__file__)"
-python -c "import turbo_physai.ops; print(turbo_physai.ops.__file__)"
+python -c "import turbo_physai._C; print(turbo_physai._C.__file__)"
 turbo-physai --help
 ```
 
-上述命令全部成功且 `turbo-physai --help` 正常显示帮助信息，表示组件及原生算子扩展可以加载。`turbo_physai.ops` 加载失败通常表示编译产物与 PyTorch ABI、DTK/ROCm Runtime 或动态库搜索路径不匹配。
+上述命令全部成功且 `turbo-physai --help` 正常显示帮助信息，表示组件及原生算子扩展可以加载。`turbo_physai._C` 加载失败通常表示编译产物与 PyTorch ABI、DTK/ROCm Runtime 或动态库搜索路径不匹配。
 
 ## 卸载源码安装版本
 

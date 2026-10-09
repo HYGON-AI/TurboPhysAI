@@ -1025,8 +1025,9 @@ class BevFusionPatchFrameworkTest(unittest.TestCase):
                         rows.append(grad[batch, pz, py, px])
                     return torch.stack(rows)
 
-            bev_pool._ops = lambda: Extension()
-            bev_pool._NATIVE_BEV_POOL_AUTOGRAD = None
+            from turbo_physai.operators import _bev_pool as bev_operators
+            bev_operators._ops = lambda: Extension()
+            bev_operators._NATIVE_BEV_POOL_AUTOGRAD = None
             features = torch.tensor([[1., 2.], [3., 4.]], requires_grad=True)
             coords = torch.tensor([[0, 0, 0, 0], [0, 0, 0, 0]])
             output = bev_pool.bev_pool(features, coords, 1, 1, 1, 1)
@@ -1063,7 +1064,8 @@ class BevFusionPatchFrameworkTest(unittest.TestCase):
                     coords[0] = torch.tensor([1, 2, 3])
                     counts[0] = 1
                     return 1
-            voxel._ops = lambda: VoxelExtension()
+            from turbo_physai.operators import voxelization as voxel_operators
+            voxel_operators._ops = lambda: VoxelExtension()
             points = torch.tensor([[1., 2., 3., 4.]])
             result = voxel.voxelization_forward(
                 None, points, [1., 1., 1.], [0., 0., 0., 4., 4., 4.], 2, 8, True
@@ -1078,7 +1080,8 @@ class BevFusionPatchFrameworkTest(unittest.TestCase):
                 def get_indice_pairs_3d(*args):
                     calls.append(args)
                     return marker
-            indice._ops = lambda: IndiceExtension()
+            from turbo_physai.operators import sparse_conv as sparse_operators
+            sparse_operators._ops = lambda: IndiceExtension()
             indices = torch.zeros((2, 4), dtype=torch.int32)
             output = indice.get_indice_pairs(
                 indices, 1, [4, 5, 6], 3, 1, 1, 1, 0, False, False
@@ -1111,7 +1114,8 @@ class BevFusionPatchFrameworkTest(unittest.TestCase):
                 def bev_pool_prepare_geometry(*args):
                     calls.append(args)
                     return marker
-            bev_pool._ops = lambda: Extension()
+            from turbo_physai.operators import _bev_pool as bev_operators
+            bev_operators._ops = lambda: Extension()
             tensor = torch.zeros(1, 1, 1, 1, 1, 3)
             matrix = torch.eye(3).reshape(1, 1, 3, 3)
             vector = torch.zeros(1, 1, 3)

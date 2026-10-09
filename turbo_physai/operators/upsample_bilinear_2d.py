@@ -3,13 +3,20 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # Modified by Hygon.
+import math
+
 import torch
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
-from turbo_physai.ops import upsample_bilinear_2d_forward, upsample_bilinear_2d_backward
+from turbo_physai._C import upsample_bilinear_2d_forward, upsample_bilinear_2d_backward
 from typing import Callable, List, Optional, Tuple, Union
 
 Tensor = torch.Tensor
+
+
+def _sym_int(value):
+    return int(value)
+
 
 class UpSampleBilinear2dFunction(Function):
     @staticmethod

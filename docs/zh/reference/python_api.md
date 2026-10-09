@@ -2,6 +2,28 @@
 
 Python API 适用于能够控制训练入口和模型模块导入顺序的集成方式。常规多进程训练优先使用 [`turbo-physai run`](cli.md#run)，由 Runner 在每个训练进程中应用优化并准备 RuntimeConfig。
 
+## 算子接口
+
+算子接口统一通过 `turbo_physai.operators` 调用，例如：
+
+```python
+from turbo_physai.operators import grid_sample
+
+output = grid_sample(input, grid, align_corners=False)
+```
+
+当前公开接口包括：
+
+- `grid_sample`、`interpolate`；
+- `modulated_deform_conv2d`、`ModulatedDeformConv2dFunction`；
+- `deformable_aggregation_function`、`DeformableAggregationFunction`；
+- `ms_deform_attn_forward`、`ms_deform_attn_backward`；
+- `bev_pool`、`bev_pool_prepare`、`bev_pool_prepare_geometry`；
+- `voxelize`、`dynamic_voxelize`、`hard_voxelize`、`dynamic_scatter`；
+- `get_indice_pairs`、`indice_conv`、`indice_maxpool`。
+
+仅导入 `turbo_physai.operators` 不会加载算子依赖；首次访问具体接口时才加载对应实现。原生扩展 `turbo_physai._C` 供内部封装使用。
+
 ## `turbo_physai.apply()`
 
 `apply()` 加载一份 OptimizationConfig，检查其适用性，在当前 Python 进程中安装满足条件的优化，并返回本次应用报告。

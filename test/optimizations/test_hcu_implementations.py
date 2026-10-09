@@ -25,7 +25,7 @@ def _require_hcu():
         pytest.skip("a real HCU device is required")
     # This import must fail, rather than skip, when the formal HCU environment
     # has not built the bundled extension.
-    import turbo_physai.ops  # noqa: F401
+    import turbo_physai._C  # noqa: F401
 
 
 def _msda_inputs(device):

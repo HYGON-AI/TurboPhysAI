@@ -6,7 +6,7 @@
 
 ## 统一扩展
 
-TurboPhysAI 将仓库内的原生算子统一编译为 `turbo_physai.ops`。构建过程由 `setup.py` 完成：
+TurboPhysAI 将仓库内的原生算子统一编译为 `turbo_physai._C`。构建过程由 `setup.py` 完成：
 
 - 递归收集 `kernel/` 和 `turbo_physai/csrc/` 下的 `.cu`、`.cpp`、`.cc`、`.cxx`；
 - 自动收集 `kernel/` 下包含头文件的目录；
@@ -16,7 +16,7 @@ TurboPhysAI 将仓库内的原生算子统一编译为 `turbo_physai.ops`。构�
 
 ![自定义算子从 Kernel 源码到 Python 前端的接入链路](../../assets/custom-operator-flow.svg)
 
-Python 前端可以直接提供算子 API，也可以作为 Replacement 由 Optimization Group 应用到模型入口。
+`turbo_physai.operators` 提供可直接调用的 Python 算子接口；`turbo_physai._C` 是编译生成的内部扩展模块。Python 前端也可以作为 Replacement 由 Optimization Group 应用到模型入口。
 
 新增算子不得定义独立的 `PYBIND11_MODULE`，否则会与统一扩展入口冲突。
 
@@ -70,9 +70,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 构建后，接口通过统一模块访问：
 
 ```python
-from turbo_physai import ops
+from turbo_physai import _C
 
-output = ops.bev_pool_forward(
+output = _C.bev_pool_forward(
     features,
     coordinates,
     interval_lengths,
@@ -92,18 +92,18 @@ Python 前端负责将原生接口组织成稳定、可测试的 Python 能力�
 
 | 能力范围                       | 代码位置                                          | 仓库案例                    |
 | ------------------------------ | ------------------------------------------------- | --------------------------- |
-| 可由用户直接调用的通用算子 API | `turbo_physai/operators/`                        | `grid_sample.py`          |
-| 仅用于某个公共框架入口的优化   | `turbo_physai/optimizations/common/<framework>/` | `mmdet3d/bev_pool.py`     |
+| 可由用户直接调用的通用算子 API | `turbo_physai/operators/`                        | `_grid_sample.py`          |
+| 公共框架入口适配与专用优化     | `turbo_physai/optimizations/common/<framework>/` | `mmdet3d/bev_pool.py`     |
 | 依赖具体模型计算链路的实现     | `turbo_physai/optimizations/models/<model>/`     | 模型专用 Forward 或 Wrapper |
 
 ### 3.1 通用算子 API：GridSample
 
-`turbo_physai/operators/grid_sample.py` 从统一扩展导入 Forward 和 Backward，并使用 `torch.autograd.Function` 维护梯度契约：
+`turbo_physai/operators/_grid_sample.py` 从统一扩展导入 Forward 和 Backward，并使用 `torch.autograd.Function` 维护梯度契约：
 
 ```python
 import torch
 
-from turbo_physai.ops import grid_sample_backward, grid_sample_forward
+from turbo_physai._C import grid_sample_backward, grid_sample_forward
 
 
 class GridSampleFunction(torch.autograd.Function):
@@ -132,34 +132,22 @@ class GridSampleFunction(torch.autograd.Function):
         return grad_input, grad_grid, None, None, None
 ```
 
-该形式适用于具有独立 Python API、可以脱离具体模型调用的算子。
+在 `turbo_physai/operators/__init__.py` 中登记公开名称与实现模块的映射，用户通过 `from turbo_physai.operators import grid_sample` 调用。算子实现按需导入，避免加载配置时依赖 Torch 或原生扩展。
 
 ### 3.2 公共框架优化：BEV Pool
 
-BEV Pool 的 Python 前端位于 `turbo_physai/optimizations/common/mmdet3d/bev_pool.py`。它延迟获取 `turbo_physai.ops`，并在 Python 层完成连续内存处理和参数类型转换：
+BEV Pool 的通用实现位于 `turbo_physai/operators/_bev_pool.py`，负责排序、参数转换和 Autograd。`turbo_physai/optimizations/common/mmdet3d/bev_pool.py` 保留框架入口签名，调用公共算子接口：
 
 ```python
-def _ops():
-    from turbo_physai import ops
+def bev_pool(feats, coords, B, D, H, W, ranks=None):
+    from turbo_physai import operators
 
-    return ops
-
-
-def bev_pool_prepare(geom_feats, bx, dx, nx, B, D, H, W):
-    extension = _ops()
-    return extension.bev_pool_prepare(
-        geom_feats.contiguous(),
-        bx.contiguous(),
-        dx.contiguous(),
-        nx.contiguous(),
-        int(B),
-        int(D),
-        int(H),
-        int(W),
-    )
+    return operators.bev_pool(feats, coords, B, D, H, W, ranks)
 ```
 
-同一文件中的 `NativeQuickCumsumCuda` 使用 `torch.autograd.Function` 连接 `bev_pool_forward` 和 `bev_pool_backward`。延迟导入用于避免仅加载优化声明时提前加载原生扩展；算子首次被实际调用时，Python 前端才访问 `turbo_physai.ops`。
+体素化和稀疏卷积采用相同分层：框架适配层调用 `operators.voxelize`、`operators.dynamic_voxelize`、`operators.hard_voxelize`、`operators.dynamic_scatter`、`operators.get_indice_pairs`、`operators.indice_conv` 和 `operators.indice_maxpool`。原生扩展调用集中在 `operators/` 中；针对框架 `QuickCumsum` 入口的替换保留在 `common/mmdet3d/` 中。
+
+适配层在执行时访问公共算子接口，避免仅加载优化声明时提前加载 Torch 或原生扩展。
 
 ## 4. 声明优化 Group
 
@@ -181,7 +169,7 @@ BEV_POOL = group(
 )
 ```
 
-Group 只声明 Python 对象的替换关系。原生算子已经随 `turbo_physai.ops` 构建和安装，不由 Group 在运行时编译或加载。
+Group 只声明 Python 对象的替换关系。原生算子已经随 `turbo_physai._C` 构建和安装，不由 Group 在运行时编译或加载。
 
 公共算子优化应只依赖稳定的框架入口，不应包含模型专用的 Forward 改写、数据链路调整或 `torch.compile` 包装。模型专用优化可以通过依赖公共 Group 复用该算子能力。
 
@@ -192,7 +180,7 @@ Group 只声明 Python 对象的替换关系。原生算子已经随 `turbo_phys
 - 支持范围内的 Forward 数值；
 - dtype、shape、layout、device 和边界输入；
 - 不支持输入的明确异常；
-- 原生接口能够从 `turbo_physai.ops` 导入和调用；
+- 原生接口能够从 `turbo_physai._C` 导入和调用；
 - 构建产物中不存在重复的 `PYBIND11_MODULE`；
 - 构建过程未将生成的 HIP 文件纳入维护源码。
 
@@ -208,7 +196,7 @@ Group 只声明 Python 对象的替换关系。原生算子已经随 `turbo_phys
 
 ## 6. 接入边界
 
-自定义算子源码在构建 TurboPhysAI wheel 时统一编译为 `turbo_physai.ops`。训练启动阶段只加载已安装的扩展，不执行算子编译。
+自定义算子源码在构建 TurboPhysAI wheel 时统一编译为 `turbo_physai._C`。训练启动阶段只加载已安装的扩展，不执行算子编译。
 
 OptimizationConfig 用于选择和应用 Python 接口替换，不负责构建或安装原生算子。因此：
 

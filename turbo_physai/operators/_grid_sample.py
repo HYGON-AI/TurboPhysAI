@@ -3,13 +3,21 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # Modified by Hygon.
+import warnings
+
 import torch
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
-from turbo_physai.ops import grid_sample_forward, grid_sample_backward
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Optional
 
 Tensor = torch.Tensor
+
+
+def _ops():
+    from turbo_physai import _C
+
+    return _C
+
 
 class GridSampleFunction(Function):
     @staticmethod
@@ -18,7 +26,9 @@ class GridSampleFunction(Function):
         ctx.padding_mode = padding_mode
         ctx.align_corners = align_corners
         ctx.save_for_backward(input, grid)
-        output = grid_sample_forward(input, grid, mode, padding_mode, align_corners)
+        output = _ops().grid_sample_forward(
+            input, grid, mode, padding_mode, align_corners
+        )
         return output
 
     @staticmethod
@@ -26,7 +36,15 @@ class GridSampleFunction(Function):
     def backward(ctx, grad_output):
         input, grid = ctx.saved_tensors
         output_mask = [True, True]
-        grad_input, grad_grid = grid_sample_backward(grad_output, input, grid, ctx.mode, ctx.padding_mode, ctx.align_corners, output_mask)
+        grad_input, grad_grid = _ops().grid_sample_backward(
+            grad_output,
+            input,
+            grid,
+            ctx.mode,
+            ctx.padding_mode,
+            ctx.align_corners,
+            output_mask,
+        )
         return grad_input, grad_grid, None, None, None
 
 

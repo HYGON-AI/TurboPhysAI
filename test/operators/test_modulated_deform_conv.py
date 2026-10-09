@@ -17,7 +17,7 @@ pytestmark = pytest.mark.hcu
 def _require_hcu_operator():
     if not torch.cuda.is_available():
         pytest.skip("a real HCU device is required")
-    from turbo_physai import modulated_deform_conv2d
+    from turbo_physai.operators import modulated_deform_conv2d
 
     return modulated_deform_conv2d
 
