@@ -7250,14 +7250,14 @@ index 0000000000000000000000000000000000000000..4075781fcc72a4ffebe6786d9e69a3f6
 +MASTER_PORT=29730
 +INPUT_FILE="inputs/omni/t2v.json"
 +OUTPUT_DIR="outputs/inference_official_nano_hcu"
-+CHECKPOINT_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP"
++CHECKPOINT_PATH="path/to/Cosmos3-Nano-DCP"
 +
 +# 本地资产路径（按需直接修改）
-+WAN_VAE_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth"
-+SOUND_TOKENIZER_DIR="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano/sound_tokenizer"
-+PROCESSOR_DIR="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano"
-+GUARDRAIL_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos-1.0-Guardrail"
-+QWEN3GUARD_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Qwen3Guard-Gen-0.6B"
++WAN_VAE_PATH="path/to/Wan2.2_VAE.pth"
++SOUND_TOKENIZER_DIR="path/to/Cosmos3-Nano/sound_tokenizer"
++PROCESSOR_DIR="path/to/Cosmos3-Nano"
++GUARDRAIL_PATH="path/to/Cosmos-1.0-Guardrail"
++QWEN3GUARD_PATH="path/to/Qwen3Guard-Gen-0.6B"
 +
 +# 执行推理
 +torchrun --nproc_per_node="$NPROC_PER_NODE" --master_port="$MASTER_PORT" \
@@ -7290,14 +7290,14 @@ index 0000000000000000000000000000000000000000..2c5978154a7a716f548e54c51e058cc1
 +MASTER_PORT=30730
 +INPUT_FILE="inputs/omni/t2v.json"
 +OUTPUT_DIR="outputs/inference_official_nano_nvidia"
-+CHECKPOINT_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP"
++CHECKPOINT_PATH="path/to/Cosmos3-Nano-DCP"
 +
 +# 本地资产路径（按需直接修改）
-+WAN_VAE_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth"
-+SOUND_TOKENIZER_DIR="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos-3-Nano/sound_tokenizer"
-+PROCESSOR_DIR="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos-3-Nano"
-+GUARDRAIL_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos-1.0-Guardrail"
-+QWEN3GUARD_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Qwen3Guard-Gen-0.6B"
++WAN_VAE_PATH="path/to/Wan2.2_VAE.pth"
++SOUND_TOKENIZER_DIR="path/to/Cosmos-3-Nano/sound_tokenizer"
++PROCESSOR_DIR="path/to/Cosmos-3-Nano"
++GUARDRAIL_PATH="path/to/Cosmos-1.0-Guardrail"
++QWEN3GUARD_PATH="path/to/Qwen3Guard-Gen-0.6B"
 +
 +# 执行推理
 +torchrun --nproc_per_node="$NPROC_PER_NODE" --master_port="$MASTER_PORT" \
@@ -7330,14 +7330,14 @@ index 0000000000000000000000000000000000000000..4b5d722726893981d887a182cf225d36
 +MASTER_PORT=29731
 +INPUT_FILE="inputs/omni/t2v.json"
 +OUTPUT_DIR="outputs/inference_official_super_hcu"
-+CHECKPOINT_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Super"
++CHECKPOINT_PATH="path/to/Cosmos3-Super"
 +
 +# 本地资产路径（按需直接修改）
-+WAN_VAE_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth"
-+SOUND_TOKENIZER_DIR="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano/sound_tokenizer"
-+PROCESSOR_DIR="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Super"
-+GUARDRAIL_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos-1.0-Guardrail"
-+QWEN3GUARD_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Qwen3Guard-Gen-0.6B"
++WAN_VAE_PATH="path/to/Wan2.2_VAE.pth"
++SOUND_TOKENIZER_DIR="path/to/Cosmos3-Nano/sound_tokenizer"
++PROCESSOR_DIR="path/to/Cosmos3-Super"
++GUARDRAIL_PATH="path/to/Cosmos-1.0-Guardrail"
++QWEN3GUARD_PATH="path/to/Qwen3Guard-Gen-0.6B"
 +
 +# 执行推理
 +torchrun --nproc_per_node="$NPROC_PER_NODE" --master_port="$MASTER_PORT" \
@@ -7370,14 +7370,14 @@ index 0000000000000000000000000000000000000000..1ed7b1314de0fa2f0e65453fe7bd5744
 +MASTER_PORT=30731
 +INPUT_FILE="inputs/omni/t2v.json"
 +OUTPUT_DIR="outputs/inference_official_super_nvidia"
-+CHECKPOINT_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos-3-Super"
++CHECKPOINT_PATH="path/to/Cosmos-3-Super"
 +
 +# 本地资产路径（按需直接修改）
-+WAN_VAE_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth"
-+SOUND_TOKENIZER_DIR="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos-3-Nano/sound_tokenizer"
-+PROCESSOR_DIR="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos-3-Super"
-+GUARDRAIL_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos-1.0-Guardrail"
-+QWEN3GUARD_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/Qwen3Guard-Gen-0.6B"
++WAN_VAE_PATH="path/to/Wan2.2_VAE.pth"
++SOUND_TOKENIZER_DIR="path/to/sound_tokenizer"
++PROCESSOR_DIR="path/to/Cosmos-3-Super"
++GUARDRAIL_PATH="path/to/Cosmos-1.0-Guardrail"
++QWEN3GUARD_PATH="path/to/Qwen3Guard-Gen-0.6B"
 +
 +# 执行推理
 +torchrun --nproc_per_node="$NPROC_PER_NODE" --master_port="$MASTER_PORT" \
@@ -7725,9 +7725,9 @@ index 0000000000000000000000000000000000000000..cd1bb6c1f254cb4f6622c068ea319554
 +# 本地资产与数据路径（按需直接修改）
 +TOML_FILE="examples/toml/sft_config/vision_sft_nano.toml"
 +DATASET_PATH="/data/Cosmos/datasets/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge"
-+BASE_CHECKPOINT_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP"
-+WAN_VAE_PATH="/public/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth"
-+LOCAL_PROCESSOR_DIR="/public/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano"
++BASE_CHECKPOINT_PATH="path/to/Cosmos3-Nano-DCP"
++WAN_VAE_PATH="path/to/Wan2.2_VAE.pth"
++LOCAL_PROCESSOR_DIR="path/to/Cosmos3-Nano"
 +
 +# 日志与性能摘要由公共 launcher 保存；PERF_* 不是训练模块的开关。
 +OUTPUT_ROOT="$OUTPUT_DIR"
@@ -7825,8 +7825,8 @@ index 0000000000000000000000000000000000000000..6f139e2f3e4117f35f38274a7edf02b6
 +
 +# 本地资产与数据路径（按需直接修改）
 +TOML_FILE="examples/toml/sft_config/llava_ov.toml"
-+VLM_MODEL_NAME="/public/opendas/DL_DATA/llm-models/qwen3/Qwen3-VL-8B-Instruct"
-+VLM_SAFETENSORS_PATH="/data/Cosmos/checkpoints/Cosmos3-Nano-VLM"
++VLM_MODEL_NAME="path/to/Qwen3-VL-8B-Instruct"
++VLM_SAFETENSORS_PATH="path/to/Cosmos3-Nano-VLM"
 +
 +# 执行训练
 +HIP_VISIBLE_DEVICES="$HIP_VISIBLE_DEVICES" \
@@ -7862,8 +7862,8 @@ index 0000000000000000000000000000000000000000..2b3a8959b29e54683b2dfe6a9b9bf058
 +
 +: "${TOML_FILE:=examples/toml/sft_config/videophy2_sft_nano.toml}"
 +: "${VIDEOPHYSICS_ROOT:=/data/Cosmos/datasets/videophysics_iter2_repro}"
-+: "${VLM_MODEL_NAME:=/public/opendas/DL_DATA/llm-models/qwen3/Qwen3-VL-8B-Instruct}"
-+: "${VLM_SAFETENSORS_PATH:=/data/Cosmos/checkpoints/Cosmos3-Nano-VLM}"
++: "${VLM_MODEL_NAME:=path/to/Qwen3-VL-8B-Instruct}"
++: "${VLM_SAFETENSORS_PATH:=path/to/Cosmos3-Nano-VLM}"
 +: "${RUN_NAME:=reasoner_videophy2_nano_hcu_perf_8card}"
 +: "${OUTPUT_ROOT:=/data/Cosmos/cosmos/outputs/hcu_training}"
 +: "${LOG_FILENAME:=${RUN_NAME}.log}"
