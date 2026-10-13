@@ -1,0 +1,29 @@
+# Runtime settings for the HCU FlashOCC checkout.
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+environment:
+  set:
+    NCCL_SOCKET_IFNAME: lo
+    GLOO_SOCKET_IFNAME: lo
+    NCCL_TOPO_FILE: "null"
+    NCCL_ALGO: Ring
+    HIP_VISIBLE_DEVICES: "0,1,2,3,4,5,6,7"
+    CUDA_VISIBLE_DEVICES: "0,1,2,3,4,5,6,7"
+    PYTORCH_MIOPEN_SUGGEST_NHWC: "1"
+    MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
+    MIOPEN_FIND_MODE: "1"
+    ROCBLAS_MATH_MODE: "1"
+    HSA_FORCE_FINE_GRAIN_PCIE: "1"
+    TORCHINDUCTOR_LAYOUT_OPTIMIZATION: "1"
+    TORCHINDUCTOR_COORDINATE_DESCENT_TUNING: "1"
+    TURBO_PHYSAI_BOOTSTRAP: "1"
+    FLASHOCC_ROOT: /workspace/FlashOCC_TurboPhysAI/FlashOCC
+    FLASHOCC_RUNTIME_ROOT: /workspace/FlashOCC
+    GPUS_PER_NODE: "8"
+    PYTHONPATH: /workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc:/workspace/FlashOCC_TurboPhysAI/FlashOCC:/workspace/FlashOCC
+  unset:
+    - NCCL_RINGS
+
+process:
+  numa: true

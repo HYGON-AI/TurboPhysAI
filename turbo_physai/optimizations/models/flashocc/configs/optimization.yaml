@@ -1,0 +1,102 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.flashocc.hcu
+  version: 0.1.0
+  description: External HCU optimization recipe for official FlashOCC
+model:
+  name: flashocc
+compatibility:
+  commits:
+  - 449dc7947d6549ccb72a99d6f6d8c02f166ec0dd
+optimization_groups:
+- id: flashocc.compile.image_encoder
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.image_encoder:
+      - source-v1:0f3d8f181e12172207fe0fdd85f0a1221938e79c4fc853d504b8fe77aaf6a662
+    ast_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.image_encoder:
+      - ast-v1:19dea9a0e83ebd6ee8abe36e57a6d3aedd1933347e1b65589f592aca8eed0495
+- id: flashocc.compile.bev_encoder
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.bev_encoder:
+      - source-v1:805256dff0cb3ba368eb812eb18bbc58337130bf0a6b3a8288269296d5a81bd6
+    ast_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.bev_encoder:
+      - ast-v1:7e9f81804d3841baeb104b3ee087c8b29ba1c130d8aa682c68a8f8b028deffab
+- id: flashocc.compile.prepare_inputs
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.prepare_inputs:
+      - source-v1:aaea04f1007569921c3bad4ac7bf8d2588a6204e811b052e08d7d46eae7bcd03
+    ast_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.prepare_inputs:
+      - ast-v1:86ec1597007cac43fd4e31cb681230cf96d09f85c447836ac3c33e29ab72544e
+- id: flashocc.compile.occ_train
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet_occ.BEVDetOCC.forward_occ_train:
+      - source-v1:f5751fc0de56d883b0e766ff651633551f1483c8988ad63c6e003547019d226c
+    ast_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet_occ.BEVDetOCC.forward_occ_train:
+      - ast-v1:ef8884929ba87f00391cbadac63f8d0d24e9557b196e2aba454828d80a656f24
+- id: flashocc.loader.pin_memory
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet.datasets.builder.build_dataloader:
+      - source-v1:8121f43cb0abfe7dad83ef3ba932f7547a9d73b59787b9952b8eed72b072a981
+    ast_hashes:
+      mmdet.datasets.builder.build_dataloader:
+      - ast-v1:39c166c3f2803ee00f717195a0698c10986f53fab23fca6aee6fcc717f406eb5
+- id: flashocc.loader.persistent_workers
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.apis.train.train_detector:
+      - source-v1:e90e045051d72b9675044b3e088723e588bbb26816aa5e8258e863c6f5f9d8ed
+    ast_hashes:
+      mmdet3d.apis.train.train_detector:
+      - ast-v1:8dfc36fd6ffdcf7fe078e3d0c23e38b4013f7dc89a5a65713819f9a76e788420
+- id: flashocc.view_transformer.accelerated_preparation
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.necks.view_transformer.LSSViewTransformer.__init__:
+      - source-v1:d8e67323158043a15aec233603b1ebfe3696e2657b06445cdd098407997a6b72
+      projects.mmdet3d_plugin.models.necks.view_transformer.LSSViewTransformer.get_ego_coor:
+      - source-v1:564da16a3d1d9fcda715456482e7864fc8a1bc8606a0b1aa9e24a94e3dab6fd1
+      projects.mmdet3d_plugin.models.necks.view_transformer.LSSViewTransformer.voxel_pooling_prepare_v2:
+      - source-v1:60a925eaf3ad668e3674229d92dcb9916c856110e6024ad5a41ceeb70dc6344d
+    ast_hashes:
+      projects.mmdet3d_plugin.models.necks.view_transformer.LSSViewTransformer.__init__:
+      - ast-v1:b4843a8541e9f5a9a2809b23005a1f3c2ae71c7ba3eada2da073724f29003a5d
+      projects.mmdet3d_plugin.models.necks.view_transformer.LSSViewTransformer.get_ego_coor:
+      - ast-v1:24a19c5f25e1c7865666883fd3d733d8bca31b22e81e3f970b02f3d3718c1d56
+      projects.mmdet3d_plugin.models.necks.view_transformer.LSSViewTransformer.voxel_pooling_prepare_v2:
+      - ast-v1:20ccfbf512b64908b43849512b54bf3db336747df47dc022606348b0d106d91d
+- id: flashocc.activation_checkpoint.disable
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.__init__:
+      - source-v1:f8e5a433c4e4e30a343d73d39802cda48bb49854fd1fda8b755cf4d6d0e96913
+    ast_hashes:
+      projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.__init__:
+      - ast-v1:a9d201d3a42fa4ad7d96869ebf7e50b536ffa90193e3b45f68d6e275fa6d5fcf
+optimization_modules:
+- turbo_physai.optimizations.models.flashocc.catalog

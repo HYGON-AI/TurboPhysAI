@@ -1,0 +1,33 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+
+metadata:
+  id: model.flashocc.hcu
+  version: "0.1.0"
+  description: External HCU optimization recipe for official FlashOCC
+
+model:
+  name: flashocc
+
+optimization_modules:
+  - turbo_physai.optimizations.models.flashocc.catalog
+
+compatibility: {}
+
+optimization_groups:
+  - id: flashocc.compile.image_encoder
+    enabled: true
+  - id: flashocc.compile.bev_encoder
+    enabled: true
+  - id: flashocc.compile.prepare_inputs
+    enabled: true
+  - id: flashocc.compile.occ_train
+    enabled: true
+  - id: flashocc.loader.pin_memory
+    enabled: true
+  - id: flashocc.loader.persistent_workers
+    enabled: true
+  - id: flashocc.view_transformer.accelerated_preparation
+    enabled: true
+  - id: flashocc.activation_checkpoint.disable
+    enabled: true
