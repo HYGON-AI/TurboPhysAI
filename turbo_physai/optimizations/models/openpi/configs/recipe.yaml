@@ -1,0 +1,68 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+
+metadata:
+  id: model.openpi.turbo
+  version: "1.0.0"
+  description: OpenPI HCU optimization recipe for generating the validated config
+
+model:
+  name: openpi
+
+optimization_modules:
+  - turbo_physai.optimizations.models.openpi.catalog
+
+# Do not extend common.hcu.base: its MMCV/3D detection groups are unrelated to OpenPI.
+compatibility: {}
+
+optimization_groups:
+  - id: openpi.numa
+    enabled: true
+    options: {}
+
+  - id: openpi.network
+    enabled: true
+    options: {}
+
+  - id: openpi.ddp_static_fast_path
+    enabled: true
+    options:
+      broadcast_buffers: false
+      find_unused_parameters: false
+      gradient_as_bucket_view: true
+      static_graph: true
+
+  - id: openpi.compile_stack
+    enabled: true
+    options:
+      optimize_ddp: false
+      compile: true
+      direct: true
+      fullgraph: false
+      mode: max-autotune-no-cudagraphs
+
+  - id: openpi.gemma_checkpoint_stride
+    enabled: true
+    options:
+      layer_stride: 0
+
+  - id: openpi.fused_adamw
+    enabled: true
+    options:
+      fused: true
+
+  - id: openpi.deferred_metric_sync
+    enabled: true
+    options: {}
+
+  - id: openpi.disable_tqdm
+    enabled: true
+    options: {}
+
+
+  - id: openpi.inductor_settings
+    enabled: true
+    options:
+      inductor:
+        layout_optimization: true
+        shape_padding: true
