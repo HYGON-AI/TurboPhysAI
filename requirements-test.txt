@@ -1,0 +1,6 @@
+-r requirements.txt
+# Verified version. On Python 3.10 with HCU, 7.10.0 records less subprocess
+# coverage; compare coverage data before upgrading or relaxing this pin.
+coverage==7.16.2
+diff-cover>=10.6
+pytest>=8.0
