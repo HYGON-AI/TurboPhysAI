@@ -1,7 +1,6 @@
-# Runtime settings for the HCU FlashOCC checkout.
+# HCU runtime for the external FlashOCC integration.
 schema_version: turbophysai/runtime-config/v1
 kind: RuntimeConfig
-
 environment:
   set:
     NCCL_SOCKET_IFNAME: lo
@@ -19,11 +18,10 @@ environment:
     TORCHINDUCTOR_COORDINATE_DESCENT_TUNING: "1"
     TURBO_PHYSAI_BOOTSTRAP: "1"
     FLASHOCC_ROOT: /workspace/FlashOCC_TurboPhysAI/FlashOCC
-    FLASHOCC_RUNTIME_ROOT: /workspace/FlashOCC
+    FLASHOCC_RUNTIME_ROOT: /workspace/FlashOCC_TurboPhysAI/runtime
     GPUS_PER_NODE: "8"
-    PYTHONPATH: /workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc:/workspace/FlashOCC_TurboPhysAI/FlashOCC:/workspace/FlashOCC
+    PYTHONPATH: /workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC
   unset:
     - NCCL_RINGS
-
 process:
   numa: true
