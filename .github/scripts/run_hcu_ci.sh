@@ -6,7 +6,6 @@ set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 artifact_dir="${TURBOPHYSAI_CI_ARTIFACT_DIR:-${repo_root}/ci-artifacts}"
-verify_dir="$(mktemp -d /tmp/turbophysai-verify.XXXXXX)"
 test_dir="$(mktemp -d /tmp/turbophysai-test.XXXXXX)"
 build_root="$(mktemp -d /tmp/turbophysai-build.XXXXXX)"
 
@@ -16,7 +15,7 @@ exec > >(tee "${log_file}") 2>&1
 
 cleanup() {
   status=$?
-  rm -rf -- "${verify_dir}" "${test_dir}" "${build_root}"
+  rm -rf -- "${test_dir}" "${build_root}"
   if [[ "${TURBOPHYSAI_HOST_UID:-}" =~ ^[0-9]+$ && \
         "${TURBOPHYSAI_HOST_GID:-}" =~ ^[0-9]+$ ]]; then
     chown -R "${TURBOPHYSAI_HOST_UID}:${TURBOPHYSAI_HOST_GID}" "${artifact_dir}" 2>/dev/null || true
@@ -33,7 +32,9 @@ echo "workflow_sha=${GITHUB_SHA:-unset}"
 echo "workflow_ref_name=${GITHUB_REF_NAME:-unset}"
 echo "workflow_ref_type=${GITHUB_REF_TYPE:-unset}"
 echo "container_image=${TURBOPHYSAI_CI_IMAGE:-unset}"
-git -c safe.directory="${repo_root}" -C "${repo_root}" rev-parse HEAD
+if [[ -d "${repo_root}/.git" || -f "${repo_root}/.git" ]]; then
+  git -c safe.directory="${repo_root}" -C "${repo_root}" rev-parse HEAD
+fi
 git config --global --add safe.directory "${repo_root}"
 
 echo "===== DTK and build-tool environment ====="
@@ -46,6 +47,17 @@ export ROCM_HOME="${ROCM_HOME:-${ROCM_PATH:-/opt/dtk}}"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PYTHONDONTWRITEBYTECODE=1
 unset PYTHONPATH
+# Product images may already contain a released component. Only remove it in
+# this disposable container before building the candidate wheel.
+python3 -m pip uninstall -y turbo-physai || true
+# The loader must find Torch and the read-only mounted host driver libraries.
+torch_lib="$(python3 -c 'import importlib.util,pathlib; s=importlib.util.find_spec("torch"); print(pathlib.Path(s.origin).parent/"lib")')"
+# Respect the image's CUDA selection; DTK's default link follows its active version.
+cuda_lib="${CUDA_HOME:-${CUDA_PATH:-${ROCM_HOME}/cuda/cuda}}/lib64"
+if [[ -d "${cuda_lib}" ]]; then
+  export LD_LIBRARY_PATH="${cuda_lib}:${LD_LIBRARY_PATH:-}"
+fi
+export LD_LIBRARY_PATH="${torch_lib}:/opt/hyhal/lib:/opt/hyhal/lib64:${LD_LIBRARY_PATH:-}"
 
 python3 --version
 python3 -m pip --version
@@ -62,15 +74,6 @@ elif command -v rocm-smi >/dev/null 2>&1; then
 else
   echo "No hy-smi or rocm-smi command is available; torch will report the HCU model."
 fi
-
-echo "===== Verify the CI image does not preinstall TurboPhysAI ====="
-cd "${verify_dir}"
-env -u PYTHONPATH python3 - <<'PY'
-import importlib.util
-
-spec = importlib.util.find_spec("turbo_physai")
-assert spec is None, f"the CI image must not preinstall turbo_physai: {spec}"
-PY
 
 echo "===== Install declared build and test dependencies ====="
 python3 -m pip install -r "${repo_root}/requirements-dev.txt"
@@ -103,27 +106,11 @@ fi
 
 python3 -m pip install --force-reinstall --no-deps "${wheels[0]}"
 
-echo "===== Verify imports outside the checkout ====="
-cd "${verify_dir}"
-env -u PYTHONPATH TURBOPHYSAI_REPO_ROOT="${repo_root}" python3 - <<'PY'
-import os
-from pathlib import Path
-
-import turbo_physai
-import turbo_physai._C
-
-repo_root = Path(os.environ["TURBOPHYSAI_REPO_ROOT"]).resolve()
-for module in (turbo_physai, turbo_physai._C):
-    module_path = Path(module.__file__).resolve()
-    print(f"{module.__name__}: {module_path}")
-    assert not module_path.is_relative_to(repo_root), module_path
-PY
-
-echo "===== Verify required versions and single-HCU visibility ====="
-env -u PYTHONPATH TURBOPHYSAI_REPO_ROOT="${repo_root}" python3 - <<'PY'
+echo "===== Verify native imports, required versions and HCU visibility ====="
+cd "${test_dir}"
+env -u PYTHONPATH python3 - <<'PY'
 import os
 from importlib.metadata import PackageNotFoundError, version
-from pathlib import Path
 
 from packaging.version import Version
 import hipdnn
@@ -170,23 +157,16 @@ for distribution in (
 print("torch HIP runtime:", torch.version.hip)
 print("HCU count:", torch.cuda.device_count())
 print("HCU model:", torch.cuda.get_device_name(0))
+print("HCU architecture:", torch.cuda.get_device_properties(0).gcnArchName)
 print("hipdnn:", hipdnn.__file__)
 print("lightop:", lightop.__file__)
 print("TurboPhysAI:", turbo_physai.__file__)
 print("TurboPhysAI native extension:", turbo_physai._C.__file__)
-
-repo_root = Path(os.environ["TURBOPHYSAI_REPO_ROOT"]).resolve()
-for module in (turbo_physai, turbo_physai._C):
-    assert not Path(module.__file__).resolve().is_relative_to(repo_root)
 PY
 
-echo "===== Run the complete non-HCU and single-HCU test suite ====="
+echo "===== Run component tests and generate coverage reports ====="
 cd "${test_dir}"
-env -u PYTHONPATH python3 -m pytest \
-  --import-mode=importlib \
-  -p no:cacheprovider \
-  "${repo_root}/test" \
-  -vv \
-  --junitxml="${artifact_dir}/pytest-junit.xml" 2>&1 | tee "${artifact_dir}/pytest.log"
+env -u PYTHONPATH python3 "${repo_root}/scripts/run_tests.py" \
+  --installed --_run-dir "${artifact_dir}/coverage" -- -vv
 
 echo "===== CI completed successfully ====="

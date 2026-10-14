@@ -46,6 +46,8 @@ Wrapper 应保持原目标的外部调用契约。运行条件允许使用优化
 - [`test/operators/test_deformable_aggregation.py`](../../../test/operators/test_deformable_aggregation.py) 使用参考计算验证 Deformable Aggregation 的输出和梯度；
 - [`test/engine/test_bevfusion.py`](../../../test/engine/test_bevfusion.py) 中的 `test_factorized_depth_features_match_dense_outer_product_and_gradients` 对比 BEVFusion 稠密参考计算与优化实现，并验证输入梯度。
 
+分类覆盖率及变更行覆盖率报告见[单测执行与覆盖率报告](test_runner.md)。
+
 本地执行验证时：
 
 - `bash scripts/test_unit.sh` 运行 `test/engine`、`test/test_runner.py`、`test/operators` 和 `test/optimizations`，其中标记为 `hcu` 的测试也会执行，因此需要可用的 HCU 环境；

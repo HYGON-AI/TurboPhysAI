@@ -6,7 +6,6 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -26,14 +25,11 @@ def native_extension(monkeypatch):
 
 @pytest.fixture
 def operator(native_extension):
-    # Load fresh bindings without a built extension or cached operator module.
-    path = (
-        Path(__file__).resolve().parents[2]
-        / "turbo_physai/operators/upsample_bilinear_2d.py"
+    # Resolve the active package, then load fresh bindings for the patched extension.
+    spec = importlib.util.find_spec(
+        "turbo_physai.operators.upsample_bilinear_2d"
     )
-    spec = importlib.util.spec_from_file_location(
-        "turbo_physai.operators.upsample_bilinear_2d", path
-    )
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

@@ -32,6 +32,7 @@
 - [优化声明](zh/developer_guide/optimization_declarations.md)
 - [生成和检查 OptimizationConfig](zh/developer_guide/optimization_config_generation.md)
 - [优化验证与交付](zh/developer_guide/validation.md)
+- [单测执行与覆盖率报告](zh/developer_guide/test_runner.md)
 - [自定义算子接入](zh/developer_guide/custom_operator.md)
 
 ## 设计与维护
