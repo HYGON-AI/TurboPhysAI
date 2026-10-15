@@ -1,0 +1,126 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.openpi.turbo
+  version: 1.0.0
+  description: OpenPI HCU optimization recipe for generating the validated config
+model:
+  name: openpi
+compatibility:
+  commits:
+  - 215abfb217dbac7d5f1273282331b9b1866c0479
+optimization_groups:
+- id: openpi.numa
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      scripts.train_pytorch.setup_ddp:
+      - source-v1:d8a6e4ab1c0cc64fe24ff8d5574b4c71d2cd7ceb59f17aaeb47857dba56aaf95
+    ast_hashes:
+      scripts.train_pytorch.setup_ddp:
+      - ast-v1:ffc35f35fbc5ab95be6007c556bb95c08b62178d5b9fc607cde4276a90cadbea
+- id: openpi.network
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch.distributed.init_process_group:
+      - source-v1:41451eefdbf9214cc0b78e82bcd7a2cfd0d09db54c91c53f46f5d5c4d4fc36e9
+    ast_hashes:
+      torch.distributed.init_process_group:
+      - ast-v1:c668b1dee7842737f683387ac61505764734b7b044bdafc1c6e6ac9f14865a87
+- id: openpi.ddp_static_fast_path
+  enabled: true
+  options:
+    broadcast_buffers: false
+    find_unused_parameters: false
+    gradient_as_bucket_view: true
+    static_graph: true
+  trust:
+    source_hashes:
+      torch.nn.parallel.DistributedDataParallel.__init__:
+      - source-v1:8847d35b4b0d119a96487119498a30f50c8579ccc5a9425e53586bc297b75548
+    ast_hashes:
+      torch.nn.parallel.DistributedDataParallel.__init__:
+      - ast-v1:52ca4756bf610c0b25a97c40803da2c4a1b82d420fe94b29b4b3ca233eda1960
+- id: openpi.compile_stack
+  enabled: true
+  options:
+    compile: true
+    direct: true
+    fullgraph: false
+    mode: max-autotune-no-cudagraphs
+    optimize_ddp: false
+  trust:
+    source_hashes:
+      scripts.train_pytorch.init_logging:
+      - source-v1:be220d1ad05210e14b52c66118f2b16459a3291983ec24f5f72dc9d25c32f67c
+      openpi.models_pytorch.pi0_pytorch.PI0Pytorch._apply_checkpoint:
+      - source-v1:92729f6322021e808f03b01ebf3359f10e4a87c67856941941eb49bec88032f3
+      turbo_physai.optimizations.models.openpi.targets.PI0PytorchImageAlias._apply_checkpoint:
+      - source-v1:92729f6322021e808f03b01ebf3359f10e4a87c67856941941eb49bec88032f3
+    ast_hashes:
+      scripts.train_pytorch.init_logging:
+      - ast-v1:623dcfdb1f62edb160f09b5a3a6a6159aae74618e1bc24a5ac1c7beda25ef0a6
+      openpi.models_pytorch.pi0_pytorch.PI0Pytorch._apply_checkpoint:
+      - ast-v1:ae6349ec995e07fd5351b2580be59fe386ee59bae85f7e95edb08921255b5e6a
+      turbo_physai.optimizations.models.openpi.targets.PI0PytorchImageAlias._apply_checkpoint:
+      - ast-v1:ae6349ec995e07fd5351b2580be59fe386ee59bae85f7e95edb08921255b5e6a
+- id: openpi.gemma_checkpoint_stride
+  enabled: true
+  options:
+    layer_stride: 0
+  trust:
+    source_hashes:
+      openpi.models_pytorch.gemma_pytorch.PaliGemmaWithExpertModel.forward:
+      - source-v1:eb9fa339a3613e7b4b1b4f3e49ff1ecc0ff40d27b9bcebaf54dc22a6583bbdef
+    ast_hashes:
+      openpi.models_pytorch.gemma_pytorch.PaliGemmaWithExpertModel.forward:
+      - ast-v1:6213a8af7cf1edb2ed10e1c6eb1dbb7502a1a7fc6255ff34184f9a313e58a8a1
+- id: openpi.fused_adamw
+  enabled: true
+  options:
+    fused: true
+  trust:
+    source_hashes:
+      torch.optim.AdamW:
+      - source-v1:2ae5744ac85c373f977d4d640008ab15aaaaccf4879000048f93b32c3f7ba764
+    ast_hashes:
+      torch.optim.AdamW:
+      - ast-v1:48509352a3bb389239d1f66868832e1e1877e17109120e91b6cb6e55eb56d91e
+- id: openpi.deferred_metric_sync
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      scripts.train_pytorch.train_loop:
+      - source-v1:6544f5a034ccbf8caf68a3dad313f602d4f4c96a581f27a8b38ff844a3e939c9
+    ast_hashes:
+      scripts.train_pytorch.train_loop:
+      - ast-v1:a56662f326a4101d78c09031455599e3f4fd5dc955f7493decbfd6f3bd2ae2f0
+- id: openpi.disable_tqdm
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      scripts.train_pytorch.tqdm.tqdm:
+      - source-v1:924b2cc9e4248079565bb8e3e7fc7d9019035c0f07ccfd972124de3a0a347403
+    ast_hashes:
+      scripts.train_pytorch.tqdm.tqdm:
+      - ast-v1:781bc3f8d26620af6868b2eea9b043799e8a76c31d7625c31ebd7085a0e188a6
+- id: openpi.inductor_settings
+  enabled: true
+  options:
+    inductor:
+      layout_optimization: true
+      shape_padding: true
+  trust:
+    source_hashes:
+      torch.compile:
+      - source-v1:75728118c0d570d2744521ed7924b67d0fa7f29a3b640b9856b6694056fd05ff
+    ast_hashes:
+      torch.compile:
+      - ast-v1:d8f452754fb75629052ce766c364e20b202808a57554c0af443a6841970971d9
+optimization_modules:
+- turbo_physai.optimizations.models.openpi.catalog
