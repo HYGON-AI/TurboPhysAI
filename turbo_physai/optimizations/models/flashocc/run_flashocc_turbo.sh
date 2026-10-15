@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source /root/.hygon_base_env
-
 ROOT=/workspace/FlashOCC_TurboPhysAI
 FLASHOCC_ROOT="$ROOT/FlashOCC"
 STATIC_DATA_ROOT="$ROOT/static_data/data/nuscenes"
@@ -19,7 +17,7 @@ exec turbo-physai run \
     --launcher pytorch \
     --work-dir "$work_dir" \
     --cfg-options \
-    data.samples_per_gpu=8 \
+    data.samples_per_gpu=16 \
     data.workers_per_gpu=4 \
     "data.train.data_root=$STATIC_DATA_ROOT/" \
     "data.train.ann_file=$STATIC_DATA_ROOT/bevdetv2-nuscenes_infos_train.pkl" \
@@ -27,4 +25,5 @@ exec turbo-physai run \
     "data.val.ann_file=$STATIC_DATA_ROOT/bevdetv2-nuscenes_infos_val.pkl" \
     "data.test.data_root=$STATIC_DATA_ROOT/" \
     "data.test.ann_file=$STATIC_DATA_ROOT/bevdetv2-nuscenes_infos_val.pkl" \
-    "load_from=$ROOT/static_data/ckpts/bevdet-r50-cbgs.pth"
+    "load_from=$ROOT/static_data/ckpts/bevdet-r50-cbgs.pth" \
+    log_config.interval=1

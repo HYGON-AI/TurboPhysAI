@@ -298,6 +298,75 @@ def install_config_path_compatibility(
     Config._file2dict = staticmethod(file2dict_with_fallback)
 
 
+_FLASHOCC_INFO_FILES = {
+    "bevdetv2-nuscenes_infos_train.pkl",
+    "bevdetv2-nuscenes_infos_val.pkl",
+}
+
+
+def _resolve_info_path(value, data_base: Path):
+    if not isinstance(value, (str, os.PathLike)) or not value:
+        return value
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return str(path)
+    return os.path.abspath(data_base / path)
+
+
+def _resolve_nuscenes_info_paths(data, data_base: Path):
+    if not isinstance(data, dict):
+        return data
+
+    for info in data.get("infos", ()):
+        if not isinstance(info, dict):
+            continue
+        for key in ("lidar_path", "occ_path"):
+            if key in info:
+                info[key] = _resolve_info_path(info[key], data_base)
+        for camera in (info.get("cams") or {}).values():
+            if "data_path" in camera:
+                camera["data_path"] = _resolve_info_path(
+                    camera["data_path"], data_base
+                )
+        for sweep in info.get("sweeps", ()):
+            if "data_path" in sweep:
+                sweep["data_path"] = _resolve_info_path(
+                    sweep["data_path"], data_base
+                )
+    return data
+
+
+def install_relative_nuscenes_path_compatibility(
+    data_base: str | os.PathLike[str],
+) -> None:
+    """Resolve FlashOCC info PKL paths in memory without rewriting the PKL."""
+    import mmcv
+
+    if getattr(mmcv.load, "_flashocc_relative_paths", False):
+        return
+
+    original_load = mmcv.load
+    resolved_base = Path(data_base).expanduser().resolve()
+    if not resolved_base.is_dir():
+        raise FileNotFoundError(
+            f"FlashOCC data path base does not exist: {resolved_base}"
+        )
+
+    def load_with_flashocc_paths(filename, *args, **kwargs):
+        data = original_load(filename, *args, **kwargs)
+        try:
+            source = getattr(filename, "name", filename)
+            basename = Path(os.fspath(source)).name
+        except TypeError:
+            return data
+        if basename in _FLASHOCC_INFO_FILES:
+            return _resolve_nuscenes_info_paths(data, resolved_base)
+        return data
+
+    load_with_flashocc_paths._flashocc_relative_paths = True
+    mmcv.load = load_with_flashocc_paths
+
+
 def install_compatibility(
     model_root: str | os.PathLike[str],
     runtime_root: str | os.PathLike[str],
@@ -309,6 +378,11 @@ def install_compatibility(
         sys.path, model_path, runtime_path, optimization_path
     )
     install_config_path_compatibility(model_path, runtime_path)
+
+    data_base = os.environ.get(
+        "FLASHOCC_DATA_BASE", str(model_path.parent / "static_data")
+    )
+    install_relative_nuscenes_path_compatibility(data_base)
 
     sys.meta_path.insert(0, LegacyEncodingSourceFinder(model_path))
     finder = PrebuiltExtensionFinder(_extension_files(runtime_path))

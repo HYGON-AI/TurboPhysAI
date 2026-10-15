@@ -66,10 +66,10 @@ optimization_groups:
   trust:
     source_hashes:
       mmdet3d.apis.train.train_detector:
-      - source-v1:e90e045051d72b9675044b3e088723e588bbb26816aa5e8258e863c6f5f9d8ed
+      - source-v1:3ea7a63d0d25230ba20dfcbda1b80f730d92061d460c67394e0069a65a3ed7df
     ast_hashes:
       mmdet3d.apis.train.train_detector:
-      - ast-v1:8dfc36fd6ffdcf7fe078e3d0c23e38b4013f7dc89a5a65713819f9a76e788420
+      - ast-v1:5035b28ccbde9d0aa8a52cde1668d256dfd794b4f3f2cfd53c136431ad171539
 - id: flashocc.view_transformer.accelerated_preparation
   enabled: true
   options: {}
