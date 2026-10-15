@@ -45,6 +45,7 @@ jobs:
     env:
       HIP_VISIBLE_DEVICES: "0"
       MAX_JOBS: "4"
+      TURBOPHYSAI_DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}
       PIP_INDEX_URL: ${{ vars.HCU_PIP_INDEX_URL }}
       PIP_TRUSTED_HOST: ${{ vars.HCU_PIP_TRUSTED_HOST }}
 
@@ -133,6 +134,7 @@ jobs:
             -e GITHUB_REF_TYPE \
             -e HIP_VISIBLE_DEVICES \
             -e MAX_JOBS \
+            -e TURBOPHYSAI_DIFF_BASE \
             -e TURBOPHYSAI_HOST_UID="$(id -u)" \
             -e TURBOPHYSAI_HOST_GID="$(id -g)" \
             -e TURBOPHYSAI_CI_IMAGE \
@@ -162,6 +164,9 @@ jobs:
           fi
 
           echo "::notice title=Local CI artifacts::${artifact_dir}"
+          if [[ -f "${artifact_dir}/coverage/summary.md" ]]; then
+            cat "${artifact_dir}/coverage/summary.md" >> "${GITHUB_STEP_SUMMARY}"
+          fi
           {
             echo "### Local CI artifacts"
             echo

@@ -20,3 +20,4 @@ kernel/**/*.bak
 kernel/**/*.orig
 kernel/**/*.rej
 kernel/**/*~
+/test-reports/
