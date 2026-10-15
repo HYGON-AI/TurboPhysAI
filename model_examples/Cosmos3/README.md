@@ -12,9 +12,7 @@ docker run -it --network=host --name=cosmos_hygon --privileged --device=/dev/kfd
 ```
 ### 准备代码
 ```bash
-git clone --branch feature/cosmos3-patch https://github.com/iMountTai/TurboPhysAI.git
-cd TurboPhysAI
-cd ..
+git clone https://github.com/HYGON-AI/TurboPhysAI.git
 git clone https://github.com/NVIDIA/cosmos-framework.git
 cd cosmos-framework
 git checkout 9726697a
@@ -25,6 +23,7 @@ git checkout 9726697a
 在 Cosmos 仓库根目录应用补丁；以下假设 TurboPhysAI 和 cosmos-framework 是同级相邻目录：
 
 ```bash
+git apply --check ../TurboPhysAI/model_examples/Cosmos3/cosmos-framework.patch
 git apply ../TurboPhysAI/model_examples/Cosmos3/cosmos-framework.patch
 ```
 
@@ -35,9 +34,11 @@ git apply -R ../TurboPhysAI/model_examples/Cosmos3/cosmos-framework.patch
 ```
 
 ### 安装训练依赖
-```
-cd /data/TurboPhysAI
-pip install -r model_examples/Cosmos3/requirements.txt
+
+在 `cosmos-framework` 根目录执行：
+
+```bash
+pip install -r ../TurboPhysAI/model_examples/Cosmos3/requirements.txt
 pip install lerobot --no-deps
 ```
 
@@ -65,17 +66,27 @@ tar -xzf Cosmos3-DROID-perf64.tar.gz -C /data/
 
 wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/Qwen3-VL-8B-Instruct-tokenizer-cache.tar.gz
 tar -xzf Qwen3-VL-8B-Instruct-tokenizer-cache.tar.gz -C /data/
+cd /data/cosmos-framework
 ```
 
-DROID perf64 子集使用 `/data/Cosmos3-DROID-perf64/keep_ranges_perf64.json` 过滤文件。Tokenizer 缓存解压到 `/data/hf-cache`，不包含 Qwen 模型权重。
+DROID perf64 压缩包包含 `success/` 下的 metadata、数据和视频，以及 `/data/Cosmos3-DROID-perf64/keep_ranges_perf64.json`。直接使用该子集及过滤文件，无需下载完整 DROID 数据。Tokenizer 缓存解压到 `/data/hf-cache`，不包含 Qwen 模型权重。
+
+上游 loader 根据 `DROID_ROOT` 的目录名选择数据版本。为子集建立名为 `droid_plus_lerobot_640x360_20260412` 的目录别名，无需复制数据：
+
+```bash
+mkdir -p /data/droid-perf64
+ln -sT /data/Cosmos3-DROID-perf64 /data/droid-perf64/droid_plus_lerobot_640x360_20260412
+```
+
+后文 `DROID_ROOT` 指向该别名，过滤文件仍指向解压后的文件；已有正确别名时跳过创建。metadata 和共享数据文件可能包含未选 episode，训练时必须启用 perf64 过滤文件。
 
 将 Cosmos3-Nano HF 权重转换为 DCP 时，在 Cosmos 仓库根目录设置 `WAN_VAE_PATH` 和 `BASE_CHECKPOINT_PATH`，然后执行：
 
 ```bash
-   WAN_VAE_PATH=$WAN_VAE_PATH HF_HUB_OFFLINE=1 \
-   python -m cosmos_framework.scripts.convert_model_to_dcp \
-       -i /path/to/Cosmos3-Nano -o $BASE_CHECKPOINT_PATH
-   ```
+WAN_VAE_PATH="$WAN_VAE_PATH" HF_HUB_OFFLINE=1 \
+python -m cosmos_framework.scripts.convert_model_to_dcp \
+    -i /path/to/Cosmos3-Nano -o "$BASE_CHECKPOINT_PATH"
+```
 
 上游转换脚本会读取 VAE/processor；离线环境需预先准备 Hugging Face 缓存。
 
@@ -88,6 +99,7 @@ DROID perf64 子集使用 `/data/Cosmos3-DROID-perf64/keep_ranges_perf64.json` �
 export PYTHONPATH="$PWD"
 export HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export HF_HUB_OFFLINE=1 OMP_NUM_THREADS=1
+export HF_HOME=/data/hf-cache
 export MIOPEN_FIND_MODE=1 PYTORCH_MIOPEN_SUGGEST_NDHWC=1
 export TORCH_NCCL_HIGH_PRIORITY=1
 ```
@@ -122,12 +134,12 @@ torchrun --nproc-per-node=8 --master_port=29712 \
 ### Action Policy（DROID）
 
 ```bash
-export HF_HOME=/data/cosmos-test/hf-cache
+export HF_HOME=/data/hf-cache
 export BASE_CHECKPOINT_PATH=path/to/Cosmos3-Nano-DCP
 export WAN_VAE_PATH=path/to/Wan2.2_VAE.pth
 export LOCAL_PROCESSOR_DIR=path/to/Cosmos3-Nano
-export DROID_ROOT=/data/Cosmos/datasets/droid_plus_lerobot_640x360_20260412
-export KEEP_RANGES_PATH=/data/Cosmos/datasets/Cosmos3-DROID-perf64/keep_ranges_perf64.json
+export DROID_ROOT=/data/droid-perf64/droid_plus_lerobot_640x360_20260412
+export KEEP_RANGES_PATH=/data/Cosmos3-DROID-perf64/keep_ranges_perf64.json
 export IMAGINAIRE_OUTPUT_ROOT=./outputs/action_policy
 export TORCHINDUCTOR_WORKER_START=spawn TORCHINDUCTOR_COMPILE_THREADS=4
 export OMP_NUM_THREADS=4
@@ -200,8 +212,11 @@ HF_HUB_OFFLINE=0 torchrun --nproc_per_node=8 --master_port=29715 \
 
 ## 运行说明
 
-- 运行环境以 Shell 中的设置为准，日志与训练产物由 `IMAGINAIRE_OUTPUT_ROOT` 指定。
+- 本页 `torchrun` 命令使用 Shell 中的环境设置；使用启动脚本时以脚本配置区为准。日志与训练产物由 `IMAGINAIRE_OUTPUT_ROOT` 指定。
+- 重复使用同一输出目录和任务名会自动恢复已有 checkpoint；需要从头测试时，请使用新目录或任务名。
+- `checkpoint.save_iter=1000` 只调整周期保存间隔，训练结束时仍会保存最终 checkpoint，请预留存储空间。
 - 修改卡数时，同步调整 `HIP_VISIBLE_DEVICES`、`--nproc_per_node` 和 `data_parallel_shard_degree`。
 - 调整 Reasoner 训练步数时，同步修改 `trainer.max_iter` 和 `scheduler.cycle_lengths`。
 - 单项优化通过模型的环境变量或训练配置控制。
-- 也可直接使用 patch 中的 `examples/launch_sft_*_hcu.sh`，按各脚本说明设置资产与运行参数。
+- 使用 patch 中的 `examples/launch_sft_*_hcu.sh` 前，直接编辑脚本开头的资产路径、输出目录和运行参数，再执行脚本。直接赋值的配置会覆盖外部 `export`；保留默认值语法的参数仍按脚本原有方式处理。
+- 四份 `examples/launch_inference_generator_vision_*_{hcu,nvidia_local}.sh` 推理脚本也需直接编辑开头的运行参数与资产路径；输入文件中的图片路径必须指向实际图片。补丁不附带本地 I2V 示例图片。

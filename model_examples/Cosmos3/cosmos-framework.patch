@@ -255,7 +255,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
          if distributed.is_rank0():
 diff --git a/cosmos_framework/checkpoint/load_only.py b/cosmos_framework/checkpoint/load_only.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..651c9b710ea531a0cb088871ad5c1fecc62fb471
+index 0000000000000000000000000000000000000000..ea523096a3647d2754e8fc0936e046c114be25b2
 --- /dev/null
 +++ b/cosmos_framework/checkpoint/load_only.py
 @@ -0,0 +1,13 @@
@@ -4509,7 +4509,7 @@ index ca9f9418cc77a545651add0eca434c5d67257450..a0eed55280e45ffdb1344088af97ce75
          )  # [N_patches,embed_dim]
 diff --git a/cosmos_framework/model/generator/tokenizers/fused_ops/__init__.py b/cosmos_framework/model/generator/tokenizers/fused_ops/__init__.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..3a327c67b371b754a8e0ff1c78d199defa217085
+index 0000000000000000000000000000000000000000..33a883fd9a7b64298e0dc6ba9e809cbacead17ee
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/__init__.py
 @@ -0,0 +1,30 @@
@@ -4545,7 +4545,7 @@ index 0000000000000000000000000000000000000000..3a327c67b371b754a8e0ff1c78d199de
 +]
 diff --git a/cosmos_framework/model/generator/tokenizers/fused_ops/_concat_layout.py b/cosmos_framework/model/generator/tokenizers/fused_ops/_concat_layout.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..3df077698afbe2341a19f2b6bf9871c65146339c
+index 0000000000000000000000000000000000000000..36573df4651cdfb91581369bbc2c1201085256dd
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/_concat_layout.py
 @@ -0,0 +1,83 @@
@@ -4634,7 +4634,7 @@ index 0000000000000000000000000000000000000000..3df077698afbe2341a19f2b6bf9871c6
 +WEIGHT_CACHE = FrozenWeightCache()
 diff --git a/cosmos_framework/model/generator/tokenizers/fused_ops/_hipdnn.py b/cosmos_framework/model/generator/tokenizers/fused_ops/_hipdnn.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..3b41b37d62eda37c895db7eb8bd36b2b4919904b
+index 0000000000000000000000000000000000000000..f271c14de536d848e00aa48128b8246cc9449a1a
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/_hipdnn.py
 @@ -0,0 +1,355 @@
@@ -4995,7 +4995,7 @@ index 0000000000000000000000000000000000000000..3b41b37d62eda37c895db7eb8bd36b2b
 +    )
 diff --git a/cosmos_framework/model/generator/tokenizers/fused_ops/concat_conv_bias.py b/cosmos_framework/model/generator/tokenizers/fused_ops/concat_conv_bias.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..f3b76deac7fc1f470ffa0eed17d4cfe7e94daad6
+index 0000000000000000000000000000000000000000..1d213001ca7ca7b8baa300d1f0a2c54c1d02125b
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/concat_conv_bias.py
 @@ -0,0 +1,484 @@
@@ -5485,7 +5485,7 @@ index 0000000000000000000000000000000000000000..f3b76deac7fc1f470ffa0eed17d4cfe7
 +__all__ = ["fused_causal_cache_pad_conv3d_ndhwc", "fused_concat_conv_bias"]
 diff --git a/cosmos_framework/model/generator/tokenizers/fused_ops/conv_bias.py b/cosmos_framework/model/generator/tokenizers/fused_ops/conv_bias.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..49f03721ef38838eeac3865a4f01fa2f195055c2
+index 0000000000000000000000000000000000000000..5a687b022d162b206d1904146f92256be549b1db
 --- /dev/null
 +++ b/cosmos_framework/model/generator/tokenizers/fused_ops/conv_bias.py
 @@ -0,0 +1,304 @@
@@ -6659,7 +6659,7 @@ index 87cdd39ebabadfa7c56638a62c957eb4a4a943c9..9670d4aa51fa33b9383c2357a2a8241b
      os.environ["TORCH_NCCL_BLOCKING_WAIT"] = "0"
 diff --git a/cosmos_framework/utils/fsdp_ordered_comm.py b/cosmos_framework/utils/fsdp_ordered_comm.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..9cd3bca12093b6bfd2dd97c6e4e8c53f0021057a
+index 0000000000000000000000000000000000000000..9dd40ebab028976a7f5ee8b82bfae56da0e839d1
 --- /dev/null
 +++ b/cosmos_framework/utils/fsdp_ordered_comm.py
 @@ -0,0 +1,140 @@
@@ -6861,7 +6861,7 @@ index 8165d506be71ecbb9882212d0f517e9f43d6389a..41966352bf2dfe0f683c0996e17b0ad8
  def _read_basic_metadata(decoder: Any) -> tuple[int, float]:
 diff --git a/cosmos_framework/utils/memory_format.py b/cosmos_framework/utils/memory_format.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..cb2f451b8caecd752d4745cff5ab05076ec36242
+index 0000000000000000000000000000000000000000..9d7a2e2ab07811c98049d7a1f292317015beed91
 --- /dev/null
 +++ b/cosmos_framework/utils/memory_format.py
 @@ -0,0 +1,65 @@
@@ -6932,7 +6932,7 @@ index 0000000000000000000000000000000000000000..cb2f451b8caecd752d4745cff5ab0507
 +    return conv2d_count, conv3d_count
 diff --git a/cosmos_framework/utils/memory_format_test.py b/cosmos_framework/utils/memory_format_test.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..49717a54266997005076c372b887e772511b7575
+index 0000000000000000000000000000000000000000..b6fca74ee23bcb15639f22ecdc1df462786d837f
 --- /dev/null
 +++ b/cosmos_framework/utils/memory_format_test.py
 @@ -0,0 +1,43 @@
@@ -7057,7 +7057,7 @@ index 3022e0a2b053c9b16c9253333fde33afd67e55d9..14c33c1432cf39081803c132a852a091
  class NVTXRangeContext:
 diff --git a/cosmos_framework/utils/video_decode.py b/cosmos_framework/utils/video_decode.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..e8e3ef8bd6c0e8e4f890e1b09569bf620d107c6a
+index 0000000000000000000000000000000000000000..6b8327c4d1766501bd4a1893e8af3c4bfdbfa39a
 --- /dev/null
 +++ b/cosmos_framework/utils/video_decode.py
 @@ -0,0 +1,103 @@
@@ -7234,7 +7234,7 @@ index 5920ae83c08bfbe6033c368eca7ae2d4f5f7f5d1..48b90f3becfb0f9e4d62daf62bd8df5c
  exit $EXIT_CODE
 diff --git a/examples/launch_inference_generator_vision_nano_hcu.sh b/examples/launch_inference_generator_vision_nano_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..4075781fcc72a4ffebe6786d9e69a3f6023b1c70
+index 0000000000000000000000000000000000000000..76403a534fbd411388fdef7496b67d0e3bd9fd16
 --- /dev/null
 +++ b/examples/launch_inference_generator_vision_nano_hcu.sh
 @@ -0,0 +1,34 @@
@@ -7274,7 +7274,7 @@ index 0000000000000000000000000000000000000000..4075781fcc72a4ffebe6786d9e69a3f6
 +    "$@"
 diff --git a/examples/launch_inference_generator_vision_nano_nvidia_local.sh b/examples/launch_inference_generator_vision_nano_nvidia_local.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..2c5978154a7a716f548e54c51e058cc181fbd21d
+index 0000000000000000000000000000000000000000..7a68de6510df83fd7aa793949d2deedb338b0609
 --- /dev/null
 +++ b/examples/launch_inference_generator_vision_nano_nvidia_local.sh
 @@ -0,0 +1,34 @@
@@ -7314,7 +7314,7 @@ index 0000000000000000000000000000000000000000..2c5978154a7a716f548e54c51e058cc1
 +    "$@"
 diff --git a/examples/launch_inference_generator_vision_super_hcu.sh b/examples/launch_inference_generator_vision_super_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..4b5d722726893981d887a182cf225d3670cbc4f8
+index 0000000000000000000000000000000000000000..d1afb9ba0acd7685e49ab68085a0661b9ca097b9
 --- /dev/null
 +++ b/examples/launch_inference_generator_vision_super_hcu.sh
 @@ -0,0 +1,34 @@
@@ -7354,7 +7354,7 @@ index 0000000000000000000000000000000000000000..4b5d722726893981d887a182cf225d36
 +    "$@"
 diff --git a/examples/launch_inference_generator_vision_super_nvidia_local.sh b/examples/launch_inference_generator_vision_super_nvidia_local.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..1ed7b1314de0fa2f0e65453fe7bd57449de6290b
+index 0000000000000000000000000000000000000000..a811f0a1a0cba00ca34a5ea8d625e5837869d61b
 --- /dev/null
 +++ b/examples/launch_inference_generator_vision_super_nvidia_local.sh
 @@ -0,0 +1,34 @@
@@ -7394,25 +7394,26 @@ index 0000000000000000000000000000000000000000..1ed7b1314de0fa2f0e65453fe7bd5744
 +    "$@"
 diff --git a/examples/launch_sft_action_policy_droid_hcu.sh b/examples/launch_sft_action_policy_droid_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..29ee92b225a876aae8285d956df34045cf73978e
+index 0000000000000000000000000000000000000000..0ccd4b8960d20649f2c679d32e58a2e79a5d15cd
 --- /dev/null
 +++ b/examples/launch_sft_action_policy_droid_hcu.sh
-@@ -0,0 +1,136 @@
+@@ -0,0 +1,137 @@
 +#!/usr/bin/env bash
 +# HCU wrapper for the official Cosmos3-Nano DROID Action Policy SFT recipe.
-+# One launcher covers short validation and longer runs through env overrides.
++# Edit the paths below; runtime knobs may be overridden from the environment.
 +
 +set -euo pipefail
 +
 +SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
++WORKDIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 +
-+# User setup: set these paths for your filesystem (or export them before launch).
-+# DROID_ROOT, BASE_CHECKPOINT_PATH and WAN_VAE_PATH must point to prepared assets.
-+: "${DROID_ROOT:=/root/Cosmos3/datasets/droid_plus_lerobot_640x360_20260412}"
-+: "${BASE_CHECKPOINT_PATH:=/public4/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP}"
-+: "${WAN_VAE_PATH:=/public4/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth}"
-+: "${KEEP_RANGES_PATH:=}"  # Optional: prepared performance subset filter.
-+: "${OUTPUT_ROOT:=/data/outputs/action_policy}"
++# 启动前直接修改下列资产路径和输出目录；外部 export 不会覆盖这些路径。
++# DROID_ROOT 使用 README 中准备的 perf64 子集；完整数据训练时修改根目录并清空 KEEP_RANGES_PATH。
++DROID_ROOT="/data/droid-perf64/droid_plus_lerobot_640x360_20260412"
++BASE_CHECKPOINT_PATH="/path/to/Cosmos3-Nano-DCP"
++WAN_VAE_PATH="/path/to/Wan2.2_VAE.pth"
++KEEP_RANGES_PATH="$DROID_ROOT/keep_ranges_perf64.json"
++OUTPUT_ROOT="$WORKDIR/outputs/action_policy"
 +
 +# Runtime defaults; override only when needed.
 +# Text tokenizer follows the official recipe: Qwen/Qwen3-VL-8B-Instruct.
@@ -7536,7 +7537,7 @@ index 0000000000000000000000000000000000000000..29ee92b225a876aae8285d956df34045
 +source "$SCRIPT_DIR/_sft_launcher_common.sh"
 diff --git a/examples/launch_sft_action_policy_libero_all_hcu.sh b/examples/launch_sft_action_policy_libero_all_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..d7c290abdd4335e41b1eba811bcb8e375a1d5ae7
+index 0000000000000000000000000000000000000000..e725674aed38ddf4d787655aa2623e7e3803e885
 --- /dev/null
 +++ b/examples/launch_sft_action_policy_libero_all_hcu.sh
 @@ -0,0 +1,52 @@
@@ -7562,9 +7563,9 @@ index 0000000000000000000000000000000000000000..d7c290abdd4335e41b1eba811bcb8e37
 +# 本地资产与数据路径（按需直接修改）
 +TOML_FILE="examples/toml/sft_config/action_policy_libero_all_nano.toml"
 +LIBERO_ROOT="/root/Cosmos3/datasets/LIBERO_LeRobot_v3"
-+BASE_CHECKPOINT_PATH="/public4/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP"
-+WAN_VAE_PATH="/public4/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth"
-+LOCAL_PROCESSOR_DIR="/public4/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano"
++BASE_CHECKPOINT_PATH="/path/to/Cosmos3-Nano-DCP"
++WAN_VAE_PATH="/path/to/Wan2.2_VAE.pth"
++LOCAL_PROCESSOR_DIR="/path/to/Cosmos3-Nano"
 +
 +# 执行训练
 +HIP_VISIBLE_DEVICES="$HIP_VISIBLE_DEVICES" \
@@ -7594,7 +7595,7 @@ index 0000000000000000000000000000000000000000..d7c290abdd4335e41b1eba811bcb8e37
 +    "$@"
 diff --git a/examples/launch_sft_action_policy_libero_hcu.sh b/examples/launch_sft_action_policy_libero_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..2e0c28034329c0c8f6ba4181cf988de61b6134b5
+index 0000000000000000000000000000000000000000..975109ac90a54dc96ea442152ef33741d716a082
 --- /dev/null
 +++ b/examples/launch_sft_action_policy_libero_hcu.sh
 @@ -0,0 +1,52 @@
@@ -7620,9 +7621,9 @@ index 0000000000000000000000000000000000000000..2e0c28034329c0c8f6ba4181cf988de6
 +# 本地资产与数据路径（按需直接修改）
 +TOML_FILE="examples/toml/sft_config/action_policy_libero_10_nano.toml"
 +LIBERO_ROOT="/root/Cosmos3/datasets/LIBERO_LeRobot_v3/libero_10"
-+BASE_CHECKPOINT_PATH="/public4/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP"
-+WAN_VAE_PATH="/public4/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth"
-+LOCAL_PROCESSOR_DIR="/public4/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano"
++BASE_CHECKPOINT_PATH="/path/to/Cosmos3-Nano-DCP"
++WAN_VAE_PATH="/path/to/Wan2.2_VAE.pth"
++LOCAL_PROCESSOR_DIR="/path/to/Cosmos3-Nano"
 +
 +# 执行训练
 +HIP_VISIBLE_DEVICES="$HIP_VISIBLE_DEVICES" \
@@ -7652,7 +7653,7 @@ index 0000000000000000000000000000000000000000..2e0c28034329c0c8f6ba4181cf988de6
 +    "$@"
 diff --git a/examples/launch_sft_generator_vision_nano_cosmosdataloader_hcu.sh b/examples/launch_sft_generator_vision_nano_cosmosdataloader_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..7d64d7c5ddd0f3044ea7e4f5c508f79c9f91df7a
+index 0000000000000000000000000000000000000000..40af01ce7659ca64198e83ffa9d87ba018fa7e99
 --- /dev/null
 +++ b/examples/launch_sft_generator_vision_nano_cosmosdataloader_hcu.sh
 @@ -0,0 +1,42 @@
@@ -7675,9 +7676,9 @@ index 0000000000000000000000000000000000000000..7d64d7c5ddd0f3044ea7e4f5c508f79c
 +# 本地资产与数据路径（按需直接修改）
 +TOML_FILE="examples/toml/sft_config/vision_sft_nano_mapstyle_dataloader.toml"
 +DATASET_PATH="/data/Cosmos/datasets/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge"
-+BASE_CHECKPOINT_PATH="/public4/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/Cosmos3-Nano-DCP"
-+WAN_VAE_PATH="/public4/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth"
-+LOCAL_PROCESSOR_DIR="/public4/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Nano"
++BASE_CHECKPOINT_PATH="/path/to/Cosmos3-Nano-DCP"
++WAN_VAE_PATH="/path/to/Wan2.2_VAE.pth"
++LOCAL_PROCESSOR_DIR="/path/to/Cosmos3-Nano"
 +
 +# 执行训练
 +HIP_VISIBLE_DEVICES="$HIP_VISIBLE_DEVICES" \
@@ -7700,7 +7701,7 @@ index 0000000000000000000000000000000000000000..7d64d7c5ddd0f3044ea7e4f5c508f79c
 +    "$@"
 diff --git a/examples/launch_sft_generator_vision_nano_hcu.sh b/examples/launch_sft_generator_vision_nano_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..cd1bb6c1f254cb4f6622c068ea319554d7a60adc
+index 0000000000000000000000000000000000000000..6087130e22c91cf4e6dcf3378f220a44459f40d6
 --- /dev/null
 +++ b/examples/launch_sft_generator_vision_nano_hcu.sh
 @@ -0,0 +1,39 @@
@@ -7745,7 +7746,7 @@ index 0000000000000000000000000000000000000000..cd1bb6c1f254cb4f6622c068ea319554
 +source "$SCRIPT_DIR/_sft_launcher_common.sh"
 diff --git a/examples/launch_sft_generator_vision_super_hcu.sh b/examples/launch_sft_generator_vision_super_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..66367e320be8a5980c9d970f16228cfd5ed34528
+index 0000000000000000000000000000000000000000..ebc0d1a9278fa5c6b933e9209eed26efd2c2d16d
 --- /dev/null
 +++ b/examples/launch_sft_generator_vision_super_hcu.sh
 @@ -0,0 +1,50 @@
@@ -7771,9 +7772,9 @@ index 0000000000000000000000000000000000000000..66367e320be8a5980c9d970f16228cfd
 +# 本地资产与数据路径（按需直接修改）
 +TOML_FILE="examples/toml/sft_config/vision_sft_super.toml"
 +DATASET_PATH="/data/Cosmos/datasets/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge"
-+BASE_CHECKPOINT_PATH="/public4/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Super-DCP"
-+WAN_VAE_PATH="/public4/opendas/DL_DATA/llm-models/Cosmos3/checkpoints/wan22_vae/Wan2.2_VAE.pth"
-+LOCAL_PROCESSOR_DIR="/public4/opendas/DL_DATA/llm-models/Cosmos3/Cosmos3-Super-Text2Image"
++BASE_CHECKPOINT_PATH="/path/to/Cosmos3-Super-DCP"
++WAN_VAE_PATH="/path/to/Wan2.2_VAE.pth"
++LOCAL_PROCESSOR_DIR="/path/to/Cosmos3-Super-Text2Image"
 +
 +# 执行训练
 +HIP_VISIBLE_DEVICES="$HIP_VISIBLE_DEVICES" \
@@ -7801,7 +7802,7 @@ index 0000000000000000000000000000000000000000..66367e320be8a5980c9d970f16228cfd
 +    "$@"
 diff --git a/examples/launch_sft_reasoner_llava_ov_hcu.sh b/examples/launch_sft_reasoner_llava_ov_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..6f139e2f3e4117f35f38274a7edf02b6550c864a
+index 0000000000000000000000000000000000000000..395a3f421ecf03c35771a4aec14ee15cc8550b23
 --- /dev/null
 +++ b/examples/launch_sft_reasoner_llava_ov_hcu.sh
 @@ -0,0 +1,46 @@
@@ -7853,7 +7854,7 @@ index 0000000000000000000000000000000000000000..6f139e2f3e4117f35f38274a7edf02b6
 +    "$@"
 diff --git a/examples/launch_sft_reasoner_videophy2_nano_hcu.sh b/examples/launch_sft_reasoner_videophy2_nano_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..2b3a8959b29e54683b2dfe6a9b9bf058f5a4653f
+index 0000000000000000000000000000000000000000..0de8bc89052a7c288e9fb3d16d415f94813069a5
 --- /dev/null
 +++ b/examples/launch_sft_reasoner_videophy2_nano_hcu.sh
 @@ -0,0 +1,72 @@
@@ -8337,21 +8338,6 @@ index d6fd8b334e04fca91487d72897df359de15d5133..29f35ef2c8721290d247e8a45699e029
  # Per-caption token cap before truncation. Structured-JSON captions run longer than
  # dense prose (measured max ~1790 tokens), so keep headroom; raise it for longer captions.
  max_caption_tokens = 2048
-diff --git a/inputs/omni/i2v_local.json b/inputs/omni/i2v_local.json
-new file mode 100644
-index 0000000000000000000000000000000000000000..94fc105ec62a3d7c3a748fb26e7d484dbecd8e5d
---- /dev/null
-+++ b/inputs/omni/i2v_local.json
-@@ -0,0 +1,9 @@
-+{
-+  "extra": {
-+    "prompt": "The video opens with a view of a testing environment, characterized by a large wooden table at the center. On this table, two robot arms are positioned at opposite ends, with the left arm closer to the camera and the right arm further away. Between the hands lies a dark wooden shelf with a red spherical object on its top rack, likely serving as a platform or obstacle. In the background, various pieces of equipment, including a tripod, a chair, are visible. A person wearing a blue jacket and black pants stands near the center of the room, observing the experiment, with a static hand position throughout. The floor is tiled with a patterned design, and additional items like a small robot figure and some cables can be seen scattered around the space. As the video progresses, the right robotic hand extends outward, moving from its initial position towards the red spherical object on the shelf. The hand then picks up the object and places it on the lowest rack of the shelf, completing a smooth, deliberate manipulation. The left robotic hand remains stationary throughout the sequence. No new objects appear in the video; all existing elements maintain their positions except for the movement of the right robotic hand. The scene concludes with the right robotic hand returning to its initial position, while the left hand continues to rest on the table. The overall environment remains unchanged, with the focus remaining on the interaction between the robotic hands and the wooden block, highlighting precise control during the demonstration."
-+  },
-+  "model_mode": "image2video",
-+  "prompt": "{\"scene_imagination\": \"focus: robotic manipulation demo in a lab with two arms and a wooden shelf. define: left arm stationary, right arm reaches for red sphere on top shelf, places it on bottom shelf, returns. visualize: first frame shows both silver/gray articulated hands at table, dark wood shelf center, red ball on top rack, person observing mid-ground. refine: camera is static overhead-ish POV, wide-angle showing room equipment (tripod, chair, cables). analyze: timing\\u20140:00 idle, 0:01-0:03 reach, 0:03-0:05 grip/redistribute, 0:05-0:08 retract. clarify: lighting is even fluorescent/lab lighting; palette muted grays/beiges with red accent. refine: keep left hand motionless throughout. visualize: smooth mechanical motions, no glitches. define: mood technical, clinical, demonstrative. analyze: ensure all actions end \\u2264 0:08.\", \"temporal_caption\": \"Two robotic arms sit at a wooden table flanking a small wooden shelf; the right arm extends to grasp a red spherical object from the top shelf, repositions it onto the lower shelf, then retracts while the left arm remains still.\", \"audio_description\": \"Low ambient hum of laboratory HVAC and faint electrical whirring from motors; soft mechanical clicks as joints articulate during the reach and release; subtle creak of the wooden shelf under weight; no human speech or music.\", \"subjects\": [{\"description\": \"Left robotic arm with a multi-jointed metallic hand featuring four articulated fingers made of brushed silver and gray composite material, mounted on a black base.\", \"appearance_details\": \"Visible actuator joints, knuckle articulation, matte finish on palm, glossy highlights on finger segments.\", \"relationship\": \"Paired counterpart to the right robotic arm; both interact with the central wooden shelf assembly.\", \"location\": \"Left foreground, resting on the light-colored wooden table\", \"relative_size\": \"Medium within frame\", \"orientation\": \"Hand oriented toward the center of the table\", \"pose\": \"Fingers loosely splayed, hovering just above the tabletop\", \"action\": \"Remains stationary throughout the sequence\", \"state_changes\": \"No significant change.\", \"clothing\": \"\", \"expression\": \"\", \"gender\": \"\", \"age\": \"\", \"skin_tone_and_texture\": \"\", \"facial_features\": \"\", \"number_of_subjects\": 1, \"number_of_arms\": 0, \"number_of_legs\": 0}, {\"description\": \"Right robotic arm with a similar multi-jointed metallic hand, matching the left arm's design but positioned further back near the shelf.\", \"appearance_details\": \"Brushed silver-gray fingers, visible motor housings, slight wear marks suggesting use.\", \"relationship\": \"Primary actor performing the manipulation task; paired with the left arm.\", \"location\": \"Right side, mid-ground near the wooden shelf\", \"relative_size\": \"Medium within frame\", \"orientation\": \"Hand extended forward toward the shelf\", \"pose\": \"Initially relaxed, then extending upward and forward to grasp an object\", \"action\": \"Reaches up, grasps the red spherical object from the top shelf, lowers it to the bottom shelf, then retracts\", \"state_changes\": \"Transitions from resting to reaching, gripping, lowering, and returning to rest.\", \"clothing\": \"\", \"expression\": \"\", \"gender\": \"\", \"age\": \"\", \"skin_tone_and_texture\": \"\", \"facial_features\": \"\", \"number_of_subjects\": 1, \"number_of_arms\": 0, \"number_of_legs\": 0}, {\"description\": \"A person standing in the background wearing a blue zip-up jacket over a white shirt and dark trousers, hands in pockets.\", \"appearance_details\": \"Casual posture, partially obscured by equipment; only torso and legs clearly visible.\", \"relationship\": \"Observer monitoring the robotic demonstration\", \"location\": \"Center background, between the two robotic arms\", \"relative_size\": \"Small within frame\", \"orientation\": \"Facing roughly toward the table and robotic arms\", \"pose\": \"Standing upright with hands in jacket pockets\", \"action\": \"Watches the robotic operation without moving\", \"state_changes\": \"No significant change.\", \"clothing\": \"Blue jacket, white undershirt, black pants\", \"expression\": \"\", \"gender\": \"Unknown\", \"age\": \"Adult\", \"skin_tone_and_texture\": \"Not clearly visible due to distance and clothing\", \"facial_features\": \"\", \"number_of_subjects\": 1, \"number_of_arms\": 2, \"number_of_legs\": 2}], \"background_setting\": \"An indoor robotics testing laboratory with a large light-colored wooden worktable in the foreground, tiled gray floor, scattered equipment including a black office chair, a tripod, a small robot figure, computer monitors, cables, and storage bins against the walls.\", \"lighting\": {\"conditions\": \"Even, diffuse interior lighting typical of a lab environment\", \"direction\": \"Top-down overhead illumination\", \"shadows\": \"Soft, short shadows directly beneath objects\", \"illumination_effect\": \"Subtle specular highlights on the metallic robotic hands\"}, \"aesthetics\": {\"composition\": \"Symmetrical framing with the wooden shelf centered between two robotic arms, leading lines from the table edges\", \"color_scheme\": \"Muted neutrals\\u2014beige wood, gray metal, black accents\\u2014with a single saturated red accent from the spherical object\", \"mood_atmosphere\": \"Clinical, focused, technological\", \"patterns\": \"Grid pattern of the floor tiles\"}, \"cinematography\": {\"camera_motion\": \"Static\", \"framing\": \"Wide shot capturing the full table and surrounding workspace\", \"camera_angle\": \"High-angle, looking down at the table surface\", \"depth_of_field\": \"Deep\", \"focus\": \"Sharp focus across the entire scene, particularly on the robotic arms and shelf\", \"lens_focal_length\": \"Wide-angle approximately 18-24mm equivalent\"}, \"style_medium\": \"Photoreal live-action footage\", \"artistic_style\": \"Documentary technical demonstration\", \"context\": \"A robotics research or development session demonstrating precise object manipulation capabilities using dual robotic arms in a controlled lab setting.\", \"actions\": [{\"time\": \"0:00-0:01\", \"description\": \"Both robotic arms are stationary; the right arm hovers near the top shelf where the red sphere rests.\"}, {\"time\": \"0:01-0:03\", \"description\": \"The right robotic hand extends upward and forward, its fingers closing around the red spherical object on the top shelf.\"}, {\"time\": \"0:03-0:05\", \"description\": \"The right hand lifts the red sphere off the top shelf and carefully lowers it onto the lowest rack of the wooden shelf.\"}, {\"time\": \"0:05-0:07\", \"description\": \"The right hand releases the sphere and retracts back to its initial position beside the shelf.\"}, {\"time\": \"0:07-0:08\", \"description\": \"Both arms settle into their resting positions; the person in the background remains still, observing.\"}], \"text_and_signage_elements\": [], \"segments\": [{\"segment_index\": 0, \"time_range\": \"0:00-0:01\", \"description\": \"Establishing view of the lab table with both robotic arms at rest and the red sphere on the top shelf.\", \"key_changes\": \"None; scene is set.\", \"camera\": \"Static high-angle wide shot\"}, {\"segment_index\": 1, \"time_range\": \"0:01-0:05\", \"description\": \"The right robotic hand reaches up, grasps the red sphere, and transfers it to the lower shelf.\", \"key_changes\": \"Red sphere moves from top shelf to bottom shelf.\", \"camera\": \"Static high-angle wide shot\"}, {\"segment_index\": 2, \"time_range\": \"0:05-0:08\", \"description\": \"The right hand retracts to its original position; both arms remain still as the demonstration concludes.\", \"key_changes\": \"Right arm returns to resting pose; scene stabilizes.\", \"camera\": \"Static high-angle wide shot\"}], \"transitions\": [], \"resolution\": {\"W\": 1280, \"H\": 720}, \"aspect_ratio\": \"16,9\", \"duration\": \"0:08\", \"fps\": 24}",
-+  "vision_path": "../prompt_upsampler/image_inputs/robot_153.jpg",
-+  "name": "i2v_local"
-+}
 diff --git a/inputs/omni/t2v_n4.json b/inputs/omni/t2v_n4.json
 new file mode 100644
 index 0000000000000000000000000000000000000000..e80396e04d2bef76648812c69e9b885cc4475a30
@@ -8362,15 +8348,6 @@ index 0000000000000000000000000000000000000000..e80396e04d2bef76648812c69e9b885c
 +  "defaults_file": "t2v.json",
 +  "num_outputs": 4
 +}
-diff --git a/inputs/prompt_upsampler/image_inputs/robot_153.jpg b/inputs/prompt_upsampler/image_inputs/robot_153.jpg
-new file mode 100644
-index 0000000000000000000000000000000000000000..29885995beb935b36803cc3ef5b02e096f181c9b
---- /dev/null
-+++ b/inputs/prompt_upsampler/image_inputs/robot_153.jpg
-@@ -0,0 +1,3 @@
-+version https://git-lfs.github.com/spec/v1
-+oid sha256:886e6cfa8a0d6c4d96459cfe79b51c56aff4d63e1c523f8366f1771ea9c2788d
-+size 279410
 diff --git a/tests/action_hcu/test_config.py b/tests/action_hcu/test_config.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..6f795e19d0e2ce85fd907c39620333a69837f77a
@@ -8615,14 +8592,15 @@ index 0000000000000000000000000000000000000000..63bb8d086d568a03ebd8d40afb2354a3
 +    unittest.main()
 diff --git a/tests/action_hcu/test_launcher.py b/tests/action_hcu/test_launcher.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..117b0fb13d8f1fd7ac73491096229012c943dcd5
+index 0000000000000000000000000000000000000000..db83a3db2dd42785f1bdcfea3e89b03bac3cc2fd
 --- /dev/null
 +++ b/tests/action_hcu/test_launcher.py
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,165 @@
 +"""CPU-only launcher contract tests: python -m unittest discover -s tests/action_hcu."""
 +
 +import json
 +import os
++import re
 +import subprocess
 +import tempfile
 +import unittest
@@ -8661,9 +8639,22 @@ index 0000000000000000000000000000000000000000..117b0fb13d8f1fd7ac73491096229012
 +            "PERF_RECORD_ENABLED": "true",
 +        }
 +
++    def configured_launcher(self):
++        # Users configure asset paths by editing the script, not by exporting them.
++        script = ROOT / "examples/launch_sft_action_policy_droid_hcu.sh"
++        text = script.read_text()
++        text = re.sub(r'^SCRIPT_DIR=.*$', f'SCRIPT_DIR="{script.parent}"', text, flags=re.M)
++        for key in ("DROID_ROOT", "BASE_CHECKPOINT_PATH", "WAN_VAE_PATH", "OUTPUT_ROOT"):
++            value = self.env[key]
++            text = re.sub(rf'^{key}=.*$', lambda _: f'{key}="{value}"', text, flags=re.M)
++        text = re.sub(r'^KEEP_RANGES_PATH=.*$', 'KEEP_RANGES_PATH=""', text, flags=re.M)
++        configured = self.base / "launch.sh"
++        configured.write_text(text)
++        return configured
++
 +    def launch(self, *args):
 +        return subprocess.run(
-+            ["bash", str(ROOT / "examples/launch_sft_action_policy_droid_hcu.sh"), *args],
++            ["bash", str(self.configured_launcher()), *args],
 +            cwd=self.base,
 +            env=self.env,
 +            text=True,
@@ -8742,9 +8733,9 @@ index 0000000000000000000000000000000000000000..117b0fb13d8f1fd7ac73491096229012
 +        self.assertNotEqual(self.launch().returncode, 0)
 +
 +    def test_relative_invocation_from_outside_repository(self):
-+        script = os.path.relpath(ROOT / "examples/launch_sft_action_policy_droid_hcu.sh", self.base)
 +        for key in ("DROID_ROOT", "OUTPUT_ROOT"):
 +            self.env[key] = os.path.relpath(self.env[key], ROOT)
++        script = os.path.relpath(self.configured_launcher(), self.base)
 +        result = subprocess.run(["bash", script], cwd=self.base, env=self.env, text=True, capture_output=True)
 +        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 +        self.assertTrue((self.base / "output/perf/contract.json").is_file())
@@ -8848,7 +8839,7 @@ index 0000000000000000000000000000000000000000..c55233fc4b7980b32e3fe475c617e9fe
 +    unittest.main()
 diff --git a/tests/wan_vae_clean_fused_op_test.py b/tests/wan_vae_clean_fused_op_test.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..400e3f088f767169476d29248c04afdb2d30d53c
+index 0000000000000000000000000000000000000000..13cbdf8b37bdd8ad7a8ceac99a014bcfc08a9278
 --- /dev/null
 +++ b/tests/wan_vae_clean_fused_op_test.py
 @@ -0,0 +1,115 @@
