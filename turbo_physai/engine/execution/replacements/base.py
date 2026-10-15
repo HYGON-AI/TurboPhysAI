@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import functools
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -23,6 +24,8 @@ class ResolvedAttribute:
     attribute: str
     original: Any
     is_mapping: bool = False
+    class_owned: Optional[bool] = None
+    raw_original: Any = None
 
 
 @dataclass(frozen=True)
@@ -77,6 +80,12 @@ def resolve_attribute(path: str, *, import_missing: bool = True) -> ResolvedAttr
     if not exists:
         raise HandlerError(f"target does not exist: {path}")
     original = parent[attribute] if is_mapping else getattr(parent, attribute)
+    if isinstance(parent, type):
+        return ResolvedAttribute(
+            path, parent, attribute, original, is_mapping,
+            class_owned=attribute in vars(parent),
+            raw_original=inspect.getattr_static(parent, attribute),
+        )
     return ResolvedAttribute(path, parent, attribute, original, is_mapping)
 
 
@@ -214,13 +223,24 @@ class MechanismHandler:
         results = []
         for target in reversed(tuple(snapshot)):
             try:
-                set_attribute(target, target.original)
-                actual = (
-                    target.parent[target.attribute]
-                    if target.is_mapping
-                    else getattr(target.parent, target.attribute)
-                )
-                if actual is not target.original:
+                if target.class_owned is not None:
+                    # getattr binds classmethod/staticmethod descriptors. Restore
+                    # the descriptor itself, including inherited lookup behavior.
+                    if target.class_owned:
+                        setattr(target.parent, target.attribute, target.raw_original)
+                    elif target.attribute in vars(target.parent):
+                        delattr(target.parent, target.attribute)
+                    actual = inspect.getattr_static(target.parent, target.attribute)
+                    expected = target.raw_original
+                else:
+                    set_attribute(target, target.original)
+                    actual = (
+                        target.parent[target.attribute]
+                        if target.is_mapping
+                        else getattr(target.parent, target.attribute)
+                    )
+                    expected = target.original
+                if actual is not expected:
                     raise HandlerError(
                         "restore verification failed: restored object identity "
                         f"does not match snapshot: {target.path}"

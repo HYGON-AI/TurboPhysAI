@@ -1,0 +1,299 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""OpenWAM main optimization ports; no source files are rewritten."""
+
+from ....engine.definitions import group, wrap
+
+_O = "turbo_physai.optimizations.models.openwam"
+
+DATA = group(
+    "openwam.data",
+    wrap(
+        "openwam.dataloader.robotwin._resolve_prompt",
+        "turbo_physai.optimizations.models.openwam.ports.data._resolve_prompt_wrapper",
+    ),
+    wrap(
+        "openwam.dataloader.robotwin.RoboTwinDataset._build_sample",
+        "turbo_physai.optimizations.models.openwam.ports.data.RoboTwinDataset__build_sample_wrapper",
+    ),
+    wrap(
+        "openwam.dataloader.robotwin.MultiTaskRoboTwinDataset.from_config",
+        "turbo_physai.optimizations.models.openwam.ports.data.MultiTaskRoboTwinDataset_from_config_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.preprocess.preprocess_video",
+        "turbo_physai.optimizations.models.openwam.ports.preprocess.preprocess_video_wrapper",
+        aliases=("openwam.model.video_backbone.wan.encode._preprocess_video_native",),
+    ),
+)
+
+COMPUTE = group(
+    "openwam.compute",
+    wrap(
+        "openwam.model.action_backbone.components.rope_apply_1d",
+        "turbo_physai.optimizations.models.openwam.ports.action_components.rope_apply_1d_wrapper",
+        aliases=(
+            "openwam.model.action_backbone.separate_action_dit.rope_apply_1d",
+            "openwam.model.architectures.dual_system.idm.rope_apply_1d",
+            "turbo_physai.optimizations.models.openwam.ports.action.rope_apply_1d",
+        ),
+    ),
+    wrap(
+        "openwam.model.action_backbone.components.RMSNorm.forward",
+        "turbo_physai.optimizations.models.openwam.ports.action_components.RMSNorm_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.separate_action_dit.BridgeCrossAttention.forward",
+        "turbo_physai.optimizations.models.openwam.ports.action.BridgeCrossAttention_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.separate_action_dit.CrossAttnActionDiTBlock.forward",
+        "turbo_physai.optimizations.models.openwam.ports.action.CrossAttnActionDiTBlock_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.separate_action_dit.SelfAttnActionDiTBlock.gate",
+        "turbo_physai.optimizations.models.openwam.ports.action.SelfAttnActionDiTBlock_gate_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.separate_action_dit.SelfAttnActionDiTBlock.forward",
+        "turbo_physai.optimizations.models.openwam.ports.action.SelfAttnActionDiTBlock_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.separate_action_dit.ActionDiT.pre_attn_at_layer_for_compile",
+        "turbo_physai.optimizations.models.openwam.ports.action.ActionDiT_pre_attn_at_layer_for_compile_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.separate_action_dit.ActionDiT.post_attn_at_layer_for_compile",
+        "turbo_physai.optimizations.models.openwam.ports.action.ActionDiT_post_attn_at_layer_for_compile_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.flash_attention",
+        "turbo_physai.optimizations.models.openwam.ports.dit.flash_attention_wrapper",
+        aliases=(
+            "openwam.model.video_backbone.wan.models.image_encoder.flash_attention",
+        ),
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.modulate",
+        "turbo_physai.optimizations.models.openwam.ports.dit.modulate_wrapper",
+        aliases=(
+            "openwam.model.video_backbone.wan_backbone.modulate",
+            "turbo_physai.optimizations.models.openwam.ports.wan.modulate",
+        ),
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.rope_apply",
+        "turbo_physai.optimizations.models.openwam.ports.dit.rope_apply_wrapper",
+        aliases=(
+            "openwam.model.video_backbone.wan_backbone.rope_apply",
+            "turbo_physai.optimizations.models.openwam.ports.wan.rope_apply",
+        ),
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.RMSNorm.forward",
+        "turbo_physai.optimizations.models.openwam.ports.dit.RMSNorm_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.SelfAttention.forward",
+        "turbo_physai.optimizations.models.openwam.ports.dit.SelfAttention_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.CrossAttention.forward",
+        "turbo_physai.optimizations.models.openwam.ports.dit.CrossAttention_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.GateModule.forward",
+        "turbo_physai.optimizations.models.openwam.ports.dit.GateModule_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.DiTBlock.__init__",
+        "turbo_physai.optimizations.models.openwam.ports.dit.DiTBlock___init___wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan_backbone.WanBase.prepare",
+        "turbo_physai.optimizations.models.openwam.ports.wan.WanBase_prepare_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan_backbone.WanBase.pre_attn_at_layer_for_compile",
+        "turbo_physai.optimizations.models.openwam.ports.wan.WanBase_pre_attn_at_layer_for_compile_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan_backbone.WanBase.post_attn_at_layer_for_compile",
+        "turbo_physai.optimizations.models.openwam.ports.wan.WanBase_post_attn_at_layer_for_compile_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan_backbone.WanBase.preprocess_input_for_train",
+        "turbo_physai.optimizations.models.openwam.ports.wan.WanBase_preprocess_input_for_train_wrapper",
+    ),
+)
+
+ARCHITECTURE = group(
+    "openwam.architecture",
+    wrap(
+        "openwam.model.architectures.base.BaseWAMArchitecture._append_proprio_context_token",
+        "turbo_physai.optimizations.models.openwam.ports.architecture.BaseWAMArchitecture__append_proprio_context_token_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.base.BaseWAMArchitecture.save_checkpoint",
+        "turbo_physai.optimizations.models.openwam.ports.architecture.BaseWAMArchitecture_save_checkpoint_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.base.BaseWAMArchitecture.prepare_inputs",
+        "turbo_physai.optimizations.models.openwam.ports.architecture.BaseWAMArchitecture_prepare_inputs_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.base.BaseWAMArchitecture.compute_loss",
+        "turbo_physai.optimizations.models.openwam.ports.architecture.BaseWAMArchitecture_compute_loss_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.idm.DualSystemIDMArchitecture.compute_loss",
+        "turbo_physai.optimizations.models.openwam.ports.idm.DualSystemIDMArchitecture_compute_loss_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.joint_self_attn.DualSystemSelfAttnArchitecture.forward",
+        "turbo_physai.optimizations.models.openwam.ports.joint.DualSystemSelfAttnArchitecture_forward_wrapper",
+    ),
+)
+
+MOT = group(
+    "openwam.mot",
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver.__init__",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver___init___wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._build_attention_mask",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver__build_attention_mask_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._mixed_attention",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver__mixed_attention_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver.step",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver_step_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._step_impl",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver__step_impl_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._step_checkpointed",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver__step_checkpointed_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver.run_joint_loop",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver_run_joint_loop_wrapper",
+    ),
+    depends_on=("openwam.compute",),
+)
+
+TEXT = group(
+    "openwam.text",
+    wrap(
+        "openwam.model.video_backbone.wan.encode.encode_text",
+        "turbo_physai.optimizations.models.openwam.ports.encode.encode_text_wrapper",
+    ),
+)
+
+VAE = group(
+    "openwam.vae",
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.CausalConv3d.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.CausalConv3d_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.RMS_norm.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.RMS_norm_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Resample.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Resample_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.ResidualBlock.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.ResidualBlock_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Encoder3d.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Encoder3d_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Encoder3d_38.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Encoder3d_38_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Decoder3d.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Decoder3d_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Decoder3d_38.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Decoder3d_38_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.WanVideoVAE.batch_encode",
+        "turbo_physai.optimizations.models.openwam.ports.vae.WanVideoVAE_batch_encode_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.WanVideoVAE.single_encode",
+        "turbo_physai.optimizations.models.openwam.ports.vae.WanVideoVAE_single_encode_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.WanVideoVAE.single_decode",
+        "turbo_physai.optimizations.models.openwam.ports.vae.WanVideoVAE_single_decode_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.VideoVAE38_.encode",
+        "turbo_physai.optimizations.models.openwam.ports.vae.VideoVAE38__encode_wrapper",
+    ),
+)
+
+TRAINING = group(
+    "openwam.training",
+    wrap(
+        "openwam.train.openwam_trainer.OpenWAMTrainer.__init__",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer___init___wrapper",
+    ),
+    wrap(
+        "openwam.train.openwam_trainer.OpenWAMTrainer.train",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_train_wrapper",
+    ),
+    wrap(
+        "openwam.train.openwam_trainer.OpenWAMTrainer.build_optimizer",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_build_optimizer_wrapper",
+    ),
+    wrap(
+        "openwam.train.openwam_trainer.OpenWAMTrainer.build_dataloader",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_build_dataloader_wrapper",
+    ),
+    wrap(
+        "openwam.train.openwam_trainer.OpenWAMTrainer.prepare_accelerate",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_prepare_accelerate_wrapper",
+    ),
+    wrap(
+        "openwam.train.openwam_trainer.OpenWAMTrainer.compute_loss",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_compute_loss_wrapper",
+    ),
+    wrap(
+        "openwam.train.openwam_trainer.OpenWAMTrainer.log_step",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_log_step_wrapper",
+    ),
+    wrap(
+        "openwam.train.openwam_trainer.OpenWAMTrainer.finish_training",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_finish_training_wrapper",
+    ),
+    wrap(
+        "accelerate.utils.dataclasses.DeepSpeedPlugin.__post_init__",
+        "turbo_physai.optimizations.models.openwam.launch.deepspeed_post_init",
+        collect_target_hash=False,
+    ),
+    depends_on=(
+        "openwam.data",
+        "openwam.compute",
+        "openwam.architecture",
+        "openwam.mot",
+        "openwam.text",
+        "openwam.vae",
+    ),
+)

@@ -1,0 +1,205 @@
+# Static target AST identities; no model execution was performed.
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.openwam.hcu
+  version: 0.1.0
+  description: OpenWAM main training optimizations through runtime monkey patches
+model:
+  name: OpenWAM
+extends: []
+compatibility:
+  commits:
+  - 1204dde1b9e9c232131fc99a3f2c6b78330e7f64
+optimization_groups:
+- id: openwam.data
+  enabled: true
+  options:
+    uint8_preprocess: true
+    vae_latent_cache: false
+    vae_latent_cache_dir: null
+  trust:
+    ast_hashes:
+      openwam.dataloader.robotwin._resolve_prompt:
+      - ast-v1:629cdf3d73dcaaf6b49a2e30ed2eecf948f22527b716b24df26a65f5c95b65f1
+      openwam.dataloader.robotwin.RoboTwinDataset._build_sample:
+      - ast-v1:c9bae44edf8b9e47ba02ca81ded7e6f263d7a74282d73990baa132244d01575a
+      openwam.dataloader.robotwin.MultiTaskRoboTwinDataset.from_config:
+      - ast-v1:f807d0d46386b40e022e181d5877e3b37ce0b8171d24a9e002e104bd8194cbeb
+      openwam.model.video_backbone.wan.preprocess.preprocess_video:
+      - ast-v1:dd91c79d4290ee773f1532886121afd69f50260efda790d4c3a6454f06e01e3c
+- id: openwam.compute
+  enabled: true
+  options:
+    lightop_norm: false
+    linear_bias2d: false
+    pointwise_compile: false
+    rope_real: true
+  trust:
+    ast_hashes:
+      openwam.model.action_backbone.components.rope_apply_1d:
+      - ast-v1:1495b34d86ebe9399dcacce7f4a78eb967d8147666b5c652e89f368e1b224819
+      openwam.model.action_backbone.components.RMSNorm.forward:
+      - ast-v1:a8b36ed9aa0114f66b9913c5d4787fa4191d94750aabbe18741e97d51b8eba0b
+      openwam.model.action_backbone.separate_action_dit.BridgeCrossAttention.forward:
+      - ast-v1:447f830c46d4b2a55b5d77c5e62a73fa0d1c3e4d10211a1c442c28b999b5ce0e
+      openwam.model.action_backbone.separate_action_dit.CrossAttnActionDiTBlock.forward:
+      - ast-v1:33f311fed10d7eb692dbc4b4b2c82dcac6bd12abf1320ce56d545ca08416fcfe
+      openwam.model.action_backbone.separate_action_dit.SelfAttnActionDiTBlock.gate:
+      - ast-v1:a9a15d8e07e2426a564d5c06f36ca94d582ff98998b2be75ad0194c7511fd096
+      openwam.model.action_backbone.separate_action_dit.SelfAttnActionDiTBlock.forward:
+      - ast-v1:ed07a6ed4aad36d4ed6e5660be4fcc7d9bb4030aa76568c6659b169b3bf65baa
+      openwam.model.action_backbone.separate_action_dit.ActionDiT.pre_attn_at_layer_for_compile:
+      - ast-v1:172ad09ebefb67eeff51277be9ec150ddcf76afe65903f637905315cdaa2f225
+      openwam.model.action_backbone.separate_action_dit.ActionDiT.post_attn_at_layer_for_compile:
+      - ast-v1:0600069be61c9e22fb1525731cdceb0475d98b9c226b819ef85521c1f8b5a296
+      openwam.model.video_backbone.wan.models.dit.flash_attention:
+      - ast-v1:2fc2e90d6216d09efa1d6303c6f2c4e565339f5df195850da42c4157b052eb5b
+      openwam.model.video_backbone.wan.models.dit.modulate:
+      - ast-v1:3035c932d8e4f3a9dd25d3bb8768eadf61c3814183461884ef5fff2f52f63a75
+      openwam.model.video_backbone.wan.models.dit.rope_apply:
+      - ast-v1:3c8fc8c683adc395c89dc5e7d44809f80dbf10cff04914f392d21878a034ba60
+      openwam.model.video_backbone.wan.models.dit.RMSNorm.forward:
+      - ast-v1:0aa684f53dd8c142420523c20d0199f1b1936abf5e41a007d5ab5c916c7d4f5d
+      openwam.model.video_backbone.wan.models.dit.SelfAttention.forward:
+      - ast-v1:6297f5c04e192a1d8e77da0cdfe795f7f5d0c812a9cefeb4ea195fada173eade
+      openwam.model.video_backbone.wan.models.dit.CrossAttention.forward:
+      - ast-v1:188d23744abd6a6dd5aacaea6286d3374e8c993c23138d63013b7a53b8cd9d45
+      openwam.model.video_backbone.wan.models.dit.GateModule.forward:
+      - ast-v1:a74f2d4da112bba743da16691b5dd7d44d7c6aa0163da937528f752d9ad8a420
+      openwam.model.video_backbone.wan.models.dit.DiTBlock.__init__:
+      - ast-v1:be9b10bfbea106de238121b122c75e7cbd1675ec004f78fa4cd73cf4b8cb7037
+      openwam.model.video_backbone.wan_backbone.WanBase.prepare:
+      - ast-v1:8b29e14fa97163d546b14cb9363bba6e6fb578c8d67938835d4ebcfd84335221
+      openwam.model.video_backbone.wan_backbone.WanBase.pre_attn_at_layer_for_compile:
+      - ast-v1:5c68754d86c98e87ea808a65d310625acd4ac7d6a13baaacbd8c206e5cd1adfa
+      openwam.model.video_backbone.wan_backbone.WanBase.post_attn_at_layer_for_compile:
+      - ast-v1:de3f97144f3c09c96686ed3766f55d3e10376fd516db27bbb4815f808e2e2559
+      openwam.model.video_backbone.wan_backbone.WanBase.preprocess_input_for_train:
+      - ast-v1:1c772089c49c654cd87c54265e8df94ad194ac315f4855316cc39be4ec9cc67a
+- id: openwam.architecture
+  enabled: true
+  options:
+    constant_cache: true
+  trust:
+    ast_hashes:
+      openwam.model.architectures.base.BaseWAMArchitecture._append_proprio_context_token:
+      - ast-v1:b439178220d0237116309a995e1dbe8fd1ec652aa2d67c800d57ea6f1972edd2
+      openwam.model.architectures.base.BaseWAMArchitecture.save_checkpoint:
+      - ast-v1:4536a60c96a4744061c364558f10536e64a1a1e979fca455e31c75d697c9bbbd
+      openwam.model.architectures.base.BaseWAMArchitecture.prepare_inputs:
+      - ast-v1:96c6647f8a039b9eeedaf31020e3f587d7c25f6bc318df53bc4c220158b9fd85
+      openwam.model.architectures.base.BaseWAMArchitecture.compute_loss:
+      - ast-v1:dcff80eca5b6adb03e6d05a806f41168102f2529dbed68d8a87a20f765a59170
+      openwam.model.architectures.dual_system.idm.DualSystemIDMArchitecture.compute_loss:
+      - ast-v1:a384797481fc2358971c94cef331e61b7ed2da91b665f94eb00c095631a0e404
+      openwam.model.architectures.dual_system.joint_self_attn.DualSystemSelfAttnArchitecture.forward:
+      - ast-v1:0550def26ad90ac8c34901710cf1f8196c55d5bf125a7380b78cf6a5a84b94e0
+- id: openwam.mot
+  enabled: true
+  options:
+    checkpoint_skip_layers: 0
+    checkpoint_stats: false
+    compile_mot: false
+    mot_split_attn: true
+    sac_attention: false
+    sac_extra_ops: ''
+    sac_ffn_full: false
+    sac_gemm: false
+    sac_layers: null
+  trust:
+    ast_hashes:
+      openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver.__init__:
+      - ast-v1:d87ed4224a025994780d8ee496815b5c34382ed1d21e6946daa7878dcfac9419
+      openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._build_attention_mask:
+      - ast-v1:2c365b7d78d352b7bae3b3342f04221923ce8d65e16e0012f331cda04aa3adf4
+      openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._mixed_attention:
+      - ast-v1:b06feff7cf95f24ba0f4f94d5bd16737e1d697a7c182d7d7bea9cd4585b561ff
+      openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver.step:
+      - ast-v1:174b8856eebb6283588e5bbd8167504061b2435682cda26bdc9084b77d0801c5
+      openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._step_impl:
+      - ast-v1:e27c2dd6a8938d990844a1e3a8dfe177143a0545f4a1310f7295eea1d334f680
+      openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._step_checkpointed:
+      - ast-v1:3a4fa22990ae3610f6eec479047f7476da20868396bcb27c69583d742e91d495
+      openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver.run_joint_loop:
+      - ast-v1:c949b6681056ecad34ee81b821e9efea670703b9e79ec8acef524ba0f6241046
+- id: openwam.text
+  enabled: true
+  options:
+    fa2_mask_fused: false
+    fa2_padding: true
+    padding_plan_cpu: true
+    t5_prefix: true
+    text_cache: true
+    text_cache_dir: null
+    text_cache_size: 32
+    text_trim: true
+  trust:
+    ast_hashes:
+      openwam.model.video_backbone.wan.encode.encode_text:
+      - ast-v1:e742f9510c40b01bb7976d30312e7b45ae6b59b9d5db17e60d3faf1e8cc6fccf
+- id: openwam.vae
+  enabled: true
+  options:
+    compile_vae: false
+    vae_channels_last: true
+    vae_pointwise_compile: false
+  trust:
+    ast_hashes:
+      openwam.model.video_backbone.wan.models.vae.CausalConv3d.forward:
+      - ast-v1:204ccbc3f8a60164178764a642f4b8973286b770afae54fc2a2f906765f710fa
+      openwam.model.video_backbone.wan.models.vae.RMS_norm.forward:
+      - ast-v1:3084e1bba8bdad6c7db37d42e508e084dc0f3d167022e5e88c2566269ef3ad7c
+      openwam.model.video_backbone.wan.models.vae.Resample.forward:
+      - ast-v1:0d8e2d293d0e390627740944c0a8c49ac7689c50b50a64674df0359f36741484
+      openwam.model.video_backbone.wan.models.vae.ResidualBlock.forward:
+      - ast-v1:54e6d49d9ebebdf27bbcf424cbee37493d4a68fe131ee60cea6b8560f4a4fb53
+      openwam.model.video_backbone.wan.models.vae.Encoder3d.forward:
+      - ast-v1:0fde2708c5e0d15762270f4205d21f77fb680afb19b9df0afd9d024efe609378
+      openwam.model.video_backbone.wan.models.vae.Encoder3d_38.forward:
+      - ast-v1:762ab09968a5ac64c9ddb3de6428b4da71edc627a5610ca113069a492a02ddc2
+      openwam.model.video_backbone.wan.models.vae.Decoder3d.forward:
+      - ast-v1:9b8aa0800b304658e53b4346ec9e682dc1cdea7a2643451631b086fe7d6c22d8
+      openwam.model.video_backbone.wan.models.vae.Decoder3d_38.forward:
+      - ast-v1:57932705a9fcbd4b925a04c8d64656a80588941688bc9b66d9b833cc180a200f
+      openwam.model.video_backbone.wan.models.vae.WanVideoVAE.batch_encode:
+      - ast-v1:bd2cda251c2b1942898f38a7940ce1f1558cec99637abe30f162d7d4ccce0b31
+      openwam.model.video_backbone.wan.models.vae.WanVideoVAE.single_encode:
+      - ast-v1:34d6b821e4197f82fcdea40178bde7a7e4c564faadb6436d786f83e050c27bd1
+      openwam.model.video_backbone.wan.models.vae.WanVideoVAE.single_decode:
+      - ast-v1:8c58010a748b5a1d120670b722f495187c0f02ff0baf87b2d7a4d3b2fa911fce
+      openwam.model.video_backbone.wan.models.vae.VideoVAE38_.encode:
+      - ast-v1:8aa23b85b0dfbbb7c205b780c6db241bccc26d2cdbb70441a18d92c657ebd108
+- id: openwam.training
+  enabled: true
+  options:
+    deferred_gather: false
+    fused_adamw: false
+    host_async: false
+    hw_queues: 0
+    online_encode: false
+    profile_light: false
+    profiling: 'off'
+    trace_gc: false
+    zero_overlap: true
+    zero_reduce_scatter: false
+  trust:
+    ast_hashes:
+      openwam.train.openwam_trainer.OpenWAMTrainer.__init__:
+      - ast-v1:e41d80b07029c4d3b2846138e747878ad9dc71b6832afc15da51c5f2bc4859c5
+      openwam.train.openwam_trainer.OpenWAMTrainer.train:
+      - ast-v1:156bb59d717e71a140f8e767f72c82f77a1bd847f505934d928620abd76a97cf
+      openwam.train.openwam_trainer.OpenWAMTrainer.build_optimizer:
+      - ast-v1:c30d9b2ed7b7b405c096f60afe372820f954c881c6224f8dacb73394bc084937
+      openwam.train.openwam_trainer.OpenWAMTrainer.build_dataloader:
+      - ast-v1:2790a5dbcf5e89a9dc3f2641a9d08da319310aaeadc12f9632c0f62e25db15d2
+      openwam.train.openwam_trainer.OpenWAMTrainer.prepare_accelerate:
+      - ast-v1:be541000e06c0025193fc98f9a5c77bbcaff902974988ff8de892211acad7427
+      openwam.train.openwam_trainer.OpenWAMTrainer.compute_loss:
+      - ast-v1:90a77bbcbf26df10a16419d678d6718021f16a1bf451729ea497b510ef76f3f0
+      openwam.train.openwam_trainer.OpenWAMTrainer.log_step:
+      - ast-v1:dd8233b14a0675344db365dc5b230913dd3e9a2c60b97be652404d187006a146
+      openwam.train.openwam_trainer.OpenWAMTrainer.finish_training:
+      - ast-v1:7ee643eaf1057afa1620a7a1402c088a7154a1324936e244f9697b97947a6aaf
+optimization_modules:
+- turbo_physai.optimizations.models.openwam.catalog

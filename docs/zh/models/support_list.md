@@ -12,5 +12,8 @@ TurboPhysAI 不强制模型仓库停留在优化接入基线（[可以在优化�
 | :-------: | :------------: | :------: | :------------------------------------------: | :---------------------------------------------------: |
 | BEVFormer | BEVFormer-base | R101-DCN | `66b65f3a1f58caf0507cb2a971b9c0e7f842376c` | [BEVFormer](../../../model_examples/BEVFormer/README.md) |
 | BEVFusion |   BEVFusion   |    —    | `326653dc06e0938edf1aae7d01efcd158ba83de5` | [BEVFusion](../../../model_examples/BEVFusion/README.md) |
+| OpenWAM | OpenWAM-α joint self-attention | Wan / ActionDiT | `1204dde1b9e9c232131fc99a3f2c6b78330e7f64` | [OpenWAM](../../../model_examples/OpenWAM/README.md) |
+
+OpenWAM 已完成 monkey patch 接入与必要静态检查，目标 HCU 训练环境的多卡正确性、数值和性能尚待验证。
 
 **自动驾驶**、**具身智能**和**世界模型**等方向的模型适配工作持续推进中，请关注后续更新。
