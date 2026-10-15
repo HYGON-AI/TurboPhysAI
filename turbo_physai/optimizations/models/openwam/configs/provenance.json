@@ -1,0 +1,181 @@
+{
+  "source_repository": "https://github.com/iMountTai/OpenWAM",
+  "source_branch": "main",
+  "source_commit": "bfce20b575a9b34aea385030fcb00a9eaf61fcb5",
+  "baseline_commit": "1204dde1b9e9c232131fc99a3f2c6b78330e7f64",
+  "license": "Apache-2.0",
+  "optimization_modules": [
+    "__init__.py",
+    "_fa2_varlen.py",
+    "attention.py",
+    "deferred_gather.py",
+    "gc_trace.py",
+    "global_compile.py",
+    "host_async.py",
+    "hw_queues.py",
+    "latent_cache.py",
+    "linear_bias2d.py",
+    "norms.py",
+    "online_encode.py",
+    "pointwise.py",
+    "runtime.py",
+    "sac.py",
+    "text.py",
+    "text_store.py",
+    "vae_layout.py",
+    "zero.py"
+  ],
+  "ports": [
+    {
+      "local_file": "ports/data.py",
+      "source_file": "openwam/dataloader/robotwin.py",
+      "symbols": [
+        "_prompt_choices",
+        "_training_prompts",
+        "_resolve_prompt",
+        "RoboTwinDataset._build_sample",
+        "MultiTaskRoboTwinDataset.from_config"
+      ]
+    },
+    {
+      "local_file": "ports/action_components.py",
+      "source_file": "openwam/model/action_backbone/components.py",
+      "symbols": [
+        "rope_apply_1d",
+        "RMSNorm.forward"
+      ]
+    },
+    {
+      "local_file": "ports/action.py",
+      "source_file": "openwam/model/action_backbone/separate_action_dit.py",
+      "symbols": [
+        "_modulate",
+        "BridgeCrossAttention.forward",
+        "BridgeCrossAttention._attend",
+        "CrossAttnActionDiTBlock.forward",
+        "SelfAttnActionDiTBlock.gate",
+        "SelfAttnActionDiTBlock.forward",
+        "ActionDiT.pre_attn_at_layer_for_compile",
+        "ActionDiT.post_attn_at_layer_for_compile"
+      ]
+    },
+    {
+      "local_file": "ports/architecture.py",
+      "source_file": "openwam/model/architectures/base.py",
+      "symbols": [
+        "BaseWAMArchitecture._append_proprio_context_token",
+        "BaseWAMArchitecture.save_checkpoint",
+        "BaseWAMArchitecture.prepare_inputs",
+        "BaseWAMArchitecture.compute_loss"
+      ]
+    },
+    {
+      "local_file": "ports/idm.py",
+      "source_file": "openwam/model/architectures/dual_system/idm.py",
+      "symbols": [
+        "DualSystemIDMArchitecture.compute_loss"
+      ]
+    },
+    {
+      "local_file": "ports/joint.py",
+      "source_file": "openwam/model/architectures/dual_system/joint_self_attn.py",
+      "symbols": [
+        "DualSystemSelfAttnArchitecture.forward"
+      ]
+    },
+    {
+      "local_file": "ports/mot.py",
+      "source_file": "openwam/model/architectures/dual_system/mot_driver.py",
+      "symbols": [
+        "DualSystemMoTDriver.__init__",
+        "DualSystemMoTDriver._build_attention_mask",
+        "DualSystemMoTDriver._mixed_attention",
+        "DualSystemMoTDriver._mixed_attention_impl",
+        "DualSystemMoTDriver.step",
+        "DualSystemMoTDriver._step_impl",
+        "DualSystemMoTDriver._step_checkpointed",
+        "DualSystemMoTDriver.run_joint_loop"
+      ]
+    },
+    {
+      "local_file": "ports/encode.py",
+      "source_file": "openwam/model/video_backbone/wan/encode.py",
+      "symbols": [
+        "encode_text",
+        "_encode_text"
+      ]
+    },
+    {
+      "local_file": "ports/dit.py",
+      "source_file": "openwam/model/video_backbone/wan/models/dit.py",
+      "symbols": [
+        "flash_attention",
+        "_flash_attention_impl",
+        "modulate",
+        "rope_apply",
+        "RMSNorm.forward",
+        "SelfAttention.forward",
+        "CrossAttention.forward",
+        "GateModule.forward",
+        "DiTBlock.__init__"
+      ]
+    },
+    {
+      "local_file": "ports/vae.py",
+      "source_file": "openwam/model/video_backbone/wan/models/vae.py",
+      "symbols": [
+        "_layout",
+        "_clone_cache",
+        "CausalConv3d.forward",
+        "RMS_norm.forward",
+        "Resample.forward",
+        "ResidualBlock.forward",
+        "Encoder3d.forward",
+        "Encoder3d_38.forward",
+        "Decoder3d.forward",
+        "Decoder3d_38.forward",
+        "WanVideoVAE.batch_encode",
+        "WanVideoVAE.prepare_scale_cache",
+        "WanVideoVAE._scale_for",
+        "WanVideoVAE.single_encode",
+        "WanVideoVAE.single_decode",
+        "VideoVAE38_.encode"
+      ]
+    },
+    {
+      "local_file": "ports/preprocess.py",
+      "source_file": "openwam/model/video_backbone/wan/preprocess.py",
+      "symbols": [
+        "preprocess_video"
+      ]
+    },
+    {
+      "local_file": "ports/wan.py",
+      "source_file": "openwam/model/video_backbone/wan_backbone.py",
+      "symbols": [
+        "WanBase.prepare",
+        "WanBase.pre_attn_at_layer_for_compile",
+        "WanBase.post_attn_at_layer_for_compile",
+        "WanBase.preprocess_input_for_train"
+      ]
+    },
+    {
+      "local_file": "ports/trainer.py",
+      "source_file": "openwam/train/openwam_trainer.py",
+      "symbols": [
+        "OpenWAMTrainer.__init__",
+        "OpenWAMTrainer._build_profiler",
+        "OpenWAMTrainer.train",
+        "OpenWAMTrainer.build_optimizer",
+        "OpenWAMTrainer.build_dataloader",
+        "OpenWAMTrainer.prepare_accelerate",
+        "OpenWAMTrainer.compute_loss",
+        "OpenWAMTrainer.log_step",
+        "OpenWAMTrainer.finish_training"
+      ]
+    }
+  ],
+  "validation": "Static identity/configuration checks only; no model or HCU test.",
+  "configuration": "Turbo Groups/options; legacy optimization environment switches are not used.",
+  "target_identity_evidence": "Canonical AST of definitions exported from the fixed upstream baseline; no model imports or execution."
+}

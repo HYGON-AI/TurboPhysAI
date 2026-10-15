@@ -4,6 +4,31 @@ This file records the provenance of source code distributed in TurboPhysAI. The 
 
 ## Confirmed Apache-2.0 derivations
 
+### OpenWAM / native Wan training
+
+- Source repository: <https://github.com/iMountTai/OpenWAM>
+- Source branch and fixed commit: `main` @ `bfce20b575a9b34aea385030fcb00a9eaf61fcb5`
+- Runtime target baseline: `1204dde1b9e9c232131fc99a3f2c6b78330e7f64`
+- License: Apache-2.0, including the source's native Wan license material.
+- Local source ports and helper modules are modified; they retain Apache-2.0 identifiers and Hygon modification notices. Original class identities are retained; functions are installed as Turbo wrappers.
+
+| Local files under `turbo_physai/optimizations/models/openwam/` | Direct source path |
+| --- | --- |
+| Optimization helpers (`attention.py`, `_fa2_varlen.py`, `deferred_gather.py`, `gc_trace.py`, `global_compile.py`, `host_async.py`, `hw_queues.py`, `latent_cache.py`, `linear_bias2d.py`, `norms.py`, `online_encode.py`, `pointwise.py`, `runtime.py`, `sac.py`, `text.py`, `text_store.py`, `vae_layout.py`, `zero.py`) and model preparation in `__init__.py` | Same-named files under `openwam/optimizations/` |
+| `ports/data.py` | `openwam/dataloader/robotwin.py` |
+| `ports/action_components.py`, `ports/action.py` | `openwam/model/action_backbone/components.py`, `separate_action_dit.py` |
+| `ports/architecture.py` | `openwam/model/architectures/base.py` |
+| `ports/idm.py`, `ports/joint.py`, `ports/mot.py` | `openwam/model/architectures/dual_system/idm.py`, `joint_self_attn.py`, `mot_driver.py` |
+| `ports/encode.py`, `ports/preprocess.py` | `openwam/model/video_backbone/wan/encode.py`, `preprocess.py` |
+| `ports/dit.py`, `ports/vae.py` | `openwam/model/video_backbone/wan/models/dit.py`, `vae.py` |
+| `ports/wan.py` | `openwam/model/video_backbone/wan_backbone.py` |
+| `ports/trainer.py` | `openwam/train/openwam_trainer.py` |
+| `cache_vae_latents.py` | `scripts/cache_vae_latents.py` |
+
+The complete source/symbol mapping is packaged in `configs/provenance.json`.
+The full license text is retained in [third_party/licenses/OpenWAM-Apache-2.0.txt](third_party/licenses/OpenWAM-Apache-2.0.txt).
+No upstream `NOTICE` file is present in the source commit's ported directories.
+
 The tables below record every local derivative file and its direct upstream source. Each source repository is fixed to a 40-character commit. `Modified` means that the upstream notice is retained and a Hygon modification notice is present in the local source. `Unmodified` means that the local file is identical to the upstream file at the fixed commit. No `NOTICE` file was present in the listed upstream baselines.
 
 ### BEVFusion / OpenMMLab mmdet3d

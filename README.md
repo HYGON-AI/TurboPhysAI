@@ -27,6 +27,16 @@ turbo-physai run --model bevformer \
 
 组件在每个训练进程启动时应用一次优化。增加 `--log-report` 可以输出优化应用日志，用于确认预期优化项是否已应用。`--model` 的可选值、优化接入基线和使用说明见[模型支持清单](docs/zh/models/support_list.md)。
 
+### 模型列表
+
+| 模型 | 训练路径 | 使用说明 |
+| --- | --- | --- |
+| BEVFormer | BEVFormer-base / R101-DCN | [BEVFormer](model_examples/BEVFormer/README.md) |
+| BEVFusion | BEVFusion | [BEVFusion](model_examples/BEVFusion/README.md) |
+| OpenWAM | OpenWAM-α / Wan + ActionDiT joint self-attention | [OpenWAM](model_examples/OpenWAM/README.md) |
+
+OpenWAM 通过模型专用 Group 进行 monkey patch 接入，已完成必要静态检查及定向逻辑回归检查，目标 HCU 环境的多卡正确性、数值和性能验证尚待完成。各模型的优化接入基线见[模型支持清单](docs/zh/models/support_list.md)。
+
 ### 仅使用公共优化
 
 不指定模型和配置时，Runner 加载随包交付的公共 OptimizationConfig，不加载模型专用优化或 RuntimeConfig：
