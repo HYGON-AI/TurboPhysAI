@@ -1,0 +1,69 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.openwam.hcu.online
+  version: 0.1.0
+  description: 'OpenWAM online report combination: OPT-02 through 07, 10, 11 and 13'
+model:
+  name: OpenWAM
+optimization_modules:
+- turbo_physai.optimizations.models.openwam.catalog
+compatibility:
+  commits:
+  - 1204dde1b9e9c232131fc99a3f2c6b78330e7f64
+optimization_groups:
+- id: openwam.data
+  options:
+    uint8_preprocess: true
+    vae_latent_cache: false
+    vae_latent_cache_dir: null
+- id: openwam.compute
+  options:
+    pointwise_compile: true
+    rope_real: true
+    lightop_norm: true
+    linear_bias2d: true
+- id: openwam.architecture
+  options:
+    constant_cache: true
+- id: openwam.mot
+  options:
+    mot_split_attn: true
+    compile_mot: true
+    checkpoint_skip_layers: 12
+    sac_attention: false
+    sac_ffn_full: true
+    sac_gemm: false
+    sac_layers: null
+    sac_extra_ops: ''
+    checkpoint_stats: false
+- id: openwam.text
+  options:
+    text_cache: false
+    text_cache_size: 32
+    text_cache_dir: null
+    t5_prefix: true
+    text_trim: true
+    padding_plan_cpu: true
+    fa2_padding: true
+    fa2_mask_fused: true
+- id: openwam.vae
+  options:
+    vae_channels_last: true
+    vae_pointwise_compile: true
+    compile_vae: true
+- id: openwam.training
+  options:
+    zero_overlap: true
+    zero_reduce_scatter: true
+    online_encode: true
+    deferred_gather: true
+    fused_adamw: true
+    host_async: true
+    hw_queues: 16
+    profiling: 'off'
+    profile_light: false
+    trace_gc: false

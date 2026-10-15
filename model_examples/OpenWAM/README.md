@@ -27,7 +27,7 @@ turbo-physai run --model openwam --log-report \
 
 ## 优化分组
 
-所有控制通过 Turbo Group 和 `options`，不读取 `OPENWAM_OPT_*`。
+模型优化通过 Turbo Group 和 `options` 控制，启动环境由 RuntimeConfig 配置，不读取 `OPENWAM_OPT_*`。
 
 | Group | 内容 | 主要 options |
 | --- | --- | --- |
@@ -81,6 +81,53 @@ turbo-physai run --model openwam \
 随包配置使用 [generate_openwam_config.py](../../tools/generate_openwam_config.py) 从同一基线源定义生成 AST 证据及标准生成凭据，生成过程不导入模型依赖、不运行模型。需要只做静态配置生成时也可使用此工具；它仅接受上述干净基线。
 
 `zero_reduce_scatter`、`online_encode` 和 `deferred_gather` 需要原生 DeepSpeed ZeRO-2 且关闭 CPU offload/MoE。在线编码需要梯度累积为 1、DataLoader workers 大于 0，以及冻结的原生 Wan22Ti2v VAE38/T5。`host_async` 会将训练指标延后一拍记录。`hw_queues` 必须在 HIP 初始化之前设置，已有 `GPU_MAX_HW_QUEUES` 优先；默认 `0` 保持环境设置。性能测试保持 `profiling: off`；采集时使用 `rank0` 或 `all`。
+
+## 报告优化组合
+
+除默认接入配置外，随包提供三份可生成的 recipe。它们复用以上七个 Group，不增加模型侧环境开关。
+
+| 配方 | 用途 | 关键配置 |
+| --- | --- | --- |
+| [recipe.online.yaml](../../turbo_physai/optimizations/models/openwam/configs/recipe.online.yaml) | 在线编码训练 | 编译、Lightop、融合 mask、FFN SAC、ReduceScatter、在线编码重叠、Fused AdamW、Host 异步、Deferred Gather；尾部 12 层不重算；不读写磁盘缓存，关闭在线文本 LRU。 |
+| [recipe.cache-build.yaml](../../turbo_physai/optimizations/models/openwam/configs/recipe.cache-build.yaml) | 生成 VAE latent 与 T5 特征 | 与缓存训练保持编码设置；关闭缓存读取、MoT 编译、SAC 与训练通信调度，缓存入口直接编码。 |
+| [recipe.cached.yaml](../../turbo_physai/optimizations/models/openwam/configs/recipe.cached.yaml) | 读取离线缓存训练 | 在在线组合上启用 VAE/T5 磁盘缓存，尾部 24 层不重算，其余 checkpoint 层使用 FFN SAC。 |
+
+这些配方移植报告中的选项组合，尚未完成 Turbo 路径的 HCU 正确性与性能验证。它们要求原生 Wan22Ti2v VAE38/T5、`dual_system/joint_self_attn`、ZeRO-2、无 CPU optimizer offload、gradient accumulation=1、DataLoader workers>0、gradient checkpointing 开启且 checkpoint offload 关闭；Lightop 需要在目标环境预先安装。缓存训练还需准备完整且签名一致的缓存，并确认尾部 24 层不重算所需显存。
+
+搭配 [runtime.optimized.yaml](../../turbo_physai/optimizations/models/openwam/configs/runtime.optimized.yaml) 使用。该 RuntimeConfig 在启动 `torchrun` 前设置坐标下降调优、单线程编译、16 个硬件队列、hipBLASLt 偏好及报告中的运行环境参数。显式选择该文件会覆盖同名环境变量；需要自定义时先复制并编辑。Python `apply()` 不加载 RuntimeConfig，需要调用方在导入 Torch 前设置对应环境。
+
+OPT-01 的 hipBLASLt 库包与配套数据目录需要由目标容器提供。`TORCH_BLAS_PREFER_HIPBLASLT=1` 只选择 backend，不会安装或切换库版本；目标环境应预先配置匹配的动态库搜索路径。
+
+在线组合：先复制 `recipe.online.yaml`，再按上一节生成配置，启动时同时指定优化配置与运行环境配置：
+
+```bash
+turbo-physai run --model openwam --log-report \
+  --optimization-config /path/to/optimization.online.yaml \
+  --runtime-config /path/to/runtime.optimized.yaml \
+  torchrun --nproc_per_node=8 scripts/train.py \
+    training.zero_stage=2 training.offload_optimizer_device=none \
+    training.gradient_accumulation_steps=1 training.dataset_num_workers=8 \
+    training.use_gradient_checkpointing=true \
+    training.use_gradient_checkpointing_offload=false <原训练参数>
+```
+
+缓存组合：复制 `recipe.cache-build.yaml` 和 `recipe.cached.yaml`，把两份中的 `vae_latent_cache_dir` 改成同一实际目录，再分别生成 OptimizationConfig。默认 T5 文件位于该目录的 `text` 子目录。先用生成配方执行下面的缓存入口，完成后将训练命令的优化配置换成 `optimization.cached.yaml`。两阶段使用相同数据窗口、模型与 checkpoint 参数；不要直接运行带 `/path/to/openwam-cache` 占位路径的配置。
+
+| 报告项 | Turbo 对应位置 |
+| --- | --- |
+| OPT-01 hipBLASLt 迁移 | 外部库包及动态库路径；RuntimeConfig 设置 backend 偏好。 |
+| OPT-02 VAE layout 与局部编译 | `openwam.vae`。 |
+| OPT-03 分块注意力、FA2 varlen、CPU padding、融合 mask | `openwam.mot`、`openwam.text`、`openwam.compute`。 |
+| OPT-04 全图编译、实数 RoPE、Lightop Norm | `openwam.compute`、`openwam.mot`、`openwam.vae`。 |
+| OPT-05 尾部 12 层不重算与 FFN SAC | 在线配方的 `openwam.mot`。 |
+| OPT-06 常量、前缀、文本裁剪、uint8 | `openwam.architecture`、`openwam.text`、`openwam.data`。 |
+| OPT-07 ReduceScatter、硬件队列、在线编码重叠 | `openwam.training` 和优化 RuntimeConfig。 |
+| OPT-08 离线 VAE 缓存 | `openwam.data`、`openwam.architecture`、`openwam.training` 与缓存生成入口。 |
+| OPT-09 离线 T5 缓存 | `openwam.text`、`openwam.training` 与缓存生成入口。 |
+| OPT-10 Fused AdamW | `openwam.training.fused_adamw`。 |
+| OPT-11 坐标下降调优与 Host 异步 | 优化 RuntimeConfig 与 `openwam.training.host_async`。 |
+| OPT-12 缓存模式尾部 24 层不重算 | 缓存训练配方的 `openwam.mot.checkpoint_skip_layers=24`。 |
+| OPT-13 Deferred Gather | `openwam.training` 提交与清理、`openwam.mot` / `openwam.architecture` 等待边界。 |
 
 ## 离线缓存
 

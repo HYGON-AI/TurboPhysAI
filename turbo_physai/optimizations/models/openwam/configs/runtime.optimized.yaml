@@ -1,0 +1,19 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Report environment settings, applied before torchrun and HIP initialization.
+# The matching hipBLASLt library package must already be installed externally.
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+environment:
+  set:
+    OMP_NUM_THREADS: '1'
+    MIOPEN_FIND_MODE: '1'
+    PYTORCH_MIOPEN_SUGGEST_NHWC: '1'
+    PYTORCH_MIOPEN_SUGGEST_NDHWC: '1'
+    TORCHINDUCTOR_COMPILE_THREADS: '1'
+    TORCHINDUCTOR_COORDINATE_DESCENT_TUNING: '1'
+    TORCH_BLAS_PREFER_HIPBLASLT: '1'
+    HIPBLASLT_ALLOW_TF32: '1'
+    HSA_FORCE_FINE_GRAIN_PCIE: '1'
+    GPU_MAX_HW_QUEUES: '16'
