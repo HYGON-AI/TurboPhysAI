@@ -48,6 +48,7 @@ Wrapper 应保持原目标的外部调用契约。运行条件允许使用优化
 
 本地执行验证时：
 
+- `python scripts/run_tests.py` 运行测例并生成分类覆盖率及变更行覆盖率报告，见[单测执行与覆盖率报告](test_runner.md)；
 - `bash scripts/test_unit.sh` 运行 `test/engine`、`test/test_runner.py`、`test/operators` 和 `test/optimizations`，其中标记为 `hcu` 的测试也会执行，因此需要可用的 HCU 环境；
 - `bash scripts/test_hcu.sh` 只运行标记为 `hcu` 的测试；
 - `bash scripts/test_engine.sh` 只运行 engine 覆盖率测试。

@@ -73,7 +73,7 @@ assert spec is None, f"the CI image must not preinstall turbo_physai: {spec}"
 PY
 
 echo "===== Install declared build and test dependencies ====="
-python3 -m pip install -r "${repo_root}/requirements-dev.txt"
+python3 -m pip install -r "${repo_root}/requirements-test.txt"
 python3 - <<'PY'
 import setuptools
 import wheel
@@ -182,11 +182,7 @@ PY
 
 echo "===== Run the complete non-HCU and single-HCU test suite ====="
 cd "${test_dir}"
-env -u PYTHONPATH python3 -m pytest \
-  --import-mode=importlib \
-  -p no:cacheprovider \
-  "${repo_root}/test" \
-  -vv \
-  --junitxml="${artifact_dir}/pytest-junit.xml" 2>&1 | tee "${artifact_dir}/pytest.log"
+env -u PYTHONPATH python3 "${repo_root}/scripts/run_tests.py" \
+  --installed --_run-dir "${artifact_dir}/coverage" -- -vv
 
 echo "===== CI completed successfully ====="
