@@ -10,7 +10,7 @@ exec turbo-physai run \
     --runtime-config /workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml \
     --log-report \
     -- \
-    torchrun --nproc_per_node=4 \
+    torchrun --nproc_per_node=2 \
     /workspace/FlashOCC_TurboPhysAI/FlashOCC/tools/train.py \
     /workspace/FlashOCC_TurboPhysAI/FlashOCC/projects/configs/flashocc/flashocc-r50.py \
     --launcher pytorch \
