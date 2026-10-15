@@ -10,8 +10,14 @@ RUNTIME_ROOT="$ROOT/runtime"
 if [[ -f /root/.hygon_base_env ]]; then
     source /root/.hygon_base_env
 fi
-source /opt/conda/etc/profile.d/conda.sh
-conda activate mmcv1
+if [[ -n "${CONDA_PREFIX:-}" ]]; then
+    echo "[FlashOCC] Using active Python environment: $CONDA_PREFIX"
+elif [[ -f /opt/conda/etc/profile.d/conda.sh ]]; then
+    source /opt/conda/etc/profile.d/conda.sh
+    conda activate mmcv1
+else
+    echo "[FlashOCC] Conda not found; using $(command -v python)" >&2
+fi
 
 if [[ -n "$(git -C "$FLASHOCC_ROOT" status --porcelain)" ]]; then
     echo "Refusing to build: official FlashOCC checkout is not clean." >&2
