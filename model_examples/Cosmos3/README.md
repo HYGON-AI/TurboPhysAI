@@ -44,41 +44,13 @@ pip install lerobot --no-deps
 
 ## 数据与模型权重
 
-按训练任务准备以下资产，路径通过后面的环境变量设置。
+数据与权重沿用上游的官方来源及下载、处理步骤：参见 [训练与数据准备](https://github.com/NVIDIA/cosmos-framework/blob/9726697a83315540c6885baefd2fe353d9c74920/docs/training.md)、[DROID 数据准备](https://github.com/NVIDIA/cosmos-framework/blob/9726697a83315540c6885baefd2fe353d9c74920/docs/action_policy_droid_posttrain.md#full-reproduction) 和 [模型权重准备](https://github.com/NVIDIA/cosmos-framework/blob/9726697a83315540c6885baefd2fe353d9c74920/docs/setup.md#downloading-base-checkpoints)。准备好以下资产后，将后文的 `/path/to/...` 替换为实际路径；使用已有验证数据包时，见[快速验证（可选）](#快速验证可选)。
 
 | 任务 | 数据 | 模型权重 |
 | --- | --- | --- |
 | Generator Nano | BridgeData2 的 `sft_dataset_bridge` | Cosmos3-Nano DCP、Wan2.2 VAE、Cosmos3-Nano processor/tokenizer |
 | Action Policy | DROID LeRobot 数据集 | Cosmos3-Nano DCP、Wan2.2 VAE、Qwen3-VL-8B tokenizer 缓存 |
 | Reasoner | VideoPhy2 或 LLaVA-OV 配方对应数据 | Qwen3-VL 模型目录、Cosmos3-Nano-VLM safetensors |
-
-
-```bash
-cd /data
-wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/BridgeData2-Subset-Synthetic-Captions.zip
-unzip BridgeData2-Subset-Synthetic-Captions.zip
-
-wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/videophysics_official.tar.gz
-tar -xzf videophysics_official.tar.gz -C /data/
-
-wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/Cosmos3-DROID-perf64.tar.gz
-tar -xzf Cosmos3-DROID-perf64.tar.gz -C /data/
-
-wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/Qwen3-VL-8B-Instruct-tokenizer-cache.tar.gz
-tar -xzf Qwen3-VL-8B-Instruct-tokenizer-cache.tar.gz -C /data/
-cd /data/cosmos-framework
-```
-
-DROID perf64 压缩包包含 `success/` 下的 metadata、数据和视频，以及 `/data/Cosmos3-DROID-perf64/keep_ranges_perf64.json`。直接使用该子集及过滤文件，无需下载完整 DROID 数据。Tokenizer 缓存解压到 `/data/hf-cache`，不包含 Qwen 模型权重。
-
-上游 loader 根据 `DROID_ROOT` 的目录名选择数据版本。为子集建立名为 `droid_plus_lerobot_640x360_20260412` 的目录别名，无需复制数据：
-
-```bash
-mkdir -p /data/droid-perf64
-ln -sT /data/Cosmos3-DROID-perf64 /data/droid-perf64/droid_plus_lerobot_640x360_20260412
-```
-
-后文 `DROID_ROOT` 指向该别名，过滤文件仍指向解压后的文件；已有正确别名时跳过创建。metadata 和共享数据文件可能包含未选 episode，训练时必须启用 perf64 过滤文件。
 
 将 Cosmos3-Nano HF 权重转换为 DCP 时，在 Cosmos 仓库根目录设置 `WAN_VAE_PATH` 和 `BASE_CHECKPOINT_PATH`，然后执行：
 
@@ -99,7 +71,7 @@ python -m cosmos_framework.scripts.convert_model_to_dcp \
 export PYTHONPATH="$PWD"
 export HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export HF_HUB_OFFLINE=1 OMP_NUM_THREADS=1
-export HF_HOME=/data/hf-cache
+export HF_HOME=/path/to/hf-cache
 export MIOPEN_FIND_MODE=1 PYTORCH_MIOPEN_SUGGEST_NDHWC=1
 export TORCH_NCCL_HIGH_PRIORITY=1
 ```
@@ -110,10 +82,10 @@ export TORCH_NCCL_HIGH_PRIORITY=1
 
 ```bash
 export HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-export DATASET_PATH=/data/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge
-export BASE_CHECKPOINT_PATH=path/to/Cosmos3-Nano-DCP
-export WAN_VAE_PATH=path/to/Wan2.2_VAE.pth
-export LOCAL_PROCESSOR_DIR=path/to/Cosmos3-Nano
+export DATASET_PATH=/path/to/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge
+export BASE_CHECKPOINT_PATH=/path/to/Cosmos3-Nano-DCP
+export WAN_VAE_PATH=/path/to/Wan2.2_VAE.pth
+export LOCAL_PROCESSOR_DIR=/path/to/Cosmos3-Nano
 export IMAGINAIRE_OUTPUT_ROOT=./outputs/hcu_training
 
 torchrun --nproc-per-node=8 --master_port=29712 \
@@ -134,12 +106,11 @@ torchrun --nproc-per-node=8 --master_port=29712 \
 ### Action Policy（DROID）
 
 ```bash
-export HF_HOME=/data/hf-cache
-export BASE_CHECKPOINT_PATH=path/to/Cosmos3-Nano-DCP
-export WAN_VAE_PATH=path/to/Wan2.2_VAE.pth
-export LOCAL_PROCESSOR_DIR=path/to/Cosmos3-Nano
-export DROID_ROOT=/data/droid-perf64/droid_plus_lerobot_640x360_20260412
-export KEEP_RANGES_PATH=/data/Cosmos3-DROID-perf64/keep_ranges_perf64.json
+export BASE_CHECKPOINT_PATH=/path/to/Cosmos3-Nano-DCP
+export WAN_VAE_PATH=/path/to/Wan2.2_VAE.pth
+export LOCAL_PROCESSOR_DIR=/path/to/Cosmos3-Nano
+export DROID_ROOT=/path/to/droid_plus_lerobot_640x360_20260412
+export KEEP_RANGES_PATH=/path/to/keep_ranges_1_0_1.json
 export IMAGINAIRE_OUTPUT_ROOT=./outputs/action_policy
 export TORCHINDUCTOR_WORKER_START=spawn TORCHINDUCTOR_COMPILE_THREADS=4
 export OMP_NUM_THREADS=4
@@ -167,14 +138,14 @@ torchrun --nproc_per_node=8 --master_port=29716 \
   checkpoint.save_iter=1000 checkpoint.dcp_async_mode_enabled=false
 ```
 
-本例使用 DROID perf64 子集及对应过滤文件，`MIOPEN_FIND_MODE=1` 由前面的 Shell 设置提供。
+`KEEP_RANGES_PATH` 指向上游流程准备的过滤文件；快速验证时替换为 perf64 对应文件。`MIOPEN_FIND_MODE=1` 由前面的 Shell 设置提供。
 
 一次性性能运行如需关闭 checkpoint 写入，追加 `checkpoint.type._target_=cosmos_framework.checkpoint.load_only.LoadOnlyDistributedCheckpointer`；默认保留正常保存行为。
 
 ### Reasoner VideoPhy2
 
 ```bash
-export VIDEOPHYSICS_ROOT=/data/videophysics_official
+export VIDEOPHYSICS_ROOT=/path/to/videophysics_official
 export VLM_MODEL_NAME=/path/to/Qwen3-VL-8B-Instruct
 export VLM_SAFETENSORS_PATH=/path/to/Cosmos3-Nano-VLM
 export IMAGINAIRE_OUTPUT_ROOT=./outputs/reasoner
@@ -209,6 +180,46 @@ HF_HUB_OFFLINE=0 torchrun --nproc_per_node=8 --master_port=29715 \
   trainer.callbacks.log_tensor_shape.num_log=-1 \
   checkpoint.save_iter=1000 checkpoint.dcp_async_mode_enabled=false
 ```
+
+## 快速验证（可选）
+
+以下数据包用于快速验证 HCU 训练流程。按任务下载并解压后，将对应训练小节中的路径替换为下表值，复用其 70 步训练命令；模型权重仍按上游流程准备。
+
+在 `cosmos-framework` 根目录执行：
+
+```bash
+(
+cd /data
+wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/BridgeData2-Subset-Synthetic-Captions.zip
+unzip BridgeData2-Subset-Synthetic-Captions.zip
+
+wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/videophysics_official.tar.gz
+tar -xzf videophysics_official.tar.gz -C /data/
+
+wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/Cosmos3-DROID-perf64.tar.gz
+tar -xzf Cosmos3-DROID-perf64.tar.gz -C /data/
+
+wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/Qwen3-VL-8B-Instruct-tokenizer-cache.tar.gz
+tar -xzf Qwen3-VL-8B-Instruct-tokenizer-cache.tar.gz -C /data/
+)
+```
+
+DROID perf64 压缩包包含 `success/` 下的 metadata、数据和视频，以及 `keep_ranges_perf64.json`。上游 loader 根据 `DROID_ROOT` 的目录名选择数据版本，为子集建立目录别名即可，无需复制数据；已有正确别名时跳过：
+
+```bash
+mkdir -p /data/droid-perf64
+ln -sT /data/Cosmos3-DROID-perf64 /data/droid-perf64/droid_plus_lerobot_640x360_20260412
+```
+
+| 训练场景 | 变量 | 验证数据路径 |
+| --- | --- | --- |
+| Generator Nano | `DATASET_PATH` | `/data/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge` |
+| Action Policy（DROID） | `DROID_ROOT` | `/data/droid-perf64/droid_plus_lerobot_640x360_20260412` |
+| Action Policy（DROID） | `KEEP_RANGES_PATH` | `/data/Cosmos3-DROID-perf64/keep_ranges_perf64.json` |
+| Reasoner VideoPhy2 | `VIDEOPHYSICS_ROOT` | `/data/videophysics_official` |
+| 使用上述 tokenizer 缓存时 | `HF_HOME` | `/data/hf-cache` |
+
+perf64 的 metadata 和共享数据文件可能包含未选 episode，验证时必须使用配套过滤文件。Tokenizer 缓存不包含 Qwen 模型权重。使用启动脚本时，直接修改脚本配置区中的相应路径。
 
 ## 运行说明
 

@@ -7394,7 +7394,7 @@ index 0000000000000000000000000000000000000000..a811f0a1a0cba00ca34a5ea8d625e583
 +    "$@"
 diff --git a/examples/launch_sft_action_policy_droid_hcu.sh b/examples/launch_sft_action_policy_droid_hcu.sh
 new file mode 100644
-index 0000000000000000000000000000000000000000..0ccd4b8960d20649f2c679d32e58a2e79a5d15cd
+index 0000000000000000000000000000000000000000..f2907b40dcf538c19b9ed405300e7cd01e354b8a
 --- /dev/null
 +++ b/examples/launch_sft_action_policy_droid_hcu.sh
 @@ -0,0 +1,137 @@
@@ -7408,11 +7408,11 @@ index 0000000000000000000000000000000000000000..0ccd4b8960d20649f2c679d32e58a2e7
 +WORKDIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 +
 +# 启动前直接修改下列资产路径和输出目录；外部 export 不会覆盖这些路径。
-+# DROID_ROOT 使用 README 中准备的 perf64 子集；完整数据训练时修改根目录并清空 KEEP_RANGES_PATH。
-+DROID_ROOT="/data/droid-perf64/droid_plus_lerobot_640x360_20260412"
++# 数据与过滤文件按上游流程准备；快速验证时改用 README 中的 perf64 路径。
++DROID_ROOT="/path/to/droid_plus_lerobot_640x360_20260412"
 +BASE_CHECKPOINT_PATH="/path/to/Cosmos3-Nano-DCP"
 +WAN_VAE_PATH="/path/to/Wan2.2_VAE.pth"
-+KEEP_RANGES_PATH="$DROID_ROOT/keep_ranges_perf64.json"
++KEEP_RANGES_PATH="/path/to/keep_ranges_1_0_1.json"
 +OUTPUT_ROOT="$WORKDIR/outputs/action_policy"
 +
 +# Runtime defaults; override only when needed.
