@@ -6,11 +6,14 @@
 
 TurboPhysAI 不强制模型仓库停留在优化接入基线（[可以在优化接入基线之外的模型版本上使用吗？](../faq.md#可以在优化接入基线之外的模型版本上使用吗)）。
 
+Cosmos3 通过独立源码补丁提供支持，需使用指定基线应用补丁，再通过 Cosmos 原生训练入口运行，具体步骤见模型使用说明。
+
 ## 已支持模型
 
 |   模型   |     Method     | Backbone |                 优化接入基线                 |                       使用说明                       |
 | :-------: | :------------: | :------: | :------------------------------------------: | :---------------------------------------------------: |
 | BEVFormer | BEVFormer-base | R101-DCN | `66b65f3a1f58caf0507cb2a971b9c0e7f842376c` | [BEVFormer](../../../model_examples/BEVFormer/README.md) |
 | BEVFusion |   BEVFusion   |    —    | `326653dc06e0938edf1aae7d01efcd158ba83de5` | [BEVFusion](../../../model_examples/BEVFusion/README.md) |
+| Cosmos3 | Generator / Action Policy / Reasoner | — | `9726697a83315540c6885baefd2fe353d9c74920` | [Cosmos3](../../../model_examples/Cosmos3/README.md) |
 
 **自动驾驶**、**具身智能**和**世界模型**等方向的模型适配工作持续推进中，请关注后续更新。

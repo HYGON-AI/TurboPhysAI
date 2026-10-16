@@ -11,7 +11,7 @@ from pathlib import Path
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension, ROCM_HOME
 from setuptools import find_packages, setup
 from setuptools.command.build_ext import build_ext
-from pkg_resources import packaging
+from packaging import version as packaging_version
 from get_version import get_version, get_dtk_version
 
 
@@ -168,9 +168,9 @@ def _write_ninja_file(path, cflags, post_cflags, cuda_cflags, cuda_post_cflags, 
     if with_cuda:
         cuda_compile_rule = ['rule cuda_compile']
         nvcc_gendeps = ''
-        required_cuda_version = packaging.version.parse('10.2')
+        required_cuda_version = packaging_version.parse('10.2')
         has_cuda_version = torch.version.cuda is not None
-        if has_cuda_version and packaging.version.parse(torch.version.cuda) >= required_cuda_version:
+        if has_cuda_version and packaging_version.parse(torch.version.cuda) >= required_cuda_version:
             cuda_compile_rule.append('  depfile = $out.d')
             cuda_compile_rule.append('  deps = gcc')
         cuda_compile_rule.append(

@@ -146,3 +146,45 @@ All previously identified source files now have a direct upstream path and a fix
 ## Hygon modification notice
 
 Where Apache-2.0 source code was modified, the source file retains the upstream copyright and license notice, then adds Hygon copyright and `Modified by Hygon.`. The notice does not change the upstream license.
+
+## Cosmos3 (OpenMDW-1.1)
+
+- Repository: <https://github.com/NVIDIA/cosmos-framework>
+- Fixed commit: `9726697a83315540c6885baefd2fe353d9c74920`
+- License: OpenMDW-1.1
+
+`model_examples/Cosmos3/cosmos-framework.patch` contains modifications derived from NVIDIA Cosmos Framework. Cosmos-derived material retains OpenMDW-1.1 and applicable source-file notices.
+
+| Local patch | Upstream file / Added file | Change type |
+| --- | --- | --- |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/callbacks/device_monitor.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/checkpoint/dcp.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/checkpoint/load_only.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/toml_config/sft_config.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/action/datasets/cosmos3_action_lerobot.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/augmentors/interleaved_video_parsing.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/augmentors/video_parsing.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/joint_dataloader.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/sequence_packing/runtime.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/attention/flash2/functions.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/attention/utils/__init__.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/mot/attention.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/mot/cosmos3_vfm_network.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/omni_mot_model.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/parallelize_vlm.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/reasoner/qwen3_vl/__init__.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/reasoner/qwen3_vl/qwen3_vl.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/reasoner/qwen3_vl/utils.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/__init__.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/_concat_layout.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/_hipdnn.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/concat_conv_bias.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/conv_bias.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/wan2pt2_vae_4x16x16.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/scripts/convert_model_to_dcp.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/distributed.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/fsdp_ordered_comm.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/memory_format.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/memory_format_test.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/misc.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/video_decode.py` | Added |
