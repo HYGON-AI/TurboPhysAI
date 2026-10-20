@@ -3,6 +3,7 @@ kind: RuntimeConfig
 
 environment:
   set:
+    HIP_BUFFER_EXTRA_SIZE: "0"
     PYTHONPATH: "../TurboPhysAI:../TurboPhysAI/turbo_physai/optimizations/models/openpi/compat:.:./src:./packages/openpi-client/src"
     OPENPI_DATA_HOME: "/dev/shm/openpi_8gpu_cache/openpi_data"
     HF_LEROBOT_HOME: "/workspace/openpi_TurboPhysAI/static_data/.lerobot_root"
