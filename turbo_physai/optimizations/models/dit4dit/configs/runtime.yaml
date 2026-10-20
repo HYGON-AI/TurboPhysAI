@@ -1,0 +1,15 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+# Tuned BLAS/MIOpen libraries and caches are supplied by the delivery image,
+# not by TurboPhysAI. Keep only portable process/runtime settings here.
+environment:
+  set:
+    TOKENIZERS_PARALLELISM: "false"
+  unset: []
+
+process:
+  numa: auto
