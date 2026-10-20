@@ -44,7 +44,7 @@ turbo-physai run \
     --trainer.gradient_accumulation_steps 4
 ```
 
-`--model dit4dit` 自动选择随 TurboPhysAI wheel 交付的 OptimizationConfig 和 RuntimeConfig。Action Compile、`fallback_random=True` 与当前 PyTorch 2.10 DAS 所需的 Action-scoped `alignment_asserts=False` 作为一个不可拆分的 Group 应用。该对齐开关只关闭 Action 编译生成代码的运行时对齐断言，不关闭 Flash-Attention。
+`--model dit4dit` 自动选择随 TurboPhysAI wheel 交付的 OptimizationConfig 和 RuntimeConfig。Action Compile、`fallback_random=True` 与当前 PyTorch 2.10 DAS 所需的 `alignment_asserts=False` 作为一个不可拆分的 Group 应用；Cosmos 分段编译同样固定使用 `alignment_asserts=False`。该对齐开关只关闭 Inductor 生成代码的运行时对齐断言，不关闭 Flash-Attention。
 
 ## 5. 验收
 
