@@ -1,0 +1,60 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.dit4dit.bw1000.safe
+  version: "1.0.0"
+  description: DiT4DiT framework optimizations for the clean customer baseline
+model:
+  name: DiT4DiT
+optimization_modules:
+  - turbo_physai.optimizations.models.dit4dit.catalog
+compatibility:
+  dependencies:
+    torch: ">=2.10,<2.11"
+    diffusers: "==0.38.0"
+    accelerate: "==1.13.0"
+optimization_groups:
+  - id: dit4dit.dataloader
+    enabled: true
+    options:
+      num_workers: 4
+      multiprocessing_context: spawn
+      persistent_workers: true
+      prefetch_factor: 4
+      pin_memory: true
+      in_order: true
+  - id: dit4dit.cosmos.attention
+    enabled: true
+  - id: dit4dit.cosmos.cache
+    enabled: true
+    options:
+      rope_cache_max_entries: 4
+  - id: dit4dit.cosmos.vae_batch_encode
+    enabled: true
+  - id: dit4dit.cosmos.hidden_capture
+    enabled: true
+  - id: dit4dit.cosmos.segment_compile
+    enabled: true
+    options:
+      backend: inductor
+      mode: default
+      fullgraph: false
+      dynamic: false
+      segment_size: 6
+  - id: dit4dit.cosmos.video_pack
+    enabled: true
+  - id: dit4dit.action.compile_rng_fallback
+    enabled: true
+    options:
+      backend: inductor
+      fallback_random: true
+      fullgraph: false
+      dynamic: false
+      alignment_asserts: false
+  - id: dit4dit.training.fused_adamw
+    enabled: true
+  - id: dit4dit.training.metric_sync
+    enabled: true
