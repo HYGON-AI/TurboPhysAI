@@ -181,6 +181,7 @@ def test_runner_replays_the_original_command_when_reexecing(monkeypatch):
 
 
 def test_runner_discovers_rank_numa_from_hy_smi(monkeypatch):
+    monkeypatch.delenv("ROCR_VISIBLE_DEVICES", raising=False)
     monkeypatch.setenv("HIP_VISIBLE_DEVICES", "4,5")
     monkeypatch.setattr("turbo_physai.runner.shutil.which", lambda _: "/usr/bin/hy-smi")
     completed = type("Completed", (), {
@@ -191,6 +192,20 @@ def test_runner_discovers_rank_numa_from_hy_smi(monkeypatch):
     with patch("turbo_physai.runner.subprocess.run", return_value=completed) as command:
         assert _discover_rank_numa_node("0") == 1
     assert command.call_args.args[0] == ["/usr/bin/hy-smi", "--showtopo"]
+
+
+def test_runner_maps_logical_hip_device_through_rocr_visibility(monkeypatch):
+    monkeypatch.setenv("ROCR_VISIBLE_DEVICES", "4,5")
+    monkeypatch.setenv("HIP_VISIBLE_DEVICES", "0,1")
+    monkeypatch.setattr("turbo_physai.runner.shutil.which", lambda _: "/usr/bin/hy-smi")
+    completed = type("Completed", (), {
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "HCU[4] : (Topology) Numa Node 4\nHCU[5] : (Topology) Numa Node 5\n",
+    })()
+    with patch("turbo_physai.runner.subprocess.run", return_value=completed):
+        assert _discover_rank_numa_node("0") == 4
+        assert _discover_rank_numa_node("1") == 5
 
 
 def test_runner_starts_training_when_an_independent_group_is_blocked(tmp_path):
