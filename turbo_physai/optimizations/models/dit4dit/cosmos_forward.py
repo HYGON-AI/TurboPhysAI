@@ -858,8 +858,10 @@ def compile_segment_wrapper(original, options):
         raise RuntimeError("This PyTorch build does not support alignment_asserts")
     if options.get("alignment_asserts", False) is not False:
         raise ValueError("Cosmos segment compile requires alignment_asserts=False")
+    if options.get("mode", "default") != "default":
+        raise ValueError("Cosmos alignment workaround requires mode=default")
     kwargs = dict(
-        backend="inductor", mode=str(options.get("mode", "default")),
+        backend="inductor",
         fullgraph=bool(options.get("fullgraph", False)),
         dynamic=bool(options.get("dynamic", False)),
         options={"alignment_asserts": False},

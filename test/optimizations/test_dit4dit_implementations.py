@@ -91,7 +91,6 @@ def test_cosmos_segment_compile_disables_broken_alignment_assert(monkeypatch):
         6,
         {
             "backend": "inductor",
-            "mode": "default",
             "fullgraph": False,
             "dynamic": False,
             "options": {"alignment_asserts": False},
@@ -105,6 +104,11 @@ def test_cosmos_segment_compile_rejects_alignment_asserts(monkeypatch):
         cosmos_forward.compile_segment_wrapper(
             lambda *args, **kwargs: None,
             {"alignment_asserts": True},
+        )
+    with pytest.raises(ValueError, match="mode=default"):
+        cosmos_forward.compile_segment_wrapper(
+            lambda *args, **kwargs: None,
+            {"mode": "reduce-overhead"},
         )
 
 
