@@ -8,7 +8,7 @@ import types
 import pytest
 import yaml
 
-from turbo_physai.optimizations.models.dit4dit import action_compile, entry
+from turbo_physai.optimizations.models.dit4dit import action_compile, cosmos_forward, entry
 
 
 def _install_fake_inductor(monkeypatch, *, fallback_random=True):
@@ -68,6 +68,44 @@ def test_action_compile_requires_supported_inductor(monkeypatch):
     _install_fake_inductor(monkeypatch, fallback_random=False)
     with pytest.raises(RuntimeError, match="does not support fallback_random"):
         action_compile.build_framework_wrapper(lambda cfg: None, {})
+
+
+def test_cosmos_segment_compile_disables_broken_alignment_assert(monkeypatch):
+    _install_fake_inductor(monkeypatch)
+    calls = []
+
+    def install(transformer, *, capture_layer, segment_size, compile_kwargs):
+        calls.append((transformer, capture_layer, segment_size, compile_kwargs))
+        return "installed"
+
+    transformer = object()
+    wrapped = cosmos_forward.compile_segment_wrapper(
+        install,
+        {"segment_size": 6, "alignment_asserts": False},
+    )
+
+    assert wrapped(transformer, capture_layer=17) == "installed"
+    assert calls == [(
+        transformer,
+        17,
+        6,
+        {
+            "backend": "inductor",
+            "mode": "default",
+            "fullgraph": False,
+            "dynamic": False,
+            "options": {"alignment_asserts": False},
+        },
+    )]
+
+
+def test_cosmos_segment_compile_rejects_alignment_asserts(monkeypatch):
+    _install_fake_inductor(monkeypatch)
+    with pytest.raises(ValueError, match="alignment_asserts=False"):
+        cosmos_forward.compile_segment_wrapper(
+            lambda *args, **kwargs: None,
+            {"alignment_asserts": True},
+        )
 
 
 def test_entry_sets_deepspeed_accumulation_consistently():

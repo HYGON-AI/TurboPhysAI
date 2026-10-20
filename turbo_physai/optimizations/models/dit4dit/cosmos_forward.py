@@ -849,13 +849,20 @@ def register_direct_capture(self):
 
 
 def compile_segment_wrapper(original, options):
+    from torch._inductor import config
+
     size = int(options.get("segment_size", 6))
     if size < 1:
         raise ValueError("segment_size must be >= 1")
+    if not hasattr(config, "alignment_asserts"):
+        raise RuntimeError("This PyTorch build does not support alignment_asserts")
+    if options.get("alignment_asserts", False) is not False:
+        raise ValueError("Cosmos segment compile requires alignment_asserts=False")
     kwargs = dict(
         backend="inductor", mode=str(options.get("mode", "default")),
         fullgraph=bool(options.get("fullgraph", False)),
         dynamic=bool(options.get("dynamic", False)),
+        options={"alignment_asserts": False},
     )
 
     @functools.wraps(original)
