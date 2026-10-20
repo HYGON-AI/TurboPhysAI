@@ -44,6 +44,7 @@ optimization_groups:
       fullgraph: false
       dynamic: false
       segment_size: 6
+      alignment_asserts: false
   - id: dit4dit.cosmos.video_pack
     enabled: true
   - id: dit4dit.action.compile_rng_fallback

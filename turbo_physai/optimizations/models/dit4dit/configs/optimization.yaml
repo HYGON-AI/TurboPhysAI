@@ -85,6 +85,7 @@ optimization_groups:
 - id: dit4dit.cosmos.segment_compile
   enabled: true
   options:
+    alignment_asserts: false
     backend: inductor
     dynamic: false
     fullgraph: false

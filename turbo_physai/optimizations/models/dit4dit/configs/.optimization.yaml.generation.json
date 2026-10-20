@@ -4,14 +4,14 @@
   "model_commit": "d8854a11713f846b8b3f768fc3bf2c6cba2bc17f",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "bb544f6317f88fa97acb27aed0dae56d0a31a68fe3d47ac232c8cd90f156443a"
+    "sha256": "09d9389c79341f24a4acb4dc993d2d2b2f460af87f3f047bac5a417253bc9fab"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "package",
       "path": "optimizations/models/dit4dit/configs/recipe.yaml",
-      "sha256": "f2fcd1cf0ea5614ab8c44f4c1667835e12d6108a9a3b0c507ebf1281c5195c5f"
+      "sha256": "1d3a02e96fdf039231c860f916085dc8ca07fcdca0e81950835824bb457dd9e5"
     },
     {
       "role": "catalog",
