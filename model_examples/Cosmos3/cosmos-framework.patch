@@ -68,10 +68,10 @@ index c6a8f1661625d3ab396f2cef994411d06bce6c6c..b7bdcd917d5bca886458132b7ac8b749
          per_mesh_norms[mesh] = mesh_norm
  
 diff --git a/cosmos_framework/checkpoint/dcp.py b/cosmos_framework/checkpoint/dcp.py
-index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1eb72f60a 100644
+index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c61190e2ff 100644
 --- a/cosmos_framework/checkpoint/dcp.py
 +++ b/cosmos_framework/checkpoint/dcp.py
-@@ -71,9 +71,9 @@ from torch.nn.modules.module import _IncompatibleKeys
+@@ -71,9 +71,9 @@
  
  from cosmos_framework.checkpoint.base import AbstractCheckpointer
  from cosmos_framework.checkpoint.s3_filesystem import S3StorageReader, S3StorageWriter
@@ -82,10 +82,11 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
  from cosmos_framework.utils.easy_io import easy_io
  from cosmos_framework.utils.generator.rand_state import get_rand_state_dict, set_rand_state_dict
  
-@@ -688,6 +688,14 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -687,6 +687,14 @@
+             self.async_mode = AsyncMode.ASYNC_WITH_PINNED_MEM
          else:
              self.async_mode = AsyncMode.DISABLED
- 
++
 +        # PyTorch DCP performs save-plan exchange with object collectives.
 +        # On HCU/RCCL, the NCCL-backed gather_object path can fail even though
 +        # the actual tensor writes are valid.  Keep the training process group
@@ -93,11 +94,10 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
 +        # The background async saver already initializes with Gloo and therefore
 +        # does not need a second group.
 +        self._dcp_metadata_process_group: dist.ProcessGroup | None = None
-+
+ 
          if self.async_mode == AsyncMode.ASYNC_WITH_PINNED_MEM:
              ctx = get_context("spawn")
-             self.mp_queue_send = ctx.Queue()
-@@ -866,6 +874,16 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -866,6 +874,16 @@
                          raise ValueError(
                              f"Unexpected keys (found in checkpoint but not in model): {results.unexpected_keys}"
                          )
@@ -114,7 +114,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
  
                  elif key == "optim":
                      log.info("- Loading the optimizer...")
-@@ -898,6 +916,7 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -898,6 +916,7 @@
  
                      # Use rank-specific key for RNG state to support correct per-rank restoration
                      rng_key = f"rng_state_{dist.get_rank()}"
@@ -122,7 +122,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
                      _state_dict = {
                          "grad_scaler": grad_scaler.state_dict(),
                          "iteration": iteration,
-@@ -908,7 +927,7 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -908,7 +927,7 @@
                          k.startswith(f"{rng_key}.") or k == rng_key for k in metadata.state_dict_metadata.keys()
                      )
                      if rng_key_exists:
@@ -131,7 +131,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
  
                      dcp.load(
                          _state_dict,
-@@ -918,8 +937,7 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -918,8 +937,7 @@
                      )
                      grad_scaler.load_state_dict(_state_dict["grad_scaler"])
                      iteration = _state_dict["iteration"]
@@ -141,28 +141,58 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
  
                  elif key == "dataloader":
                      if not easy_io.exists(cur_key_ckpt_full_path, backend_key=self.load_s3_backend_key):
-@@ -971,7 +989,19 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -969,9 +987,48 @@
  
+         from torch.distributed._state_dict_utils import _copy_state_dict, _create_cpu_state_dict
+ 
++        allocation_error = None
          if self.cpu_offload_state_dict is None:
-             log.info(f"Preparing the CPU memory for staging")
+-            log.info(f"Preparing the CPU memory for staging")
 -            self.cpu_offload_state_dict = _create_cpu_state_dict(state_dict, pin_memory=True, share_memory=True)
++            log.info("Preparing the CPU memory for staging")
 +            try:
 +                self.cpu_offload_state_dict = _create_cpu_state_dict(state_dict, pin_memory=True, share_memory=True)
-+            except Exception as e:
-+                log.warning(
-+                    f"Failed to allocate shared memory for async DCP checkpoint ({e}). "
-+                    "Falling back to synchronous checkpoint save."
++            except Exception as error:
++                allocation_error = error
++
++        # Decide on the training process group before any rank submits a background job.
++        allocation_failed = allocation_error is not None
++        if dist.is_available() and dist.is_initialized():
++            backend = str(dist.get_backend()).lower()
++            device = torch.device("cuda", torch.cuda.current_device()) if backend in {"nccl", "rccl"} else "cpu"
++            failed = torch.tensor(int(allocation_failed), dtype=torch.int32, device=device)
++            dist.all_reduce(failed, op=dist.ReduceOp.MAX)
++            allocation_failed = bool(failed.item())
++
++        if allocation_failed:
++            log.warning(
++                "Async checkpoint staging allocation failed on at least one rank; "
++                f"all ranks will save synchronously (local error: {allocation_error})."
++            )
++            # save() already waited for the previous checkpoint. Every worker is idle.
++            self.mp_queue_send.put(Terminate())
++            self.mp.join(timeout=30)
++            if self.mp.is_alive():
++                self.mp.terminate()
++                self.mp.join(timeout=5)
++            self.mp_queue_send.close()
++            self.mp_queue_recv.close()
++            self.cpu_offload_state_dict = None
++            self.staging_ckpt_file = None
++            self.checkpoint_in_progress = False
++            self.async_mode = AsyncMode.DISABLED
++            start_time = time.monotonic()
++            self.save_state_dict_worker(state_dict, checkpoint_file)
++            elapsed_time = time.monotonic() - start_time
++            if self.callbacks is not None:
++                self.callbacks.on_save_checkpoint_success(
++                    iteration=state_dict["trainer"][0]["iteration"], elapsed_time=elapsed_time,
 +                )
-+                self.async_mode = AsyncMode.DISABLED
-+                start_time = time.monotonic()
-+                self.save_state_dict_worker(state_dict, checkpoint_file)
-+                elapsed_time = time.monotonic() - start_time
-+                log.info(f"Fallback synchronous checkpoint save completed: Time taken: {elapsed_time:.2f} seconds")
-+                return
++            return
  
          log.info(f"Staging the state_dict in CPU memory")
          with torch.cuda.stream(self.staging_stream):
-@@ -1034,7 +1064,39 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -1034,7 +1091,39 @@
                  path=checkpoint_path,
                  enable_gcs_patch_in_boto3=self.config_checkpoint.enable_gcs_patch_in_boto3,
              )
@@ -203,10 +233,11 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
  
      def get_storage_reader(self, checkpoint_path: str) -> Union[S3StorageReader, FileSystemReader]:
          if self.load_from_object_store:
-@@ -1045,6 +1107,33 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -1044,6 +1133,33 @@
+                 enable_gcs_patch_in_boto3=self.config_checkpoint.enable_gcs_patch_in_boto3,
              )
          return FileSystemReader(checkpoint_path)
- 
++
 +    def _get_dcp_metadata_process_group(self) -> dist.ProcessGroup | None:
 +        """Return a CPU metadata group for HCU DCP save-plan collectives."""
 +        if self._dcp_metadata_process_group is not None:
@@ -233,11 +264,10 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
 +            f"(default backend={default_backend})"
 +        )
 +        return self._dcp_metadata_process_group
-+
+ 
      def _save_as_pkl(self, obj: Any, output_dir: str) -> None:
          """Save per-rank Python checkpoint state such as no-replace dataloader progress."""
-         rank = dist.get_rank()
-@@ -1058,6 +1147,7 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -1058,6 +1174,7 @@
          log.info(f"Saved state to {path}")
  
      def save_state_dict_worker(self, to_save_dict: Dict[str, Tuple[Any, str]], checkpoint_file: str) -> None:
@@ -245,7 +275,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..dbda36c7b69b3b90b3ccdbb47d3765a1
          for key, (v, full_checkpoint_path) in to_save_dict.items():
              if key == "dataloader":
                  self._save_as_pkl(v, full_checkpoint_path)
-@@ -1075,6 +1165,7 @@ class DistributedCheckpointer(AbstractCheckpointer):
+@@ -1075,6 +1192,7 @@
                      v,
                      storage_writer=storage_writer,
                      planner=save_planner,
@@ -877,10 +907,10 @@ index c505c86522ee7c4e97399e53adfc012df2ce5bfa..0f766565753b68b07dbe17c471740c37
              seek_mode=self.seek_mode,
              num_ffmpeg_threads=self.video_decode_num_threads,
 diff --git a/cosmos_framework/data/generator/augmentors/video_parsing.py b/cosmos_framework/data/generator/augmentors/video_parsing.py
-index 4079c0333094f72c4127008d55e79ea5995a17c2..4352662938ffe0b6e024339ce4756d38eb56f6bc 100644
+index 4079c0333094f72c4127008d55e79ea5995a17c2..20de87874ce92ae396baf4eafb920d41d9d77203 100644
 --- a/cosmos_framework/data/generator/augmentors/video_parsing.py
 +++ b/cosmos_framework/data/generator/augmentors/video_parsing.py
-@@ -9,12 +9,16 @@ import numpy as np
+@@ -9,12 +9,16 @@
  import omegaconf
  import torch
  from einops import rearrange
@@ -898,11 +928,11 @@ index 4079c0333094f72c4127008d55e79ea5995a17c2..4352662938ffe0b6e024339ce4756d38
  from cosmos_framework.data.generator.utils import VIDEO_RES_SIZE_INFO
  from cosmos_framework.model.generator.tokenizers.uniae.frame_math import (
      align_uniae_num_video_frames,
-@@ -109,8 +113,11 @@ class VideoParsing(Augmentor):
+@@ -109,8 +113,11 @@
              Audio tensor of shape (C, N) or None if audio extraction fails
          """
          try:
-+            if not probe_has_audio_stream(video_bytes):
++            if probe_has_audio_stream(video_bytes) is False:
 +                return None
 +
              # Create audio decoder
@@ -911,7 +941,7 @@ index 4079c0333094f72c4127008d55e79ea5995a17c2..4352662938ffe0b6e024339ce4756d38
  
              # Calculate time range for audio corresponding to video frames
              time_start = frame_indices[0] / video_fps
-@@ -214,7 +221,7 @@ class VideoParsing(Augmentor):
+@@ -214,7 +221,7 @@
                      continue
  
              # Create video decoder with torchcodec (directly from bytes)
@@ -920,7 +950,7 @@ index 4079c0333094f72c4127008d55e79ea5995a17c2..4352662938ffe0b6e024339ce4756d38
                  video, seek_mode=self.seek_mode, num_ffmpeg_threads=self.video_decode_num_threads
              )
  
-@@ -551,7 +558,7 @@ class VideoParsingWithFullFrames(Augmentor):
+@@ -551,7 +558,7 @@
          _fps_suspicious = _metadata_fps > _MAX_FPS or _metadata_fps < _MIN_FPS
          _needs_probe = _needs_probe or _fps_suspicious
          if _needs_probe:
@@ -929,7 +959,7 @@ index 4079c0333094f72c4127008d55e79ea5995a17c2..4352662938ffe0b6e024339ce4756d38
              meta_dict.setdefault("width", _probe.metadata.width)
              meta_dict.setdefault("height", _probe.metadata.height)
              meta_dict.setdefault("nb_frames", _probe.metadata.num_frames)
-@@ -630,7 +637,7 @@ class VideoParsingWithFullFrames(Augmentor):
+@@ -630,7 +637,7 @@
  
          # Adding try-expcept because some of the data is bad and video decoding call fail.
          try:
@@ -938,7 +968,7 @@ index 4079c0333094f72c4127008d55e79ea5995a17c2..4352662938ffe0b6e024339ce4756d38
                  video,
                  seek_mode=self.seek_mode,
                  num_ffmpeg_threads=self.video_decode_num_threads,
-@@ -727,24 +734,10 @@ class VideoParsingWithFullFrames(Augmentor):
+@@ -727,24 +734,10 @@
              Audio tensor of shape (C, N) or None if extraction fails.
          """
          try:
@@ -958,15 +988,16 @@ index 4079c0333094f72c4127008d55e79ea5995a17c2..4352662938ffe0b6e024339ce4756d38
 -                    return None
 -            except (ImportError, AttributeError):
 -                pass  # Fall through to AudioDecoder if _core API is unavailable
-+            if not probe_has_audio_stream(video_bytes):
-+                return None
- 
+-
 -            audio_decoder = AudioDecoder(video_bytes)
++            if probe_has_audio_stream(video_bytes) is False:
++                return None
++
 +            audio_decoder = create_audio_decoder(video_bytes)
              all_samples = audio_decoder.get_all_samples()
              audio = all_samples.data  # [C,N_orig]
              orig_sr = all_samples.sample_rate
-@@ -843,7 +836,7 @@ class VideoParsingChunkedFrames(VideoParsingWithFullFrames):
+@@ -843,7 +836,7 @@
  
          # Adding try-expcept because some of the data is bad and video decoding call fail.
          try:
@@ -1360,10 +1391,10 @@ index 06e3d819f336b261c6bf69caa35bc889702c6f1f..822809cf5044208ae6e1069b65d9a843
      video_fps = video_reader.metadata.average_fps
  
 diff --git a/cosmos_framework/data/generator/sequence_packing/runtime.py b/cosmos_framework/data/generator/sequence_packing/runtime.py
-index 2f80607132e40ccec049c2ae2be6bcb3c5054176..c22a30e29ca3ef5220c310c8ba1bc57413c42e94 100644
+index 2f80607132e40ccec049c2ae2be6bcb3c5054176..0f7fff5a009ae5a014d2b27f422a5d0d1fd052b4 100644
 --- a/cosmos_framework/data/generator/sequence_packing/runtime.py
 +++ b/cosmos_framework/data/generator/sequence_packing/runtime.py
-@@ -13,6 +13,7 @@ MAX_CAUSAL_LEN_IMAGE_BATCH = 0
+@@ -13,6 +13,7 @@
  MAX_FULL_LEN_IMAGE_BATCH = 0
  MAX_CAUSAL_LEN_VIDEO_BATCH = 0
  MAX_FULL_LEN_VIDEO_BATCH = 0
@@ -1371,10 +1402,12 @@ index 2f80607132e40ccec049c2ae2be6bcb3c5054176..c22a30e29ca3ef5220c310c8ba1bc574
  
  
  def get_padding_stats() -> dict[str, int]:
-@@ -115,6 +116,28 @@ def _round_up_to_N(n: int, cp_world_size: int = 1, pad_for_cuda_graphs: bool = F
+@@ -113,6 +114,26 @@
+             n += cp_world_size - remainder
+ 
      return n
- 
- 
++
++
 +def _bucket_flash_attn_max_seqlen(n: int) -> int:
 +    """Bucket Python max_seqlen values passed to FlashAttention.
 +
@@ -1391,25 +1424,11 @@ index 2f80607132e40ccec049c2ae2be6bcb3c5054176..c22a30e29ca3ef5220c310c8ba1bc574
 +    for bucket in FLASH_ATTN_MAX_SEQLEN_BUCKETS:
 +        if n <= bucket:
 +            return bucket
-+    raise ValueError(
-+        f"sequence length {n} exceeds FlashAttention max_seqlen buckets "
-+        f"{FLASH_ATTN_MAX_SEQLEN_BUCKETS}"
-+    )
-+
-+
++    # Preserve valid upstream lengths beyond the predefined buckets.
++    return ((n + 1023) // 1024) * 1024
+ 
+ 
  def _pad(
-     causal_seq: torch.Tensor, full_only_seq: torch.Tensor, max_causal_len: int, max_full_len: int
- ) -> tuple[torch.Tensor, torch.Tensor]:
-@@ -161,6 +184,9 @@ def init_sequence_pack(
-         max_sample_len=_max_sample_len,
-         max_causal_len=_max_causal_len,
-         max_full_len=_max_full_len,
-+        fa_max_sample_len=_bucket_flash_attn_max_seqlen(_max_sample_len),
-+        fa_max_causal_len=_bucket_flash_attn_max_seqlen(_max_causal_len),
-+        fa_max_full_len=_bucket_flash_attn_max_seqlen(_max_full_len),
-         _causal_indices=_causal_indices,
-         _full_indices=_full_indices,
-         _causal_seq_offsets=_causal_seq_offsets,
 diff --git a/cosmos_framework/inference/args.py b/cosmos_framework/inference/args.py
 index 4d3e48a8e404765247d30e8792d0b67e9325079b..ef3d8619866e691c03129de37502fc0e39be0cf9 100644
 --- a/cosmos_framework/inference/args.py
@@ -1913,10 +1932,10 @@ index f7ef801a251ab86a508aab7a2fd78498ab5cc189..e3a12adce669f729fc1fba381b637f53
  from cosmos_framework.model.generator.utils.safetensors_loader import load_language_model, load_vlm_model
  from cosmos_framework.utils.generator.parallelism import ParallelDims
 diff --git a/cosmos_framework/model/generator/mot/attention.py b/cosmos_framework/model/generator/mot/attention.py
-index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bffa005b02 100644
+index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..6d36e421ade0d9484689727d6e4c9bd2d253f262 100644
 --- a/cosmos_framework/model/generator/mot/attention.py
 +++ b/cosmos_framework/model/generator/mot/attention.py
-@@ -68,34 +68,9 @@ class SplitInfo:
+@@ -68,40 +68,16 @@
  AttentionMaskType = SplitInfo
  
  
@@ -1951,21 +1970,28 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
  from cosmos_framework.data.generator.sequence_packing.natten import (
      generate_natten_metadata,
      generate_temporal_causal_natten_metadata,
-@@ -110,6 +85,13 @@ from cosmos_framework.data.generator.sequence_packing.runtime import (
+ )
+ from cosmos_framework.data.generator.sequence_packing.runtime import (
+     SequencePack,
++    _bucket_flash_attn_max_seqlen,
+     from_mode_splits,
+     get_all_seq,
+     get_causal_seq,
+@@ -110,6 +86,13 @@
  )
  
  
 +def _fa_max_len(pack: SequencePack, key: str) -> int:
-+    fa_key = f"fa_{key}"
-+    if torch.version.hip and torch.compiler.is_compiling() and fa_key in pack:
-+        return pack[fa_key]
++    # Only compiled HIP FlashAttention needs bucketed Python launch arguments.
++    if torch.version.hip and torch.compiler.is_compiling():
++        return _bucket_flash_attn_max_seqlen(pack[key])
 +    return pack[key]
 +
 +
  def two_way_attention(
      packed_query_states: SequencePack,
      packed_key_states: SequencePack,
-@@ -136,74 +118,34 @@ def two_way_attention(
+@@ -136,74 +119,34 @@
      causal_v, _ = get_causal_seq(packed_value_states)
      full_q, full_q_offsets = get_full_only_seq(packed_query_states)
  
@@ -1976,10 +2002,12 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
 -    # we definitely don't want to complicate the sequence_packing code so that it performs a
 -    # static check when creating the packed sequence and metadata. Instead, we just rely
 -    # on causal_q_offsets and causal_k_offsets being the same tensor.
--    use_dont_care_mask = causal_q_offsets is causal_k_offsets
++    sample_offsets = packed_query_states["sample_offsets"]
++
+     use_dont_care_mask = causal_q_offsets is causal_k_offsets
 -
-     sample_offsets = packed_query_states["sample_offsets"]
- 
+-    sample_offsets = packed_query_states["sample_offsets"]
+-
 -    # Number of packed samples. sample_offsets has shape [num_samples + 1], so this is a static
 -    # (metadata) shape read: it does not launch a kernel or force a device sync.
 -    num_samples = sample_offsets.shape[0] - 1
@@ -2008,7 +2036,6 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
 -            max_seqlen_Q=packed_query_states["max_causal_len"],
 -            max_seqlen_KV=packed_query_states["max_causal_len"],
 -        )
-+    use_dont_care_mask = causal_q_offsets is causal_k_offsets
  
      # NOTE: cosmos_framework attention is BSHD in, BSHD out
      causal_res = attention(
@@ -2026,7 +2053,7 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
  
      # [1,N_und,heads,head_dim] -> [N_und,heads,head_dim] -> [N_und,heads*head_dim]
      causal_out = causal_res.squeeze(0).flatten(-2, -1)  # type: ignore  # [N_und,heads*head_dim]
- 
+-
 -    if use_dense:
 -        full_varlen_kwargs = {}
 -    else:
@@ -2036,7 +2063,7 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
 -            max_seqlen_Q=packed_query_states["max_full_len"],
 -            max_seqlen_KV=packed_query_states["max_sample_len"],
 -        )
--
+ 
      full_res = attention(
          full_q.unsqueeze(0),  # [1,N_full,heads,head_dim]
          get_all_seq(packed_key_normalized).unsqueeze(0),  # [1,N_all,heads,head_dim]  normed und K for gen
@@ -2049,7 +2076,7 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
      )  # [1,N_full,heads,head_dim]
  
      # [1,N_full,heads,head_dim] -> [N_full,heads,head_dim] -> [N_full,heads*head_dim]
-@@ -220,17 +162,11 @@ def three_way_attention(
+@@ -220,16 +163,10 @@
      natten_metadata: dict | None,
      attention_meta: SplitInfo | None = None,
      packed_key_states_normalized: SequencePack | None = None,
@@ -2058,29 +2085,27 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
      """
      Performs three-way attention, with understanding and generations attentions fully decomposed,
      and allows sparsity / multi-dimensional masking in the generation tower.
- 
+-
 -    The generation-tower self-attention (``full_sa``) is computed by one of three
 -    mutually exclusive paths: FlexAttention when ``flex_metadata`` is provided,
 -    NATTEN when ``natten_metadata`` is provided, or dense self-attention when
 -    neither is set. ``flex_metadata`` and ``natten_metadata`` must not both be set.
--
+ 
      When attention_meta is provided with null_action_supertokens=True, zeros V for the first
      num_action_tokens_per_supertoken tokens of each sample's GEN sequence (null action
-     supertokens for temporal causal training). The metadata encodes is_causal=(True, False):
-@@ -258,9 +194,11 @@ def three_way_attention(
+@@ -258,8 +195,10 @@
          causal_k_normalized, causal_k_normalized_offsets = causal_k, causal_k_offsets
      causal_v, _ = get_causal_seq(packed_value_states)
      full_q, full_q_offsets = get_full_only_seq(packed_query_states)
 -    full_k, _ = get_full_only_seq(packed_key_states)
 +    full_k, full_k_offsets = get_full_only_seq(packed_key_states)
      full_v, _ = get_full_only_seq(packed_value_states)
- 
-+    sample_offsets = packed_query_states["sample_offsets"]
 +
++    sample_offsets = packed_query_states["sample_offsets"]
+ 
      if attention_meta is not None and attention_meta.null_action_supertokens:
          # Zero V for the first num_action_tokens_per_supertoken tokens of each
-         # sample's GEN sequence (null action supertokens at t=0).
-@@ -283,31 +221,28 @@ def three_way_attention(
+@@ -283,31 +222,28 @@
          causal_v.unsqueeze(0),  # [1,N_und,heads,head_dim]
          cumulative_seqlen_Q=causal_q_offsets,
          cumulative_seqlen_KV=causal_k_offsets,
@@ -2123,7 +2148,7 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
          full_sa, full_sa_lse = multi_dimensional_attention_varlen(
              full_q.unsqueeze(0),  # [1,N_full,heads,head_dim]
              full_k.unsqueeze(0),  # [1,N_full,heads,head_dim]
-@@ -315,20 +250,6 @@ def three_way_attention(
+@@ -315,20 +251,6 @@
              metadata=natten_metadata,
              return_lse=True,
          )  # full_sa: [1,N_full,heads,head_dim], full_sa_lse: [1,N_full,heads]
@@ -2144,7 +2169,7 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
  
      full_ca, full_ca_lse = attention(
          full_q.unsqueeze(0),  # [1,N_full,heads,head_dim]
-@@ -336,8 +257,8 @@ def three_way_attention(
+@@ -336,8 +258,8 @@
          causal_v.unsqueeze(0),  # [1,N_und,heads,head_dim]
          cumulative_seqlen_Q=full_q_offsets,
          cumulative_seqlen_KV=causal_k_normalized_offsets,
@@ -2155,7 +2180,7 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
          return_lse=True,
      )  # full_ca: [1,N_full,heads,head_dim], full_ca_lse: [1,N_full,heads]
  
-@@ -408,8 +329,8 @@ def multi_control_two_way_attention(
+@@ -408,8 +330,8 @@
          causal_v.unsqueeze(0),
          cumulative_seqlen_Q=causal_q_offsets,
          cumulative_seqlen_KV=causal_k_offsets,
@@ -2166,7 +2191,7 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
          is_causal=True,
          causal_type=CausalType.DontCare if use_dont_care_mask else CausalType.TopLeft,
      )
-@@ -527,16 +448,14 @@ def dispatch_attention(
+@@ -527,16 +449,14 @@
      packed_key_states_normalized: SequencePack | None = None,
  ) -> tuple[SequencePack, KVToStore | None]:
      assert memory_value is None, "Base dispatch_attention does not handle MemoryValue"
@@ -2185,7 +2210,7 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
          output = three_way_attention(
              packed_query_states,
              packed_key_states,
-@@ -545,13 +464,15 @@ def dispatch_attention(
+@@ -545,13 +465,15 @@
              attention_meta=attention_mask,
              packed_key_states_normalized=packed_key_states_normalized,
          )
@@ -2202,7 +2227,7 @@ index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..ef613657e425ed8aa403ef51659495bf
      return output, None
  
  
-@@ -569,6 +490,7 @@ def build_packed_sequence(
+@@ -569,6 +491,7 @@
      num_layers: int,
      token_shapes: list[tuple[int, int, int]] | None = None,
      natten_parameter_list: list | None = None,
@@ -2357,24 +2382,18 @@ index cd539702e59901b2d07e58b112e2424954176971..502dfe8e541018e02c51a50147cbd944
  torch._dynamo.config.accumulated_cache_size_limit = 4096
  
 diff --git a/cosmos_framework/model/generator/omni_mot_model.py b/cosmos_framework/model/generator/omni_mot_model.py
-index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6badf83f65 100644
+index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..8bfc6d3803c009157c40cc322d398c9a089b60be 100644
 --- a/cosmos_framework/model/generator/omni_mot_model.py
 +++ b/cosmos_framework/model/generator/omni_mot_model.py
-@@ -16,34 +16,30 @@ from einops import rearrange
+@@ -16,34 +16,38 @@
  from torch.distributed._composable.fsdp import FSDPModule
  from torch.nn.modules.module import _IncompatibleKeys
  
 -from cosmos_framework.utils.flags import DEVICE, TRAINING, Device
 -from cosmos_framework.utils.lazy_config import LazyDict
 -from cosmos_framework.utils.lazy_config import instantiate as lazy_instantiate
--from cosmos_framework.model._base import ImaginaireModel
--from cosmos_framework.utils import log, misc
--from cosmos_framework.utils.count_params import count_params
--from cosmos_framework.utils.timer import Timer
--from cosmos_framework.model.generator.algorithm.loss.flow_matching import compute_flow_matching_loss
--from cosmos_framework.model.generator.algorithm.loss.load_balancing import compute_load_balancing_loss
- from cosmos_framework.configs.base.defaults.model_config import OmniMoTModelConfig
- from cosmos_framework.data.generator.action.action_processing import ActionProcessor, get_action_processing_records
++from cosmos_framework.configs.base.defaults.model_config import OmniMoTModelConfig
++from cosmos_framework.data.generator.action.action_processing import ActionProcessor, get_action_processing_records
 +from cosmos_framework.data.generator.sequence_packing import (
 +    PackedSequence,
 +    SequencePlan,
@@ -2382,10 +2401,16 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 +    pack_input_sequence,
 +)
 +from cosmos_framework.data.generator.sequence_packing.modalities import add_special_tokens
- from cosmos_framework.data.generator.utils import IMAGE_RES_SIZE_INFO, VIDEO_RES_SIZE_INFO
-+from cosmos_framework.model._base import ImaginaireModel
-+from cosmos_framework.model.generator.algorithm.loss.flow_matching import compute_flow_matching_loss
-+from cosmos_framework.model.generator.algorithm.loss.load_balancing import compute_load_balancing_loss
++from cosmos_framework.data.generator.utils import IMAGE_RES_SIZE_INFO, VIDEO_RES_SIZE_INFO
+ from cosmos_framework.model._base import ImaginaireModel
+-from cosmos_framework.utils import log, misc
+-from cosmos_framework.utils.count_params import count_params
+-from cosmos_framework.utils.timer import Timer
+ from cosmos_framework.model.generator.algorithm.loss.flow_matching import compute_flow_matching_loss
+ from cosmos_framework.model.generator.algorithm.loss.load_balancing import compute_load_balancing_loss
+-from cosmos_framework.configs.base.defaults.model_config import OmniMoTModelConfig
+-from cosmos_framework.data.generator.action.action_processing import ActionProcessor, get_action_processing_records
+-from cosmos_framework.data.generator.utils import IMAGE_RES_SIZE_INFO, VIDEO_RES_SIZE_INFO
  from cosmos_framework.model.generator.diffusion.rectified_flow import RectifiedFlow
  from cosmos_framework.model.generator.diffusion.samplers.edm import EDMSampler
  from cosmos_framework.model.generator.diffusion.samplers.fixed_step import FixedStepSampler
@@ -2403,11 +2428,19 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  from cosmos_framework.model.generator.mot.parallelize_vfm_network import parallelize_vfm_network
  from cosmos_framework.model.generator.reasoner.qwen3_vl.utils import tokenize_caption
 +from cosmos_framework.model.generator.tokenizers.interface import VideoTokenizerInterface
++from cosmos_framework.model.generator.utils.moe_utils import (
++    sync_expert_biases_to_ema,
++    sync_router_biases_to_ema,
++    update_expert_biases,
++    update_router_biases,
++    uses_aux_loss_free_load_balancing,
++    uses_ema_router_bias,
++)
 +from cosmos_framework.model.generator.upsampler.prompts import build_messages, clean_response
  from cosmos_framework.model.generator.utils.data_and_condition import (
      GenerationDataClean,
      GenerationDataNoised,
-@@ -52,30 +48,20 @@ from cosmos_framework.model.generator.utils.data_and_condition import (
+@@ -52,30 +56,20 @@
      unwrap_and_densify,
  )
  from cosmos_framework.model.generator.utils.memory import MemoryState
@@ -2431,11 +2464,10 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -from cosmos_framework.data.generator.sequence_packing.modality import add_special_tokens
 -from cosmos_framework.model.generator.tokenizers.interface import VideoTokenizerInterface
 -from cosmos_framework.model.generator.upsampler.prompts import build_messages, clean_response
--from cosmos_framework.utils.generator.data_utils import get_vision_data_resolution, read_positive_int_metadata
 +from cosmos_framework.utils import log, misc
 +from cosmos_framework.utils.count_params import count_params
 +from cosmos_framework.utils.flags import DEVICE, TRAINING, Device
-+from cosmos_framework.utils.generator.data_utils import get_vision_data_resolution
+ from cosmos_framework.utils.generator.data_utils import get_vision_data_resolution, read_positive_int_metadata
  from cosmos_framework.utils.generator.dtensor_helper import DTensorFastEmaModelUpdater
  from cosmos_framework.utils.generator.model_weights_stats import WeightTrainingStat
  from cosmos_framework.utils.generator.parallelism import ParallelDims
@@ -2446,7 +2478,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  
  
  class OmniMoTModel(ImaginaireModel):
-@@ -193,7 +179,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -193,7 +187,6 @@
          lora_enabled = self.config.lora_enabled if lora_enabled is None else lora_enabled
          with torch.device("meta"):
              assert self.vlm_config.model_instance is not None, "Model instance should be specified"
@@ -2454,7 +2486,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
              language_model = lazy_instantiate(self.vlm_config.model_instance)
  
              # NOTE: We pass "RF timesteps" to the network in the same scale as the scheduler
-@@ -214,6 +199,7 @@ class OmniMoTModel(ImaginaireModel):
+@@ -214,6 +207,7 @@
                  vision_gen=self.config.vision_gen,
                  action_gen=self.config.action_gen,
                  sound_gen=self.config.sound_gen,
@@ -2462,7 +2494,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
                  joint_attn_implementation=self.config.joint_attn_implementation,
                  timestep_scale=1.0 / float(num_train_timesteps) * self.config.diffusion_expert_config.timestep_range,
                  action_dim=self.config.max_action_dim,
-@@ -224,7 +210,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -224,7 +218,6 @@
                  # Sound generation parameters
                  sound_dim=self.config.sound_dim,
                  sound_latent_fps=self.config.sound_latent_fps,
@@ -2470,30 +2502,21 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
              )
              network_config._attn_implementation_internal = "eager"
              net = Cosmos3VFMNetwork(
-@@ -245,6 +230,13 @@ class OmniMoTModel(ImaginaireModel):
+@@ -243,6 +236,13 @@
+                     lora_rank=self.config.lora_rank,
+                     lora_alpha=self.config.lora_alpha,
                      lora_target_modules=self.config.lora_target_modules,
-                 )
- 
++                )
++
 +            conv2d_count, conv3d_count = apply_channels_last_conv_weights(net)
 +            if conv2d_count or conv3d_count:
 +                log.info(
 +                    "Generator training: enabled channels-last weights before FSDP "
 +                    f"(Conv2d={conv2d_count}, Conv3d={conv3d_count})"
-+                )
-+
+                 )
+ 
          self.install_attention_dispatch(net)
- 
-         net = parallelize_vfm_network(
-@@ -373,8 +365,6 @@ class OmniMoTModel(ImaginaireModel):
-         with misc.timer("Creating PyTorch model and ema if enabled"):
-             self.net = self.build_net(dtype=self.precision)
-             self._param_count = count_params(self.net, verbose=False)
--            self._uses_aux_loss_free_load_balancing: bool = uses_aux_loss_free_load_balancing(self.net)
--            self._uses_ema_router_bias: bool = uses_ema_router_bias(self.net)
- 
-             if config.ema.enabled:
-                 self.net_ema = self.build_net(dtype=torch.float32)
-@@ -411,9 +401,13 @@ class OmniMoTModel(ImaginaireModel):
+@@ -411,9 +411,13 @@
  
      def set_up_parallelism(self) -> None:
          """Set up the fsdp for the model."""
@@ -2508,160 +2531,12 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
              dp_shard=self.config.parallelism.data_parallel_shard_degree,
              cfgp=self.config.parallelism.cfg_parallel_shard_degree,
              cp=self.config.parallelism.context_parallel_shard_degree,
-@@ -529,36 +523,6 @@ class OmniMoTModel(ImaginaireModel):
-         return False
- 
-     # ------------------------ training hooks ------------------------
--    def on_before_optimizer_step(
--        self, optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler.LRScheduler, iteration: int
--    ) -> None:
--        """Run aux-loss-free load balancing + EMA router de-sink on the gen-tower MoE blocks."""
--        del scheduler, optimizer
--
--        dp_mesh = self.parallel_dims.dp_mesh if self.parallel_dims else None
--
--        # Aux-loss-free load balancing (only when enabled).
--        if self._uses_aux_loss_free_load_balancing:
--            update_expert_biases(
--                net=self.net,
--                device_mesh=dp_mesh,
--            )
--            # expert_bias is a buffer, but the DTensor EMA worker copies parameters
--            # only, so mirror it into net_ema manually (else the persisted net_ema.*
--            # keeps zero and drops the trained bias at checkpoint save). update_bias
--            # already cross-rank-reduced, so net.expert_bias matches on every rank.
--            if self.config.ema.enabled:
--                sync_expert_biases_to_ema(net=self.net, net_ema=self.net_ema)
--
--        # EMA-tracked token-constant de-sink bias (a checkpointed buffer). Independent of
--        # expert-load bias correction; the update reduces the per-step token stats across the DP mesh so
--        # the buffer is identical on every rank. Like expert_bias it is a buffer, so it must
--        # be mirrored into net_ema (the model-EMA worker copies parameters only).
--        if self._uses_ema_router_bias:
--            update_router_biases(net=self.net, device_mesh=dp_mesh)
--            if self.config.ema.enabled:
--                sync_router_biases_to_ema(net=self.net, net_ema=self.net_ema)
--
-     def on_before_zero_grad(
-         self, optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler.LRScheduler, iteration: int
-     ) -> None:
-@@ -616,17 +580,8 @@ class OmniMoTModel(ImaginaireModel):
-         self,
-         raw_state_vision: list[torch.Tensor],
-         x0_tokens_vision: list[torch.Tensor],
--        num_views_per_vision_item: list[int] | None = None,
--        frames_per_vision_item: list[int] | None = None,
-     ) -> list[torch.Tensor] | None:
--        """Return optional per-latent temporal coordinates for vision tokens.
--
--        Multiview items are currently flattened camera-major. Compute UniAE
--        positions for one independently encoded camera clip, retain explicit
--        view/time axes, and flatten them in the same order as the latents. A
--        future timestamp-major layout only needs to transpose those two axes
--        before flattening.
--        """
-+        """Return optional per-latent temporal coordinates for vision tokens."""
-         mode = self.config.diffusion_expert_config.vision_temporal_position_mode
-         if mode == "latent_index":
-             return None
-@@ -637,31 +592,8 @@ class OmniMoTModel(ImaginaireModel):
-             )
- 
-         assert self.tokenizer_vision_gen is not None
--        if (num_views_per_vision_item is None) != (frames_per_vision_item is None):
--            raise ValueError("num_views_per_vision_item and frames_per_vision_item must be provided together.")
--        if num_views_per_vision_item is None:
--            num_views_per_vision_item = [1] * len(raw_state_vision)
--            frames_per_vision_item_optional: list[int | None] = [None] * len(raw_state_vision)
--        else:
--            assert frames_per_vision_item is not None
--            if len(num_views_per_vision_item) != len(raw_state_vision) or len(frames_per_vision_item) != len(
--                raw_state_vision
--            ):
--                raise ValueError(
--                    "Multiview temporal-position metadata must align with flattened vision items: "
--                    f"got {len(num_views_per_vision_item)} view counts, {len(frames_per_vision_item)} frame "
--                    f"counts, and {len(raw_state_vision)} vision items."
--                )
--            frames_per_vision_item_optional = list(frames_per_vision_item)
--
-         temporal_positions_vision: list[torch.Tensor] = []
--        for raw_state_vision_i, x0_tokens_vision_i, num_views, frames_per_view in zip(
--            raw_state_vision,
--            x0_tokens_vision,
--            num_views_per_vision_item,
--            frames_per_vision_item_optional,
--            strict=True,
--        ):
-+        for raw_state_vision_i, x0_tokens_vision_i in zip(raw_state_vision, x0_tokens_vision, strict=True):
-             if raw_state_vision_i.dim() == 5:
-                 num_pixel_frames = int(raw_state_vision_i.shape[2])
-             elif raw_state_vision_i.dim() == 4:
-@@ -675,50 +607,11 @@ class OmniMoTModel(ImaginaireModel):
-             frame_h = int(raw_state_vision_i.shape[-2])
-             frame_w = int(raw_state_vision_i.shape[-1])
-             resolution = get_vision_data_resolution((frame_h, frame_w))
--
--            if num_views > 1:
--                if frames_per_view is None:
--                    raise ValueError("frames_per_view is required when num_views is greater than one.")
--                expected_pixel_frames = num_views * frames_per_view
--                if num_pixel_frames != expected_pixel_frames:
--                    raise ValueError(
--                        "Multiview vision length must equal num_views * frames_per_view when computing temporal "
--                        f"positions: got T={num_pixel_frames}, num_views={num_views}, "
--                        f"frames_per_view={frames_per_view}."
--                    )
--                if num_latent_frames % num_views != 0:
--                    raise ValueError(
--                        "Multiview latent length must be divisible by num_views when computing temporal positions: "
--                        f"got T={num_latent_frames}, num_views={num_views}."
--                    )
--                latent_frames_per_view = num_latent_frames // num_views
--                temporal_positions_per_view = self.tokenizer_vision_gen.get_latent_temporal_positions(
--                    num_pixel_frames=frames_per_view,
--                    resolution=resolution,
--                    num_latent_frames=latent_frames_per_view,
--                )  # [T_latent_view]
--                if temporal_positions_per_view is None:
--                    raise ValueError(
--                        f"{type(self.tokenizer_vision_gen).__name__} does not support "
--                        f"vision_temporal_position_mode={mode}."
--                    )
--                if temporal_positions_per_view.shape[0] != latent_frames_per_view:
--                    raise ValueError(
--                        "Vision temporal position count must match latent frames per view: "
--                        f"got {temporal_positions_per_view.shape[0]} positions for "
--                        f"{latent_frames_per_view} latent frames."
--                    )
--                temporal_positions_by_view = temporal_positions_per_view.unsqueeze(0).expand(
--                    num_views, -1
--                )  # [V,T_latent_view]
--                temporal_positions = temporal_positions_by_view.reshape(-1)  # [V*T_latent_view]
--            else:
--                temporal_positions = self.tokenizer_vision_gen.get_latent_temporal_positions(
--                    num_pixel_frames=num_pixel_frames,
--                    resolution=resolution,
--                    num_latent_frames=num_latent_frames,
--                )  # [T_latent]
--
-+            temporal_positions = self.tokenizer_vision_gen.get_latent_temporal_positions(
-+                num_pixel_frames=num_pixel_frames,
-+                resolution=resolution,
-+                num_latent_frames=num_latent_frames,
-+            )  # [T_latent]
-             if temporal_positions is None:
-                 raise ValueError(
-                     f"{type(self.tokenizer_vision_gen).__name__} does not support vision_temporal_position_mode={mode}."
-@@ -943,11 +836,16 @@ class OmniMoTModel(ImaginaireModel):
+@@ -943,11 +947,13 @@
                  sigmas_vision,
              )  # [n_sound,T_vis] or None, [n_sound,T_vis] or None
  
-+        timesteps_vision_cpu = (
-+            timesteps_vision.to("cpu", non_blocking=True)
-+            if timesteps_vision.is_cuda
-+            else timesteps_vision
-+        )
++        # The packer reads these values on the CPU before the next device operation.
++        timesteps_vision_cpu = timesteps_vision.cpu()
          packed_sequence = self._pack_input_sequence(
              sequence_plans,
              input_text_indexes,
@@ -2671,25 +2546,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
              skip_text_tokens=memory_info["skip_text"],
              initial_mrope_temporal_offset=memory_info["initial_temporal_offset"],
          )
-@@ -958,7 +856,7 @@ class OmniMoTModel(ImaginaireModel):
-         if timesteps_action is not None and packed_sequence.action is not None:
-             action_has_noisy_tokens = any(nfi.numel() > 0 for nfi in packed_sequence.action.noisy_frame_indexes)
-             if action_has_noisy_tokens:
--                sample_ts = timesteps_action.squeeze(1).cpu()  # [n_action]
-+                sample_ts = timesteps_action.squeeze(1).to("cpu", non_blocking=True) if timesteps_action.is_cuda else timesteps_action.squeeze(1)  # [n_action]
-                 packed_sequence.action.timesteps = torch.cat(
-                     [
-                         sample_ts[i : i + 1].expand(nfi.numel())
-@@ -978,7 +876,7 @@ class OmniMoTModel(ImaginaireModel):
-         ):
-             sound_has_noisy_tokens = any(nfi.numel() > 0 for nfi in packed_sequence.sound.noisy_frame_indexes)
-             if sound_has_noisy_tokens:
--                sample_ts = timesteps_sound.squeeze(1).cpu()  # [n_sound]
-+                sample_ts = timesteps_sound.squeeze(1).to("cpu", non_blocking=True) if timesteps_sound.is_cuda else timesteps_sound.squeeze(1)  # [n_sound]
-                 packed_sequence.sound.timesteps = torch.cat(
-                     [
-                         sample_ts[i : i + 1].expand(nfi.numel())
-@@ -990,7 +888,7 @@ class OmniMoTModel(ImaginaireModel):
+@@ -990,7 +996,7 @@
  
          # For image editing (multi-item vision), expand per-sample timesteps/sigmas to
          # per-vision-item so downstream noise/loss indexing matches the flat x0_tokens_vision
@@ -2698,7 +2555,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
          # Conditioning items get sigma=0 via their condition_mask, so the actual timestep value
          # for them does not matter.
          timesteps_vision = _expand_per_sample_to_per_vision_item(
-@@ -1735,6 +1633,7 @@ class OmniMoTModel(ImaginaireModel):
+@@ -1735,6 +1741,7 @@
          data_batch: dict,
          seed: list[int],
          has_negative_prompt: bool = False,
@@ -2706,7 +2563,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
      ) -> tuple[
          list[SequencePlan],
          GenerationDataClean,
-@@ -1743,7 +1642,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -1743,7 +1750,6 @@
          list[torch.Tensor],
          list[torch.Tensor],
          list[torch.Tensor],
@@ -2714,7 +2571,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
      ]:
          """
          Prepare all data needed for inference sampling.
-@@ -1755,7 +1653,7 @@ class OmniMoTModel(ImaginaireModel):
+@@ -1755,7 +1761,7 @@
          3. Tokenizes text (conditional and unconditional for CFG)
          4. Builds a packed sequence to fetch conditioning masks
          5. Initializes noise with conditioning applied (as lists for variable shapes)
@@ -2723,7 +2580,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  
          Args:
              data_batch: Raw data batch from dataloader.
-@@ -1774,11 +1672,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -1774,11 +1780,6 @@
                    in the same order as initial_noise
                  - condition_mask: List of masks flattened in the same order as
                    initial_noise, where 1 keeps condition_reference values fixed
@@ -2735,7 +2592,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
          """
          # 1. Build sequence plans (same as training)
          sequence_plans = build_sequence_plans_from_data_batch(
-@@ -1788,13 +1681,8 @@ class OmniMoTModel(ImaginaireModel):
+@@ -1788,13 +1789,8 @@
          )
  
          # 2. Get data and condition (same as training)
@@ -2751,7 +2608,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  
          num_items_per_sample = gen_data_clean.num_vision_items_per_sample  # None for standard T2I/T2V
  
-@@ -1856,17 +1744,16 @@ class OmniMoTModel(ImaginaireModel):
+@@ -1856,17 +1852,16 @@
  
          # 6. Initialize action noise if action_gen is True
          has_action = self.config.action_gen and any(plan.has_action for plan in sequence_plans)
@@ -2776,13 +2633,13 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
              # Generate action noise per sample (x0_tokens_action is already dense, no None entries)
              noise_action_list = []
              for i, (x0_action, cond_mask_action) in enumerate(
-@@ -1990,88 +1877,8 @@ class OmniMoTModel(ImaginaireModel):
+@@ -1990,87 +1985,7 @@
              initial_noise,
              condition_reference,
              condition_mask,
 -            has_noisy_actions,
-         )
- 
+-        )
+-
 -    def _can_reuse_inference_pack_templates(
 -        self,
 -        sequence_plans: list[SequencePlan],
@@ -2861,11 +2718,11 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -            self._copy_timestep_to_template(packed_sequence.sound.timesteps, timestep)
 -
 -        return packed_sequence
--
++        )
+ 
      def _get_velocity(
          self,
-         *,
-@@ -2082,9 +1889,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2082,9 +1997,6 @@
          sequence_plans: list[SequencePlan],
          gen_data_clean: GenerationDataClean,
          skip_text_tokens: bool = False,
@@ -2875,7 +2732,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
      ) -> list[torch.Tensor]:
          """
          Compute velocity prediction for a single sampling step.
-@@ -2105,12 +1909,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2105,12 +2017,6 @@
              sequence_plans: Pre-computed sequence plans (from _prepare_inference_data)
              gen_data_clean: Pre-computed clean data (from _prepare_inference_data)
              skip_text_tokens: If True, skip text tokens (for CFG unconditional branch)
@@ -2888,7 +2745,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  
          Returns:
              Stacked flattened velocity tensors (one per sample), each containing
-@@ -2119,15 +1917,13 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2119,15 +2025,13 @@
          n_samples = len(noise_x)
          is_image_batch = gen_data_clean.is_image_batch
          has_action = self.config.action_gen and any(plan.has_action for plan in sequence_plans)
@@ -2905,7 +2762,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
          noise_x_sound: list[torch.Tensor] | None = [] if has_sound else None
  
          vision_offset = 0  # tracks position in the flat x0_tokens_vision list
-@@ -2144,7 +1940,7 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2144,7 +2048,7 @@
                  offset += vision_dim
              vision_offset += n_vis
  
@@ -2914,7 +2771,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
                  assert gen_data_clean.x0_tokens_action is not None
                  action_shape = gen_data_clean.x0_tokens_action[idx_action].shape
                  action_dim = int(torch.prod(torch.tensor(action_shape)))
-@@ -2163,14 +1959,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2163,14 +2067,6 @@
                  offset += sound_dim
                  idx_sound += 1
  
@@ -2929,7 +2786,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
          gen_data_for_packing = GenerationDataClean(
              batch_size=n_samples,
              is_image_batch=is_image_batch,
-@@ -2180,7 +1968,7 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2180,7 +2076,7 @@
              temporal_positions_vision=gen_data_clean.temporal_positions_vision,
              # Action fields
              raw_state_action=gen_data_clean.raw_state_action if has_action else None,
@@ -2938,7 +2795,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
              action_domain_id=gen_data_clean.action_domain_id if has_action else None,
              fps_action=gen_data_clean.fps_action if has_action else None,
              raw_action_dim=gen_data_clean.raw_action_dim if has_action else None,
-@@ -2196,44 +1984,34 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2196,44 +2092,34 @@
              control_weights=gen_data_clean.control_weights,
          )
  
@@ -2951,38 +2808,20 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -                include_end_of_generation_token=self._derive_include_end_of_generation_token(),
 -                skip_text_tokens=skip_text_tokens,
 -            )
-+        packed_sequence = self._pack_input_sequence(
-+            sequence_plans,
-+            text_tokens,
-+            gen_data_for_packing,
-+            timestep.cpu(),
-+            include_end_of_generation_token=self._derive_include_end_of_generation_token(),
-+            skip_text_tokens=skip_text_tokens,
-+        )
- 
+-
 -            # Set the actual noisy latents (as lists)
 -            if packed_sequence.vision is not None:
 -                packed_sequence.vision.tokens = [x.to(**self.tensor_kwargs) for x in noise_x_vision]  # list[[C,T,H,W]]
-+        # Set the actual noisy latents (as lists)
-+        if packed_sequence.vision is not None:
-+            packed_sequence.vision.tokens = [x.to(**self.tensor_kwargs) for x in noise_x_vision]
- 
+-
 -            if has_noisy_actions and noise_x_action is not None:
 -                assert packed_sequence.action is not None, "packed_sequence.action must exist when has_action is True"
 -                packed_sequence.action.tokens = [x.to(**self.tensor_kwargs) for x in noise_x_action]  # list[[T,D]]
 -                packed_sequence.action.domain_id = gen_data_clean.action_domain_id
-+        if has_action and noise_x_action is not None:
-+            assert packed_sequence.action is not None, "packed_sequence.action must exist when has_action is True"
-+            packed_sequence.action.tokens = [x.to(**self.tensor_kwargs) for x in noise_x_action]
-+            packed_sequence.action.domain_id = gen_data_clean.action_domain_id
- 
+-
 -            if has_sound and noise_x_sound is not None:
 -                assert packed_sequence.sound is not None, "packed_sequence.sound must exist when has_sound is True"
 -                packed_sequence.sound.tokens = [x.to(**self.tensor_kwargs) for x in noise_x_sound]  # list[[C_sound,T]]
-+        if has_sound and noise_x_sound is not None:
-+            assert packed_sequence.sound is not None, "packed_sequence.sound must exist when has_sound is True"
-+            packed_sequence.sound.tokens = [x.to(**self.tensor_kwargs) for x in noise_x_sound]
- 
+-
 -            packed_sequence.to_cuda()
 -        else:
 -            packed_sequence = self._update_inference_pack_template(
@@ -2992,6 +2831,28 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -                noise_x_sound,
 -                timestep,
 -            )
++        packed_sequence = self._pack_input_sequence(
++            sequence_plans,
++            text_tokens,
++            gen_data_for_packing,
++            timestep.cpu(),
++            include_end_of_generation_token=self._derive_include_end_of_generation_token(),
++            skip_text_tokens=skip_text_tokens,
++        )
++
++        # Set the actual noisy latents (as lists)
++        if packed_sequence.vision is not None:
++            packed_sequence.vision.tokens = [x.to(**self.tensor_kwargs) for x in noise_x_vision]
++
++        if has_action and noise_x_action is not None:
++            assert packed_sequence.action is not None, "packed_sequence.action must exist when has_action is True"
++            packed_sequence.action.tokens = [x.to(**self.tensor_kwargs) for x in noise_x_action]
++            packed_sequence.action.domain_id = gen_data_clean.action_domain_id
++
++        if has_sound and noise_x_sound is not None:
++            assert packed_sequence.sound is not None, "packed_sequence.sound must exist when has_sound is True"
++            packed_sequence.sound.tokens = [x.to(**self.tensor_kwargs) for x in noise_x_sound]
++
 +        packed_sequence.to_cuda()
  
          # --- Network forward ---
@@ -3002,7 +2863,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
          )
  
          # --- Apply velocity masks ---
-@@ -2261,7 +2039,7 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2261,7 +2147,7 @@
          # Handle action velocity
          velocity_action: list[torch.Tensor] | None = None
          if (
@@ -3011,7 +2872,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
              and packed_sequence.action is not None
              and packed_sequence.action.condition_mask is not None
              and isinstance(packed_sequence.action.condition_mask, list)
-@@ -2462,6 +2240,8 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2462,6 +2348,8 @@
          upsample_repetition_penalty: float = 1.0,
          upsample_presence_penalty: float = 0.0,
          upsample_seed: int | None = None,
@@ -3020,7 +2881,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
          **kwargs,
      ) -> dict[str, list[torch.Tensor]]:
          """
-@@ -2542,11 +2322,8 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2542,11 +2430,8 @@
          Returns:
              Dict with keys:
                  - "vision": List of vision latent tensors (one per sample, variable shapes)
@@ -3034,7 +2895,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  
          Raises:
              ValueError: If the number of samples does not match the number of noise tensors or seeds.
-@@ -2593,8 +2370,12 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2593,8 +2478,12 @@
              initial_noise,
              condition_reference,
              condition_mask,
@@ -3049,10 +2910,11 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  
          if n_sample is not None:
              assert n_sample == len(initial_noise), (
-@@ -2605,32 +2386,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2604,32 +2493,6 @@
+             n_sample = len(initial_noise)
  
          assert n_sample == len(seed), f"Number of samples {n_sample} must match number of seeds {len(seed)}"
- 
+-
 -        reuse_pack_templates = self._can_reuse_inference_pack_templates(sequence_plans, gen_data_clean)
 -        cond_packed_sequence_template: PackedSequence | None = None
 -        uncond_packed_sequence_template: PackedSequence | None = None
@@ -3078,11 +2940,10 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -                    skip_text_tokens=skip_text_tokens_for_cfg,
 -                )
 -                uncond_packed_sequence_template.to_cuda()
--
+ 
          # Optional per-step velocity postprocess hook. Built once via a builder
          # that receives the prepared inference state. The returned callable (if
-         # any) is invoked after the conditional forward on every step and can
-@@ -2687,318 +2442,276 @@ class OmniMoTModel(ImaginaireModel):
+@@ -2687,318 +2550,276 @@
              _dp_shard_group = None
              _align_device = None
  
@@ -3149,28 +3010,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -                        memory=memory,
 -                        has_noisy_actions=has_noisy_actions,
 -                    )
-+        def velocity_fn(noise_x: list[torch.Tensor], timestep: torch.Tensor) -> list[torch.Tensor]:
-+            # len(noise_x) == B, noise_x[i] is shape (D)
-+            # timestep is shape (B, 1)
-+            torch.compiler.cudagraph_mark_step_begin()
-+
-+            assert timestep.ndim == 2, f"timestep must be 2D, got {timestep.shape}"
-+            assert timestep.shape == (1, 1), f"timestep must be (1, 1), got {timestep.shape}"
-+
-+            # Expand timestep to (B, 1)
-+            timestep = timestep.repeat(len(noise_x), 1)
-+
-+            def _single_velocity_fn(tokens: list[list[int]], skip_text_tokens: bool):
-+                return self._get_velocity(
-+                    net=net,
-+                    noise_x=noise_x,
-+                    timestep=timestep,
-+                    text_tokens=tokens,
-+                    sequence_plans=sequence_plans,
-+                    gen_data_clean=gen_data_clean,
-+                    skip_text_tokens=skip_text_tokens,
-+                )
- 
+-
 -                needs_text_cfg = guidance != 1.0
 -                if needs_text_cfg and guidance_interval is not None:
 -                    assert len(guidance_interval) == 2, f"guidance_interval must be [lo, hi], got {guidance_interval}"
@@ -3218,6 +3058,28 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -                cond_v = velocity_postprocess(cond_v_full, noise_x, timestep)
 -
 -                uncond_v = _single_velocity_fn(uncond_tokens, skip_text_tokens=skip_text_tokens_for_cfg)
++        def velocity_fn(noise_x: list[torch.Tensor], timestep: torch.Tensor) -> list[torch.Tensor]:
++            # len(noise_x) == B, noise_x[i] is shape (D)
++            # timestep is shape (B, 1)
++            torch.compiler.cudagraph_mark_step_begin()
++
++            assert timestep.ndim == 2, f"timestep must be 2D, got {timestep.shape}"
++            assert timestep.shape == (1, 1), f"timestep must be (1, 1), got {timestep.shape}"
++
++            # Expand timestep to (B, 1)
++            timestep = timestep.repeat(len(noise_x), 1)
++
++            def _single_velocity_fn(tokens: list[list[int]], skip_text_tokens: bool):
++                return self._get_velocity(
++                    net=net,
++                    noise_x=noise_x,
++                    timestep=timestep,
++                    text_tokens=tokens,
++                    sequence_plans=sequence_plans,
++                    gen_data_clean=gen_data_clean,
++                    skip_text_tokens=skip_text_tokens,
++                )
++
 +            needs_text_cfg = guidance != 1.0
 +            if needs_text_cfg and guidance_interval is not None:
 +                assert len(guidance_interval) == 2, f"guidance_interval must be [lo, hi], got {guidance_interval}"
@@ -3282,6 +3144,23 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -            else:
 -                _max_num_steps = num_steps
 -            _extra_num_steps = _max_num_steps - num_steps
+-
+-            if isinstance(sampler, FixedStepSampler):
+-                log.info(f"Using sampler: FixedStep (t_list={sampler.t_list}, sample_type={sampler.sample_type})")
+-            elif scheduler_type == "unipc":
+-                log.info(f"Using sampler: UniPC (shift={shift}, num_steps={num_steps})")
+-            else:
+-                log.info(f"Using sampler: EDM (sigma_max={sigma_max}, num_steps={num_steps})")
+-
+-            fixed_step_sampler_kwargs = {}
+-            if isinstance(sampler, FixedStepSampler):
+-                fixed_step_sampler_kwargs = {
+-                    "condition_reference": condition_reference,
+-                    "condition_mask": condition_mask,
+-                }
+-
+-            if isinstance(sampler, FixedStepSampler) or scheduler_type == "unipc":
+-                latents = sampler(
 +            # Conditional forward, then per-step postprocess hook. Hook runs
 +            # sequentially; cfgp parallelism not used on this path.
 +            cond_v_full = _single_velocity_fn(cond_tokens, skip_text_tokens=False)
@@ -3321,26 +3200,14 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 +        else:
 +            _max_num_steps = num_steps
 +        _extra_num_steps = _max_num_steps - num_steps
- 
--            if isinstance(sampler, FixedStepSampler):
--                log.info(f"Using sampler: FixedStep (t_list={sampler.t_list}, sample_type={sampler.sample_type})")
--            elif scheduler_type == "unipc":
--                log.info(f"Using sampler: UniPC (shift={shift}, num_steps={num_steps})")
--            else:
--                log.info(f"Using sampler: EDM (sigma_max={sigma_max}, num_steps={num_steps})")
++
 +        if isinstance(sampler, FixedStepSampler):
 +            log.info(f"Using sampler: FixedStep (t_list={sampler.t_list}, sample_type={sampler.sample_type})")
 +        elif scheduler_type == "unipc":
 +            log.info(f"Using sampler: UniPC (shift={shift}, num_steps={num_steps})")
 +        else:
 +            log.info(f"Using sampler: EDM (sigma_max={sigma_max}, num_steps={num_steps})")
- 
--            fixed_step_sampler_kwargs = {}
--            if isinstance(sampler, FixedStepSampler):
--                fixed_step_sampler_kwargs = {
--                    "condition_reference": condition_reference,
--                    "condition_mask": condition_mask,
--                }
++
 +        fixed_step_sampler_kwargs = {}
 +        if isinstance(sampler, FixedStepSampler):
 +            fixed_step_sampler_kwargs = {
@@ -3348,9 +3215,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 +                "condition_mask": condition_mask,
 +            }
 +        step_timer_kwargs = {} if step_timer is None else {"step_timer": step_timer}
- 
--            if isinstance(sampler, FixedStepSampler) or scheduler_type == "unipc":
--                latents = sampler(
++
 +        if isinstance(sampler, FixedStepSampler) or scheduler_type == "unipc":
 +            latents = sampler(
 +                velocity_fn,
@@ -3390,40 +3255,6 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -                    log.debug(
 -                        f"FSDP alignment: dummy sampler run with {_extra_num_steps} "
 -                        f"extra steps (local={num_steps}, max={_max_num_steps})"
--                    )
--                    _ = sampler(
--                        velocity_fn,
--                        latents,
--                        num_steps=_extra_num_steps,
--                        shift=shift,
--                        seed=seed,
--                        **fixed_step_sampler_kwargs,
--                    )
--            else:
--                # EDM Sampler
--                chunk_sizes = [_x.shape[0] for _x in initial_noise]
--                initial_noise = torch.cat(initial_noise, dim=0)
--
--                def x0_fn(noise_x: torch.Tensor, sigma: torch.Tensor) -> torch.Tensor:
--                    assert sigma.ndim == 0, f"sigma must be 0D, got {sigma.shape}"
--                    timestep_rf = sigma * float(self.config.rectified_flow_inference_config.num_train_timesteps)
--
--                    # Convert noise_x to list of tensors for velocity_fn, and then
--                    # concatenate the results back into a single tensor.
--                    _noise_x = list(torch.split(noise_x, chunk_sizes, dim=0))
--                    _velocity_pred = velocity_fn(_noise_x, timestep_rf.reshape(1, 1))
--                    velocity_pred = torch.cat(_velocity_pred, dim=0)
--
--                    x0_pred = noise_x - sigma * velocity_pred
--                    return x0_pred
--
--                latents = sampler(
--                    x0_fn,
--                    initial_noise,
--                    num_steps=num_steps,
--                    sigma_max=sigma_max,
--                    sigma_min=0.002,
--                    solver_option="2ab",
 +        else:
 +            # EDM Sampler
 +            chunk_sizes = [_x.shape[0] for _x in initial_noise]
@@ -3475,31 +3306,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 +                log.debug(
 +                    f"FSDP alignment: padding {_extra_num_steps} dummy x0_fn calls "
 +                    f"(local={num_steps}, max={_max_num_steps})"
-                 )
--                if _extra_num_steps > 0:
--                    # Pad the FSDP allgather sequence with ``_extra_num_steps``
--                    # direct ``x0_fn`` calls instead of a second EDM sampler
--                    # run. Avoids two EDM-specific footguns:
--                    #   (1) ``EDMSampler._forward_impl`` always runs an extra
--                    #       ``sample_clean`` denoiser forward (see
--                    #       ``cosmos_framework/model/vfm/diffusion/samplers/edm.py``).
--                    #       A nested sampler call would add one too many
--                    #       forwards on fast ranks, since the slow rank's
--                    #       single call also pays the ``sample_clean`` cost.
--                    #   (2) ``get_rev_ts(..., num_steps=0)`` divides by zero,
--                    #       producing NaN sigmas. The fix's ``extra==1`` edge
--                    #       case would need num_steps=0 to balance the count.
--                    # Direct ``x0_fn`` calls bypass both: each call routes
--                    # through the same ``velocity_fn`` closure (so the
--                    # per-call CFG all_reduce still aligns ranks), issues
--                    # exactly one model forward, and discards its return.
--                    # ``latents`` is the catted single tensor at this point;
--                    # the dummy sigma value is irrelevant for collective
--                    # alignment because the model's allgather sequence is
--                    # determined by tensor shapes, not sigma.
--                    log.debug(
--                        f"FSDP alignment: padding {_extra_num_steps} dummy x0_fn calls "
--                        f"(local={num_steps}, max={_max_num_steps})"
++                )
 +                # ``x0_fn`` expects a sigma in the RF domain (the real EDM
 +                # loop converts raw sigmas via ``sigmas_L / (1 + sigmas_L)``
 +                # at edm.py:174, landing them in ``(0, 1)``). Mirror that
@@ -3552,6 +3359,65 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 +                        f"Generated action output for sample {i} cannot be externalized without "
 +                        "action_processing_record"
                      )
+-                    _ = sampler(
+-                        velocity_fn,
+-                        latents,
+-                        num_steps=_extra_num_steps,
+-                        shift=shift,
+-                        seed=seed,
+-                        **fixed_step_sampler_kwargs,
+-                    )
+-            else:
+-                # EDM Sampler
+-                chunk_sizes = [_x.shape[0] for _x in initial_noise]
+-                initial_noise = torch.cat(initial_noise, dim=0)
+-
+-                def x0_fn(noise_x: torch.Tensor, sigma: torch.Tensor) -> torch.Tensor:
+-                    assert sigma.ndim == 0, f"sigma must be 0D, got {sigma.shape}"
+-                    timestep_rf = sigma * float(self.config.rectified_flow_inference_config.num_train_timesteps)
+-
+-                    # Convert noise_x to list of tensors for velocity_fn, and then
+-                    # concatenate the results back into a single tensor.
+-                    _noise_x = list(torch.split(noise_x, chunk_sizes, dim=0))
+-                    _velocity_pred = velocity_fn(_noise_x, timestep_rf.reshape(1, 1))
+-                    velocity_pred = torch.cat(_velocity_pred, dim=0)
+-
+-                    x0_pred = noise_x - sigma * velocity_pred
+-                    return x0_pred
+-
+-                latents = sampler(
+-                    x0_fn,
+-                    initial_noise,
+-                    num_steps=num_steps,
+-                    sigma_max=sigma_max,
+-                    sigma_min=0.002,
+-                    solver_option="2ab",
+-                )
+-                if _extra_num_steps > 0:
+-                    # Pad the FSDP allgather sequence with ``_extra_num_steps``
+-                    # direct ``x0_fn`` calls instead of a second EDM sampler
+-                    # run. Avoids two EDM-specific footguns:
+-                    #   (1) ``EDMSampler._forward_impl`` always runs an extra
+-                    #       ``sample_clean`` denoiser forward (see
+-                    #       ``cosmos_framework/model/vfm/diffusion/samplers/edm.py``).
+-                    #       A nested sampler call would add one too many
+-                    #       forwards on fast ranks, since the slow rank's
+-                    #       single call also pays the ``sample_clean`` cost.
+-                    #   (2) ``get_rev_ts(..., num_steps=0)`` divides by zero,
+-                    #       producing NaN sigmas. The fix's ``extra==1`` edge
+-                    #       case would need num_steps=0 to balance the count.
+-                    # Direct ``x0_fn`` calls bypass both: each call routes
+-                    # through the same ``velocity_fn`` closure (so the
+-                    # per-call CFG all_reduce still aligns ranks), issues
+-                    # exactly one model forward, and discards its return.
+-                    # ``latents`` is the catted single tensor at this point;
+-                    # the dummy sigma value is irrelevant for collective
+-                    # alignment because the model's allgather sequence is
+-                    # determined by tensor shapes, not sigma.
+-                    log.debug(
+-                        f"FSDP alignment: padding {_extra_num_steps} dummy x0_fn calls "
+-                        f"(local={num_steps}, max={_max_num_steps})"
+-                    )
 -                    # ``x0_fn`` expects a sigma in the RF domain (the real EDM
 -                    # loop converts raw sigmas via ``sigmas_L / (1 + sigmas_L)``
 -                    # at edm.py:174, landing them in ``(0, 1)``). Mirror that
@@ -3650,7 +3516,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  
      def _extract_condition_images_for_visualization(
          self,
-@@ -3074,7 +2787,7 @@ class OmniMoTModel(ImaginaireModel):
+@@ -3074,7 +2895,7 @@
          Returns:
              Sliced GenerationDataClean.
          """
@@ -3659,252 +3525,10 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
          has_action = bool(gen_data_clean.x0_tokens_action)
          has_sound = bool(gen_data_clean.x0_tokens_sound)
  
-@@ -3158,264 +2871,17 @@ class OmniMoTModel(ImaginaireModel):
-     def forward(self, xt, t):
-         pass
- 
--    @staticmethod
--    def _get_multiview_vae_metadata(
--        data_batch: dict[str, Any],
--        num_vision_items_per_sample: list[int] | None,
--        batch_size: int,
--    ) -> tuple[list[int] | None, list[int] | None]:
--        """Align per-sample multiview metadata with flattened vision items."""
--        if "enable_per_camera_vae_encoding" not in data_batch:
--            return None, None
--
--        sample_n_views = read_positive_int_metadata(data_batch, "sample_n_views", expected_count=batch_size)
--        sample_frames_per_view = read_positive_int_metadata(
--            data_batch,
--            "num_video_frames_per_view",
--            expected_count=batch_size,
--        )
--        if sample_n_views is None or sample_frames_per_view is None:
--            raise ValueError(
--                "sample_n_views and num_video_frames_per_view are required when per-camera VAE encoding is enabled."
--            )
--
--        vision_item_counts = (
--            num_vision_items_per_sample if num_vision_items_per_sample is not None else [1] * batch_size
--        )
--        if len(vision_item_counts) != batch_size:
--            raise ValueError(
--                "num_vision_items_per_sample must align with the packed batch: "
--                f"got {len(vision_item_counts)} counts for batch size {batch_size}."
--            )
--
--        num_views_per_vision_item: list[int] = []
--        frames_per_vision_item: list[int] = []
--        for sample_idx, num_vision_items in enumerate(vision_item_counts):
--            if num_vision_items <= 0:
--                raise ValueError(f"Vision item counts must be positive, got {vision_item_counts}.")
--            num_views_per_vision_item.extend([sample_n_views[sample_idx]] * num_vision_items)
--            frames_per_vision_item.extend([sample_frames_per_view[sample_idx]] * num_vision_items)
--        return num_views_per_vision_item, frames_per_vision_item
--
--    def _encode_vision_item(
--        self,
--        state: torch.Tensor,
--        *,
--        num_views: int,
--        frames_per_view: int | None,
--    ) -> torch.Tensor:  # state: [B,C,T,H,W] or [C,T,H,W], returns [...,C_latent,T_latent,H_latent,W_latent]
--        """Encode one vision item, splitting a camera-major multiview clip when needed.
--
--        Multiview items contain ``num_views`` complete camera clips concatenated
--        along T, with ``frames_per_view`` frames per clip. Each clip is encoded in
--        a separate VAE call so temporal compression never crosses camera
--        boundaries, then the camera-major latent clips are concatenated along T.
--        """
--        # Single-view path.
--        if num_views == 1:
--            return self.encode(state).contiguous().float()  # [...,C_latent,T_latent,H_latent,W_latent]
--
--        if frames_per_view is None:
--            raise ValueError("frames_per_view is required when num_views is greater than one.")
--
--        # The dataset concatenates full camera clips along T; confirm the shape.
--        temporal_dim = state.ndim - 3
--        expected_frames = num_views * frames_per_view
--        actual_frames = int(state.shape[temporal_dim])
--        if actual_frames != expected_frames:
--            raise ValueError(
--                "Multiview vision length must equal num_views * frames_per_view: "
--                f"got T={actual_frames}, num_views={num_views}, frames_per_view={frames_per_view}."
--            )
--
--        # Encode each camera in a separate VAE call.
--        encoded_views: list[torch.Tensor] = []
--        for view_idx in range(num_views):
--            view_state = state.narrow(  # [...,C,T_v,H,W]
--                temporal_dim,
--                view_idx * frames_per_view,
--                frames_per_view,
--            )
--            encoded_view = self.encode(view_state).contiguous().float()  # [...,C_latent,T_latent_v,H_latent,W_latent]
--            encoded_views.append(encoded_view)
--
--        # Do camera-major repacking for now (instead of timestamp-major).
--        return torch.cat(encoded_views, dim=temporal_dim)  # [...,C_latent,V*T_latent_v,H_latent,W_latent]
--
--    def _encode_vision_x0_tokens(
--        self,
--        raw_state_vision: list[torch.Tensor],
--        num_vision_items_per_sample: list[int] | None,
--        vision_condition_indexes: list[list[int]] | None,
--        num_views_per_vision_item: list[int] | None = None,
--        frames_per_vision_item: list[int] | None = None,
--    ) -> list[torch.Tensor]:
--        """Encode vision items into x0 latent tokens, optionally splitting camera views.
--
--        Default behavior (``vision_condition_indexes is None``) encodes every pixel
--        frame of every vision item. This is the path used during training and by any
--        caller that does not opt in. Multiview items are camera-major along the raw
--        temporal axis; each camera is encoded independently before its latent sequence
--        is concatenated back in the same camera-major order.
--
--        Inference optimization: when ``vision_condition_indexes`` is provided (one
--        conditioning-frame-index list per sample, from each ``SequencePlan``) and the
--        vision tokenizer is temporally causal, only the pixel-frame prefix required to
--        reconstruct the highest conditioned latent frame is encoded. The remaining
--        latent frames are generated (pure-noise) positions that the ``condition_mask``
--        blend discards, so they are zero-filled instead of encoded. Under a causal VAE
--        the kept latents are identical to the corresponding frames of a full-clip
--        encode, while the encode processes far fewer frames (e.g. 1 pixel frame instead
--        of the full clip for WAM / forward-dynamics modes that only condition latent
--        frame 0). Inverse-dynamics conditions every latent frame, so it keeps the full
--        encode automatically.
--
--        The optimization falls back to a full encode for multi-vision samples,
--        multiview items, non-causal tokenizers, samples with no conditioning frames,
--        and any item whose full clip is already the minimal prefix.
--        """
--
--        if (num_views_per_vision_item is None) != (frames_per_vision_item is None):
--            raise ValueError("num_views_per_vision_item and frames_per_vision_item must be provided together.")
--        if num_views_per_vision_item is None:
--            num_views_per_vision_item = [1] * len(raw_state_vision)
--            frames_per_vision_item_optional: list[int | None] = [None] * len(raw_state_vision)
--        else:
--            assert frames_per_vision_item is not None
--            if len(num_views_per_vision_item) != len(raw_state_vision) or len(frames_per_vision_item) != len(
--                raw_state_vision
--            ):
--                raise ValueError(
--                    "Multiview VAE metadata must align with flattened vision items: "
--                    f"got {len(num_views_per_vision_item)} view counts, {len(frames_per_vision_item)} frame "
--                    f"counts, and {len(raw_state_vision)} vision items."
--                )
--            frames_per_vision_item_optional = list(frames_per_vision_item)
--
--        # Only opt in when a caller supplied per-sample conditioning indexes, the
--        # samples map 1:1 to single-view vision items (no multi-vision flattening),
--        # and the tokenizer is causal (so a pixel prefix reproduces the leading latents).
--        optimization_applicable = (
--            vision_condition_indexes is not None
--            and num_vision_items_per_sample is None
--            and all(num_views == 1 for num_views in num_views_per_vision_item)
--            and self.tokenizer_vision_gen is not None
--            and self.tokenizer_vision_gen.is_causal
--            and len(vision_condition_indexes) == len(raw_state_vision)
--        )
--        if not optimization_applicable:
--            # Training does not provide vision_condition_indexes, so it fully
--            # encodes each item in the flattened control/target list.
--            return [
--                self._encode_vision_item(
--                    raw_state_vision_i,
--                    num_views=num_views,
--                    frames_per_view=frames_per_view,
--                )
--                for raw_state_vision_i, num_views, frames_per_view in zip(
--                    raw_state_vision,
--                    num_views_per_vision_item,
--                    frames_per_vision_item_optional,
--                    strict=True,
--                )
--            ]
--
--        # The prefix-encode optimization zero-fills the generated (pure-noise) latent
--        # frames that the condition_mask blend later discards. That is only valid when
--        # no gradient is required: torch.is_grad_enabled() is False under both
--        # torch.inference_mode() and torch.no_grad(), so this asserts we are on an
--        # inference path and never silently corrupts a training forward.
--        if torch.is_grad_enabled():
--            raise ValueError(
--                "prefix-encode optimization is inference-only, but grad is enabled "
--                "(expected torch.inference_mode()/torch.no_grad())"
--            )
--
--        tokenizer = self.tokenizer_vision_gen
--        assert vision_condition_indexes is not None  # narrowed by optimization_applicable above
--        x0_tokens_vision: list[torch.Tensor] = []
--        for raw_state_vision_i, condition_indexes in zip(
--            raw_state_vision,
--            vision_condition_indexes,
--            strict=True,
--        ):
--            # The temporal axis is the first of the trailing (T, H, W) dims for both the
--            # [B, C, T, H, W] and [C, T, H, W] layouts the tokenizer accepts, and encode
--            # preserves rank so the same index locates T in the latent output.
--            temporal_dim = raw_state_vision_i.ndim - 3
--            num_pixel_frames = int(raw_state_vision_i.shape[temporal_dim])
--            num_latent_frames = tokenizer.get_latent_num_frames(num_pixel_frames)
--
--            valid_condition = [idx for idx in condition_indexes if 0 <= idx < num_latent_frames]
--            if not valid_condition:
--                # No conditioning frames to preserve (e.g. fully generated T2V item):
--                # keep the full encode so behavior is unchanged for non-action items.
--                x0_tokens_vision.append(self._encode_vision_item(raw_state_vision_i, num_views=1, frames_per_view=None))
--                continue
--
--            needed_latent_frames = max(valid_condition) + 1
--            needed_pixel_frames = tokenizer.get_pixel_num_frames(needed_latent_frames)
--            assert needed_pixel_frames <= num_pixel_frames, (
--                f"needed_pixel_frames ({needed_pixel_frames}) cannot be greater than "
--                f"num_pixel_frames ({num_pixel_frames})"
--            )
--            if needed_pixel_frames == num_pixel_frames:
--                # The conditioning already spans (nearly) the whole clip; no work saved.
--                x0_tokens_vision.append(self._encode_vision_item(raw_state_vision_i, num_views=1, frames_per_view=None))
--                continue
--
--            prefix = raw_state_vision_i.narrow(temporal_dim, 0, needed_pixel_frames)  # [...,T_prefix,H,W]
--            prefix_latent = self._encode_vision_item(  # [...,T_latent_prefix,H_latent,W_latent]
--                prefix,
--                num_views=1,
--                frames_per_view=None,
--            )
--
--            # The scatter below assumes the pixel->latent round trip is exact, i.e. that
--            # encoding ``needed_pixel_frames`` yields exactly ``needed_latent_frames``
--            # latents. All current causal tokenizers satisfy this, but guard it: an
--            # overshoot would make the narrow below request more frames than full_latent
--            # holds (confusing runtime error), and an undershoot would silently zero-fill
--            # the highest conditioning frame and corrupt the condition_mask blend with no
--            # error at all.
--            num_prefix_latent_frames = prefix_latent.shape[temporal_dim]
--            assert num_prefix_latent_frames == needed_latent_frames, (
--                f"causal tokenizer pixel<->latent round trip is not exact: encoding "
--                f"{needed_pixel_frames} pixel frames (from get_pixel_num_frames({needed_latent_frames})) "
--                f"produced {num_prefix_latent_frames} latent frames, expected {needed_latent_frames}"
--            )
--
--            # Scatter the encoded prefix into a full-length latent; the unconditioned
--            # tail frames stay zero since the condition_mask blend replaces them with noise.
--            full_shape = list(prefix_latent.shape)
--            full_shape[temporal_dim] = num_latent_frames
--            full_latent = prefix_latent.new_zeros(full_shape)
--            full_latent.narrow(temporal_dim, 0, prefix_latent.shape[temporal_dim]).copy_(prefix_latent)
--            x0_tokens_vision.append(full_latent)
--
--        return x0_tokens_vision
--
-     def get_data_and_condition(
-         self,
+@@ -3400,22 +3221,13 @@
          data_batch: dict[str, torch.Tensor],
          iteration: int = 1,
--        vision_condition_indexes: list[list[int]] | None = None,
+         vision_condition_indexes: list[list[int]] | None = None,
 +        *,
 +        phase_timer: Callable[[str], Any] | None = None,
      ) -> GenerationDataClean:
@@ -3926,7 +3550,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
          """
          # Detect whether any sample has multiple vision items (e.g. image editing).
          # If so, track the count per sample before all vision items from this batch are flattened into a list.
-@@ -3463,23 +2929,19 @@ class OmniMoTModel(ImaginaireModel):
+@@ -3463,23 +3275,22 @@
              if log_enc_time:
                  timer = Timer(unit="s")
                  timer.start()
@@ -3935,7 +3559,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
          self._normalize_video_databatch_inplace(data_batch)
          self._augment_image_dim_inplace(data_batch)  # converts each image tensor to (1, C, 1, H, W)
          raw_state_vision = data_batch[self.input_image_key if is_image_batch else self.input_video_key]
--        num_views_per_vision_item, frames_per_vision_item = self._get_multiview_vae_metadata(
+         num_views_per_vision_item, frames_per_vision_item = self._get_multiview_vae_metadata(
 -            data_batch,
 -            num_vision_items_per_sample,
 -            batch_size,
@@ -3947,28 +3571,21 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
 -            num_views_per_vision_item,
 -            frames_per_vision_item,
 -        )
++            data_batch, num_vision_items_per_sample, batch_size,
++        )
++        encode_args = (
++            raw_state_vision, num_vision_items_per_sample, vision_condition_indexes,
++            num_views_per_vision_item, frames_per_vision_item,
++        )
 +        if phase_timer is None:
-+            x0_tokens_vision = [
-+                self.encode(raw_state_vision_i).float() for raw_state_vision_i in raw_state_vision
-+            ]
++            x0_tokens_vision = self._encode_vision_x0_tokens(*encode_args)
 +        else:
 +            with phase_timer("vae_encode"):
-+                x0_tokens_vision = [
-+                    self.encode(raw_state_vision_i).float() for raw_state_vision_i in raw_state_vision
-+                ]
++                x0_tokens_vision = self._encode_vision_x0_tokens(*encode_args)
  
          frame_size = data_batch.get("image_size", None)
          if frame_size is not None:
-@@ -3488,8 +2950,6 @@ class OmniMoTModel(ImaginaireModel):
-         temporal_positions_vision = self._get_temporal_positions_vision(
-             raw_state_vision=raw_state_vision,
-             x0_tokens_vision=x0_tokens_vision,
--            num_views_per_vision_item=num_views_per_vision_item,
--            frames_per_vision_item=frames_per_vision_item,
-         )
- 
-         # Action – extract dense action / domain_id without mutating data_batch,
-@@ -3513,13 +2973,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -3513,13 +3324,6 @@
              fps_raw = torch.stack(fps_raw).flatten()  # list of scalar tensors -> (B,)
          fps_vision = fps_raw.to(**self.tensor_kwargs) if fps_raw is not None else None
          fps_action = fps_raw.to(**self.tensor_kwargs) if fps_raw is not None else None
@@ -3982,33 +3599,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  
          # Sound FPS for RoPE alignment (constant, from config)
          if x0_tokens_sound is not None:
-@@ -3607,22 +3060,12 @@ class OmniMoTModel(ImaginaireModel):
-                         f"[{data_batch[input_key][i].min()}, {data_batch[input_key][i].max()}]"
-                     )
-             else:
--                # Worker-normalized batches take the preprocessed branch above.
-                 for i in range(len(data_batch[input_key])):
-                     item = data_batch[input_key][i]
-                     if isinstance(item, torch.Tensor):
--                        assert item.dtype == torch.uint8, "Video data is not in uint8 format."
--                        # Flattened multiview items already include B; preserve the original stacking behavior otherwise.
--                        if item.ndim != 5:
--                            item = torch.stack([item])  # [1,C,T,H,W]
--                        normalized_item = item.to(**self.tensor_kwargs_fp32) / 127.5 - 1.0  # [B,C,T,H,W]
--                    else:
--                        # Non-flattened batches may still provide one [C,T,H,W] tensor per sample.
--                        assert item[0].dtype == torch.uint8, "Video data is not in uint8 format."
--                        normalized_item = (  # [B,C,T,H,W]
--                            torch.stack(item).to(**self.tensor_kwargs_fp32) / 127.5 - 1.0
--                        )
--                    data_batch[input_key][i] = normalized_item  # [B,C,T,H,W]
-+                        item = [item]
-+                    assert item[0].dtype == torch.uint8, "Video data is not in uint8 format."
-+                    data_batch[input_key][i] = torch.stack(item).to(**self.tensor_kwargs_fp32) / 127.5 - 1.0
-                 data_batch[IS_PREPROCESSED_KEY] = True
- 
-     def _normalize_action_databatch(
-@@ -4257,7 +3700,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -4257,7 +4061,6 @@
          net: torch.nn.Module | None = None,
          data_batch_packed: PackedSequence | None = None,
          memory: MemoryState | None = None,
@@ -4016,7 +3607,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
      ) -> dict:
          """
          Runs the MoT network on a packed multi-modal sequence to predict velocity (v) targets.
-@@ -4266,9 +3708,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -4266,9 +4069,6 @@
              data_batch_packed: PackedSequence from `pack_input_sequence(...)`.
              memory: Optional pre-built MemoryState for autoregressive generation
                  or KV-cache training.
@@ -4026,7 +3617,7 @@ index c2bcaf5f024a86fee62779f1ac0291d252a53e9a..5bfad1030f7255cfbba7f44edd697e6b
  
          Returns:
              dict containing:
-@@ -4282,7 +3721,6 @@ class OmniMoTModel(ImaginaireModel):
+@@ -4282,7 +4082,6 @@
          out_net = net(
              packed_seq=data_batch_packed,
              memory=memory,
@@ -5794,16 +5385,16 @@ index 0000000000000000000000000000000000000000..5a687b022d162b206d1904146f92256b
 +
 +__all__ = ["fused_conv3d_bias_ndhwc"]
 diff --git a/cosmos_framework/model/generator/tokenizers/wan2pt2_vae_4x16x16.py b/cosmos_framework/model/generator/tokenizers/wan2pt2_vae_4x16x16.py
-index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dcdd5edea7 100644
+index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8aa13494e111403a080119d50a110cef97161030 100644
 --- a/cosmos_framework/model/generator/tokenizers/wan2pt2_vae_4x16x16.py
 +++ b/cosmos_framework/model/generator/tokenizers/wan2pt2_vae_4x16x16.py
-@@ -4,36 +4,57 @@
+@@ -4,36 +4,58 @@
  import os
  import time
  from collections.abc import Callable, Generator, Mapping, Sequence
 -from contextlib import contextmanager
--from typing import Literal
 +from contextlib import contextmanager, nullcontext
+ from typing import Literal
  
  import torch
 -import torch._inductor
@@ -5835,15 +5426,8 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
  
 +# HIP uses channels-last; non-HIP retains the historical layout.
 +_USE_CHANNELS_LAST = training_channels_last_enabled()
- 
--def _contiguous_clone(t: torch.Tensor) -> torch.Tensor:
--    """Return a contiguous copy of *t* using exactly one allocation.
- 
--    When *t* is already contiguous, ``.contiguous()`` would be a no-op that
--    returns the *same* tensor (sharing storage), so we need ``.clone()``.
--    When *t* is non-contiguous, ``.contiguous()`` already allocates a fresh
--    tensor with independent storage — no extra ``.clone()`` needed.
--    """
++
++
 +def _to_channels_last_2d(t: torch.Tensor) -> torch.Tensor:
 +    if _USE_CHANNELS_LAST and t.dim() == 4:
 +        return t.contiguous(memory_format=torch.channels_last)
@@ -5861,15 +5445,22 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
 +        return t.is_contiguous(memory_format=torch.channels_last_3d)
 +    return t.is_contiguous()
 +
-+
-+def _contiguous_clone(t: torch.Tensor) -> torch.Tensor:
+ 
+ def _contiguous_clone(t: torch.Tensor) -> torch.Tensor:
+-    """Return a contiguous copy of *t* using exactly one allocation.
+-
+-    When *t* is already contiguous, ``.contiguous()`` would be a no-op that
+-    returns the *same* tensor (sharing storage), so we need ``.clone()``.
+-    When *t* is non-contiguous, ``.contiguous()`` already allocates a fresh
+-    tensor with independent storage — no extra ``.clone()`` needed.
+-    """
 +    """Return a contiguous copy of *t* using exactly one allocation."""
 +    if _USE_CHANNELS_LAST and t.dim() == 5:
 +        return t.clone(memory_format=torch.channels_last_3d)
      if t.is_contiguous():
          return t.clone()
      return t.contiguous()
-@@ -57,16 +78,46 @@ def _update_cache_and_apply(
+@@ -57,16 +79,46 @@
      to the list.
      """
      idx = feat_idx[0]
@@ -5919,7 +5510,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
      feat_cache[idx] = cache_x
      feat_idx[0] += 1
      return x
-@@ -89,13 +140,52 @@ class CausalConv3d(nn.Conv3d):
+@@ -89,13 +141,52 @@
          )
          self.padding = (0, 0, 0)
  
@@ -5972,7 +5563,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
  
          return super().forward(x)  # [B,out_C,T_out,H_out,W_out]
  
-@@ -182,7 +272,7 @@ class Resample(nn.Module):
+@@ -182,7 +273,7 @@
                      x = torch.stack((x[:, 0, :, :, :, :], x[:, 1, :, :, :, :]), 3)  # [B,C,T,2,H,W]
                      x = x.reshape(b, c, t * 2, h, w)  # [B,C,T*2,H,W]
          t = x.shape[2]
@@ -5981,7 +5572,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
          x = self.resample(x)  # [B*T,C_out,H_out,W_out]
          x = rearrange(x, "(b t) c h w -> b c t h w", t=t)  # [B,C_out,T,H_out,W_out]
  
-@@ -274,7 +364,7 @@ class AttentionBlock(nn.Module):
+@@ -274,7 +365,7 @@
      def forward(self, x):  # x: [B,C,T,H,W]
          identity = x
          b, c, t, h, w = x.size()
@@ -5990,7 +5581,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
          x = self.norm(x)  # [B*T,C,H,W]
          # compute query, key, value
          q, k, v = self.to_qkv(x).reshape(b * t, 1, c * 3, -1).permute(0, 1, 3, 2).contiguous().chunk(3, dim=-1)
-@@ -289,7 +379,7 @@ class AttentionBlock(nn.Module):
+@@ -289,7 +380,7 @@
          x = x.squeeze(1).permute(0, 2, 1).contiguous().reshape(b * t, c, h, w)  # [B*T,C,H,W]
  
          # output
@@ -5999,7 +5590,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
          x = rearrange(x, "(b t) c h w-> b c t h w", t=t)  # [B,C,T,H,W]
          return x + identity  # [B,C,T,H,W]
  
-@@ -364,7 +454,7 @@ class AvgDown3D(nn.Module):
+@@ -364,7 +455,7 @@
      ) -> torch.Tensor:  # x: [B,C,T,H,W] -> [B,out_channels,T//factor_t,H//factor_s,W//factor_s]
          pad_t = (self.factor_t - x.shape[2] % self.factor_t) % self.factor_t
          pad = (0, 0, 0, 0, pad_t, 0)
@@ -6008,7 +5599,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
          B, C, T, H, W = x.shape
          x = x.view(
              B,
-@@ -418,6 +508,7 @@ class DupUp3D(nn.Module):
+@@ -418,6 +509,7 @@
      def forward(
          self, x: torch.Tensor, first_chunk=False
      ) -> torch.Tensor:  # x: [B,in_channels,T,H,W] -> [B,out_channels,T*factor_t,H*factor_s,W*factor_s]
@@ -6016,7 +5607,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
          x = x.repeat_interleave(self.repeats, dim=1)  # [B,in_channels*repeats,T,H,W]
          x = x.view(
              x.size(0),
-@@ -790,13 +881,13 @@ class WanVAE_(nn.Module):
+@@ -790,13 +882,13 @@
          """
          feat_cache = list(feat_cache)
  
@@ -6034,7 +5625,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
  
          # Project encoder features through conv1, split to mu/log_var, and normalize.
          mu, _log_var = self.conv1(out).chunk(2, dim=1)
-@@ -906,16 +997,10 @@ class WanVAE_(nn.Module):
+@@ -906,16 +998,10 @@
              """
              is_prime = feat_cache[0] is None
  
@@ -6055,7 +5646,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
  
              if aot_chunk_fns is not None:
                  cache_t = 0 if is_prime else feat_cache[0].shape[2]
-@@ -1001,16 +1086,7 @@ def _video_vae(
+@@ -1001,16 +1087,7 @@
          model.to_empty(device=device)
      else:
          if get_rank() == 0:
@@ -6073,7 +5664,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
                  from cosmos_framework.utils.checkpoint_db import download_checkpoint_v2
  
                  pretrained_path = download_checkpoint_v2(pretrained_path)
-@@ -1033,7 +1109,6 @@ def _video_vae(
+@@ -1033,7 +1110,6 @@
              model.load_state_dict(ckpt, assign=TRAINING)
          else:
              model.to_empty(device=device)
@@ -6081,7 +5672,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
      # Ensure all params/buffers are contiguous on every rank before
      # `sync_model_states` performs its shape+stride verification.
      # `assign=TRAINING` on rank 0 replaces params with loaded tensor objects,
-@@ -1059,6 +1134,7 @@ class WanVAE:
+@@ -1059,6 +1135,7 @@
          object_store_credential_path_pretrained="",
          dtype=torch.bfloat16,
          device=DEVICE,
@@ -6089,7 +5680,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
          temporal_window: int | Mapping[str, int] = 4,
          encode_exact_durations: list[int] | None = None,
      ):
-@@ -1181,9 +1257,21 @@ class WanVAE:
+@@ -1181,9 +1258,21 @@
          )
  
          self.model = self.model.eval().requires_grad_(False)
@@ -6114,7 +5705,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
  
      def count_param(self) -> int:
          return sum(p.numel() for p in self.model.parameters())
-@@ -1204,9 +1292,13 @@ class WanVAE:
+@@ -1204,9 +1293,13 @@
              Tensor of shape ``[B, z_dim, T//4, H//16, W//16]``.
          """
          in_dtype = videos.dtype
@@ -6130,7 +5721,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
          return latent
  
      @torch.no_grad()
-@@ -1221,9 +1313,14 @@ class WanVAE:
+@@ -1221,9 +1314,14 @@
              Tensor of shape ``[B, C, T, H, W]``.
          """
          in_dtype = zs.dtype
@@ -6147,64 +5738,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
          return video_recon
  
  
-@@ -1297,10 +1394,7 @@ def _collect_warmup_shapes(
-                 raise ValueError(f"Aspect ratio {aspect_ratio} not found in resolution {res_key}")
-             res_dict = {aspect_ratio: res_dict[aspect_ratio]}
- 
--        # ``VIDEO_RES_SIZE_INFO`` stores each bucket as ``(W, H)`` (e.g. the
--        # landscape ``"4,3": (736, 544)``), so unpack width-first to match the
--        # runtime encode key, which is derived from the actual ``(H, W)`` tensor.
--        for W, H in res_dict.values():
-+        for H, W in res_dict.values():
-             if isinstance(tokenizer.encode_chunk_frames, Mapping):
-                 chunk_frames = tokenizer.encode_chunk_frames[res_key]
-             else:
-@@ -1311,35 +1405,6 @@ def _collect_warmup_shapes(
-     return all_shapes
- 
- 
--def _synchronized_reset_dir(path: str, *, is_distributed: bool, rank: int, mode: Literal["delete", "recreate"]) -> None:
--    """Delete (and optionally recreate) a directory in a distributed-safe way: barrier, rank-0 reset, barrier.
--
--    The leading barrier ensures every rank has finished using ``path`` before rank 0
--    removes it; the trailing barrier ensures no rank proceeds (e.g. recreates or writes
--    into ``path``) until the deletion has completed. ``ignore_errors=True`` guarantees the
--    delete never raises, so rank 0 always reaches the trailing barrier and cannot strand
--    the other ranks.
--
--    Args:
--        mode: ``"delete"`` removes ``path``; ``"recreate"`` removes ``path`` and then
--            recreates it as a fresh empty directory (before the trailing barrier), so every
--            rank observes the empty directory once the call returns.
--    """
--    import shutil
--
--    import torch.distributed as dist
--
--    if is_distributed:
--        dist.barrier()
--    if rank == 0:
--        shutil.rmtree(path, ignore_errors=True)
--        if mode == "recreate":
--            os.makedirs(path, exist_ok=True)
--        log.info(f"{'Reset' if mode == 'recreate' else 'Removed'} directory: {path}")
--    if is_distributed:
--        dist.barrier()
--
--
- class Wan2pt2VAEInterface(VideoTokenizerInterface):
-     def __init__(
-         self,
-@@ -1381,7 +1446,7 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
-         # HuggingFace checkpoint has been updated to use a dictionary of chunk frames,
-         # one for each resolution.
-         if isinstance(encode_chunk_frames, int):
--            encode_chunk_frames = {"256": 68, "480": 24, "720": 8}
-+            encode_chunk_frames = {"256": 68, "480": 24, "720": 12}
-         assert isinstance(encode_chunk_frames, Mapping)
- 
-         assert all(c % 4 == 0 for c in encode_chunk_frames.values()), "encode_chunk_frames must be a multiple of 4"
-@@ -1393,6 +1458,7 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
+@@ -1393,6 +1491,7 @@
          vae_path_full = f"s3://{bucket_name}/{vae_path}" if bucket_name else vae_path
          self.model = WanVAE(
              dtype=torch.bfloat16,
@@ -6212,7 +5746,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
              vae_pth=vae_path_full,
              object_store_credential_path_pretrained=object_store_credential_path_pretrained,
              temporal_window=encode_chunk_frames,
-@@ -1496,6 +1562,9 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
+@@ -1496,6 +1595,9 @@
              aspect_ratio: If given, only compile this single aspect ratio per
                  resolution instead of all available ratios.
          """
@@ -6222,22 +5756,7 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
          log.info(f"AOT chunk-level warmup for resolutions: {warmup_resolutions}", rank0_only=False)
          start_time = time.time()
  
-@@ -1512,11 +1581,11 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
-         scale = wanvae.scale  # (mean, 1/std)
-         n_cache_slots = wanvae_model._enc_conv_num
- 
--        # Clear any packages left behind by a previous (possibly failed/interrupted) run
--        # and recreate a fresh directory, so we never reuse stale .pt2 files.
--        _synchronized_reset_dir(save_dir, is_distributed=is_distributed, rank=rank, mode="recreate")
-         if rank == 0:
-             log.info(f"Saving AOT compiled packages to {save_dir}")
-+            os.makedirs(save_dir, exist_ok=True)
-+        if is_distributed:
-+            dist.barrier()
- 
-         # -- Helper functions --------------------------------------------------
- 
-@@ -1524,7 +1593,7 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
+@@ -1524,7 +1626,7 @@
              return [torch.rand_like(c) if c is not None else None for c in cache]
  
          def _rand_input(t: int, h: int, w: int) -> torch.Tensor:
@@ -6246,192 +5765,31 @@ index 9c9f87b9ceea8bd230b6f8b44754f0e56cdd049e..8b38bbbd9e62e688cba49c3886ed53dc
  
          def _compile_variant(
              wrapper: _ChunkEncodeForAOT,
-@@ -1599,31 +1668,16 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
-             rank0_only=False,
-         )
- 
--        # -- Build probe caches up front (shared by compile + validation) ------
--        # A "probe cache" is a valid eager ``feat_cache`` with a given temporal
--        # extent (``cache_t``). It is needed in two places: (1) as the example
--        # ``feat_cache`` fed to ``torch.export`` when compiling a variant, and
--        # (2) as the eager reference cache for the post-load correctness gate.
--        # Every rank validates every gathered variant, so probe caches for *all*
--        # warmup shapes are needed on every rank regardless of which shapes this
--        # rank compiled. We therefore build them all once here: a single source of
--        # truth for the eager cache layout, and no redundant second eager pass like
--        # the old ``_build_probe_cache`` did.
--        #
--        # The cache shape depends only on ``(H_patch, W_patch, cache_t)`` and never
--        # on the chunk length used to produce it, so we key on the spatial dims and
--        # always build with the cheap 1-/2-frame inputs.
-+        # -- Build reference caches lazily, only for this rank's shapes --------
- 
-         wrapper = _ChunkEncodeForAOT(wanvae_model, scale[0], scale[1])
-         wrapper.eval()
- 
--        def _build_probe_caches(H_patch: int, W_patch: int) -> dict[int, list[torch.Tensor | None]]:
--            """Return the ``{cache_t: feat_cache}`` map for one spatial shape.
--
--            ``cache_t=0`` is the all-``None`` prime, ``cache_t=1`` is the post-prime
--            cache (after a 1-frame chunk), and ``cache_t=2`` is the steady-state
--            cache (after a 2-frame chunk).
--            """
-+        def _get_ref_caches(
-+            chunk_frames: int,
-+            H_patch: int,
-+            W_patch: int,
-+        ) -> dict[int, list[torch.Tensor | None]]:
-             cache_ct0: list[torch.Tensor | None] = [None] * n_cache_slots
-             _, cache_ct1 = wanvae_model._encode_chunk_impl(
-                 _rand_input(1, H_patch, W_patch),
-@@ -1631,24 +1685,20 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
-                 scale,
-             )
-             _, cache_ct2 = wanvae_model._encode_chunk_impl(
--                _rand_input(2, H_patch, W_patch),
-+                _rand_input(chunk_frames, H_patch, W_patch),
-                 list(cache_ct1),
-                 scale,
-             )
-             return {0: cache_ct0, 1: cache_ct1, 2: cache_ct2}
- 
--        # Deduplicate to unique spatial shapes (a resolution's chunk_frames doesn't
--        # affect the cache shape), preserving first-seen order for deterministic builds.
--        unique_spatial_shapes = dict.fromkeys((H_patch, W_patch) for _chunk_frames, H_patch, W_patch in all_shapes)
--        probe_cache_map: dict[tuple[int, int], dict[int, list[torch.Tensor | None]]] = {
--            spatial_key: _build_probe_caches(*spatial_key) for spatial_key in unique_spatial_shapes
--        }
-+        ref_cache_map: dict[_ShapeInfo, dict[int, list[torch.Tensor | None]]] = {}
- 
-         my_pkg_paths: dict[_AOTChunkKey, str] = {}
-         for aot_key, shape_info in my_variant_keys:
--            _chunk_frames, H_patch, W_patch = shape_info
-             cache_t = aot_key[3]
--            ref_cache = probe_cache_map[(H_patch, W_patch)][cache_t]
-+            if shape_info not in ref_cache_map:
-+                ref_cache_map[shape_info] = _get_ref_caches(*shape_info)
-+            ref_cache = ref_cache_map[shape_info][cache_t]
-             pkg_path = _compile_variant(wrapper, aot_key, ref_cache)
-             if pkg_path is not None:
-                 my_pkg_paths[aot_key] = pkg_path
-@@ -1669,76 +1719,6 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
-         device_index = torch.cuda.current_device()
-         state_dict = wrapper.state_dict()
- 
--        def _variant_matches_eager(fn: Callable, key: _AOTChunkKey) -> bool:
--            """Return whether a compiled variant reproduces eager _encode_chunk_impl.
--
--            Some torch/AOTInductor versions silently miscompile specific shapes. This must
--            check BOTH the latent output AND the returned feat_cache, because the two failure
--            modes observed on the 12-frame 360x640 chunk differ by version:
--              - torch 2.12 corrupts the latent outright (~80% of elements wrong).
--              - torch 2.9 produces a correct latent but a wrong returned cache slot, which
--                silently corrupts the *next* chunk once it is threaded back in.
--            A latent-only check would keep the 2.9-miscompiled variant and still corrupt
--            downstream chunks. Layout is normalized with ``.contiguous()`` exactly as
--            ``_run_chunk`` does at dispatch time.
--            """
--            t_chunk, H_patch, W_patch, cache_t = key
+@@ -1683,12 +1785,13 @@
+             ``_run_chunk`` does at dispatch time.
+             """
+             t_chunk, H_patch, W_patch, cache_t = key
 -            x_probe = _rand_input(t_chunk, H_patch, W_patch).contiguous()
--            # Reuse the probe cache built up front. The comprehension copies the list
--            # and re-canonicalizes layout so the ``.contiguous()`` normalization never
--            # mutates the shared entry.
--            probe_cache = [
++            x_probe = _rand_input(t_chunk, H_patch, W_patch)
+             # Reuse the probe cache built up front. The comprehension copies the list
+             # and re-canonicalizes layout so the ``.contiguous()`` normalization never
+             # mutates the shared entry.
+             probe_cache = [
 -                c.contiguous() if c is not None else None for c in probe_cache_map[(H_patch, W_patch)][cache_t]
--            ]
--
--            eager_out, eager_cache = wanvae_model._encode_chunk_impl(x_probe, list(probe_cache), scale)
--            aot_out, aot_cache = fn(x_probe, list(probe_cache))
--
--            # (name, aot_tensor, eager_tensor) for the latent and every non-None cache slot.
--            to_check: list[tuple[str, torch.Tensor | None, torch.Tensor | None]] = [("latent", aot_out, eager_out)]
--            if len(aot_cache) != len(eager_cache):
--                log.warning(
--                    f"Rank {rank}: AOT variant {key} returned {len(aot_cache)} cache slots, "
--                    f"eager returned {len(eager_cache)}; falling back to eager for this shape.",
--                    rank0_only=False,
--                )
--                return False
--            for i, (aot_c, eager_c) in enumerate(zip(aot_cache, eager_cache)):
--                if eager_c is None and aot_c is None:
--                    continue
--                to_check.append((f"cache[{i}]", aot_c, eager_c))
--
--            for name, aot_t, eager_t in to_check:
--                if (
--                    aot_t is None
--                    or eager_t is None
--                    or not torch.allclose(aot_t.float(), eager_t.float(), rtol=1e-3, atol=0.2)
--                ):
--                    if aot_t is not None and eager_t is not None:
--                        abs_diff = (aot_t.float() - eager_t.float()).abs()
--                        max_abs = abs_diff.max().item()
--                        # Per-element relative difference (|aot - eager| / |eager|), then the
--                        # max over elements. Guard against div-by-zero on zero-valued eager
--                        # elements; those elements are only compared via the abs term.
--                        eager_abs = eager_t.float().abs()
--                        rel_diff = torch.where(
--                            eager_abs > 0,
--                            abs_diff / eager_abs.clamp_min(1e-12),
--                            torch.zeros_like(abs_diff),
--                        )
--                        max_rel = rel_diff.max().item()
--                    else:
--                        max_abs = float("nan")
--                        max_rel = float("nan")
--                    log.warning(
--                        f"Rank {rank}: AOT variant {key} failed correctness check on {name} "
--                        f"(max_abs_diff={max_abs:.3f}, max_rel_diff={max_rel:.3f}); "
--                        f"falling back to eager for this shape.",
--                        rank0_only=False,
--                    )
--                    return False
--            return True
--
-         loaded_fns: dict[_AOTChunkKey, Callable] = {}
-         for key, pkg_path in pkg_paths.items():
-             try:
-@@ -1748,10 +1728,7 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
-                 constants_map = {k: v for k, v in state_dict.items() if k in required_keys}
-                 fn.load_constants(constants_map, check_full_update=True, user_managed=True)
++                _to_channels_last_3d(c.contiguous()) if c is not None else None
++                for c in probe_cache_map[(H_patch, W_patch)][cache_t]
+             ]
  
--                # Correctness gate: drop miscompiled variants so encode() falls back to eager
--                # for those shapes rather than silently emitting garbage latents.
--                if _variant_matches_eager(fn, key):
--                    loaded_fns[key] = fn
-+                loaded_fns[key] = fn
-             except Exception as e:
-                 log.warning(
-                     f"Rank {rank}: failed to load {pkg_path}: {e}",
-@@ -1760,10 +1737,6 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
- 
-         wanvae_model._aot_chunk_fns = loaded_fns
- 
--        # Release the memoized probe/reference caches now that both compilation and
--        # validation are done; the loaded functions hold the model weights separately.
--        probe_cache_map.clear()
--
-         log.info(
-             f"Rank {rank}: AOT compiled {len(my_pkg_paths)}, "
-             f"loaded {len(loaded_fns)}/{len(all_variant_keys)} chunk variants, "
-@@ -1772,7 +1745,16 @@ class Wan2pt2VAEInterface(VideoTokenizerInterface):
-         )
- 
-         # Clean up .pt2 files so stale packages don't persist across restarts.
--        _synchronized_reset_dir(save_dir, is_distributed=is_distributed, rank=rank, mode="delete")
-+        if is_distributed:
-+            dist.barrier()
-+        if rank == 0:
-+            import shutil
-+
-+            try:
-+                shutil.rmtree(save_dir)
-+                log.info(f"Cleaned up AOT cache dir: {save_dir}")
-+            except OSError as e:
-+                log.warning(f"Failed to clean AOT cache dir {save_dir}: {e}")
+             eager_out, eager_cache = wanvae_model._encode_chunk_impl(x_probe, list(probe_cache), scale)
+@@ -1775,7 +1878,7 @@
+         _synchronized_reset_dir(save_dir, is_distributed=is_distributed, rank=rank, mode="delete")
  
          if not loaded_fns:
-             raise RuntimeError("AOT compilation produced no loadable functions")
+-            raise RuntimeError("AOT compilation produced no loadable functions")
++            log.warning("No validated AOT variants; tokenizer encode will use eager.", rank0_only=False)
+ 
+     def get_latent_num_frames(self, num_pixel_frames: int) -> int:
+         return 1 + (num_pixel_frames - 1) // 4
 diff --git a/cosmos_framework/model/generator/vlm_model.py b/cosmos_framework/model/generator/vlm_model.py
 index e76970a809ade94c49d1a5f2408dd6d00ca70ba7..abfc8205a1d39e196db870b8bb27c7b41621549b 100644
 --- a/cosmos_framework/model/generator/vlm_model.py
@@ -6460,10 +5818,10 @@ index e76970a809ade94c49d1a5f2408dd6d00ca70ba7..abfc8205a1d39e196db870b8bb27c7b4
              log.info(f"train/loss_avg: {loss_avg.item():.5f} (iteration {iteration})")
  
 diff --git a/cosmos_framework/scripts/convert_model_to_dcp.py b/cosmos_framework/scripts/convert_model_to_dcp.py
-index 1a71f1c155cc2725fca3d0218bfd4944948acce2..3f3f7a9a1e5ef0019e1d050ec7db0d341a0df38f 100644
+index 1a71f1c155cc2725fca3d0218bfd4944948acce2..9e60e8939c5493db37215efcd3dacb525dcaadb3 100644
 --- a/cosmos_framework/scripts/convert_model_to_dcp.py
 +++ b/cosmos_framework/scripts/convert_model_to_dcp.py
-@@ -12,7 +12,10 @@ init_script(
+@@ -12,7 +12,10 @@
  )
  
  import math
@@ -6474,44 +5832,33 @@ index 1a71f1c155cc2725fca3d0218bfd4944948acce2..3f3f7a9a1e5ef0019e1d050ec7db0d34
  from typing import Annotated
  
  import pydantic
-@@ -40,14 +43,72 @@ def _redirect_avae_to_local(hf_path):
-     Pre-seeds the CheckpointDirHf._path cache so the registered AVAE checkpoint
-     resolves to the local sibling directory instead of fetching the pinned
-     revision of nvidia/Cosmos3-Nano from the HF Hub during hydra instantiation.
-+    If the directory is read-only (e.g. cluster mounts) or lacks legacy .ckpt,
-+    stages into a writable cache directory first.
-     """
+@@ -35,19 +38,54 @@
+ 
+ 
+ def _redirect_avae_to_local(hf_path):
+-    """Point the AVAE registry entry at hf_path/sound_tokenizer/.
+-
+-    Pre-seeds the CheckpointDirHf._path cache so the registered AVAE checkpoint
+-    resolves to the local sibling directory instead of fetching the pinned
+-    revision of nvidia/Cosmos3-Nano from the HF Hub during hydra instantiation.
+-    """
++    """Resolve AVAE assets through a source-specific, atomically published cache."""
      sound_tokenizer_dir = hf_path / "sound_tokenizer"
      if not sound_tokenizer_dir.is_dir():
          return
      register_checkpoints()
      avae = _CHECKPOINTS.get(_AVAE_REGISTRY_URI)
 -    if avae is not None:
+-        avae.hf._path = str(sound_tokenizer_dir)
 +    if avae is None:
 +        return
 +
-+    legacy_ckpt = sound_tokenizer_dir / "avae_48k_noncausal_25hz_64ch.ckpt"
-+    legacy_json = sound_tokenizer_dir / "avae_48k_noncausal_25hz_64ch.json"
-+    if legacy_ckpt.is_file() and legacy_json.is_file():
-         avae.hf._path = str(sound_tokenizer_dir)
-+        return
++    from cosmos_framework.inference.common.checkpoints import _materialize_avae_ckpt
++    from cosmos_framework.utils.local_avae_cache import prepare_local_avae_cache
 +
-+    cache_dir = Path(tempfile.gettempdir()) / "cosmos_avae_cache"
-+    cache_dir.mkdir(parents=True, exist_ok=True)
-+    cache_ckpt = cache_dir / "avae_48k_noncausal_25hz_64ch.ckpt"
-+    cache_json = cache_dir / "avae_48k_noncausal_25hz_64ch.json"
-+    if not (cache_ckpt.is_file() and cache_json.is_file()):
-+        for f in sound_tokenizer_dir.iterdir():
-+            if f.is_file():
-+                dest = cache_dir / f.name
-+                if not dest.exists():
-+                    try:
-+                        dest.symlink_to(f)
-+                    except (OSError, NotImplementedError):
-+                        shutil.copy2(f, dest)
-+        from cosmos_framework.inference.common.checkpoints import _materialize_avae_ckpt
-+
-+        _materialize_avae_ckpt(str(cache_dir))
++    cache_dir = prepare_local_avae_cache(
++        sound_tokenizer_dir, Path(tempfile.gettempdir()) / "cosmos_avae_cache", _materialize_avae_ckpt,
++    )
 +    avae.hf._path = str(cache_dir)
 +
 +
@@ -6548,7 +5895,7 @@ index 1a71f1c155cc2725fca3d0218bfd4944948acce2..3f3f7a9a1e5ef0019e1d050ec7db0d34
  
  
  class Args(pydantic.BaseModel):
-@@ -55,6 +116,8 @@ class Args(pydantic.BaseModel):
+@@ -55,6 +93,8 @@
      """Hugging Face checkpoint."""
      output_path: Annotated[ResolvedPath, tyro.conf.arg(aliases=("-o",))]
      """Output DCP checkpoint directory."""
@@ -6557,7 +5904,7 @@ index 1a71f1c155cc2725fca3d0218bfd4944948acce2..3f3f7a9a1e5ef0019e1d050ec7db0d34
  
  
  def convert_model_to_dcp(args: Args):
-@@ -64,6 +127,9 @@ def convert_model_to_dcp(args: Args):
+@@ -64,6 +104,9 @@
      _redirect_avae_to_local(hf_path)
      model_dict = checkpoint_config.load_model_config_dict()
      hf_config = Cosmos3OmniConfig(model=build_public_model_config(model_dict))
@@ -6567,7 +5914,7 @@ index 1a71f1c155cc2725fca3d0218bfd4944948acce2..3f3f7a9a1e5ef0019e1d050ec7db0d34
      hf_model = Cosmos3OmniModel.from_pretrained_dcp(hf_path, config=hf_config)
      state_dict = get_model_state_dict(hf_model.model)
  
-@@ -73,14 +139,17 @@ def convert_model_to_dcp(args: Args):
+@@ -73,14 +116,17 @@
      thread_count = math.ceil(model_size / max_shard_size)
  
      print("Saving model...")
@@ -6859,6 +6206,67 @@ index 8165d506be71ecbb9882212d0f517e9f43d6389a..41966352bf2dfe0f683c0996e17b0ad8
  
  
  def _read_basic_metadata(decoder: Any) -> tuple[int, float]:
+diff --git a/cosmos_framework/utils/local_avae_cache.py b/cosmos_framework/utils/local_avae_cache.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..38c0231d7a18ba5385840dbddfcdb3a7d7b8cd67
+--- /dev/null
++++ b/cosmos_framework/utils/local_avae_cache.py
+@@ -0,0 +1,55 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 Hygon Information Technology Co., Ltd.
++# SPDX-License-Identifier: OpenMDW-1.1
++
++"""Materialize local AVAE assets without sharing weights across model sources."""
++
++import hashlib
++import json
++import os
++import shutil
++import tempfile
++from pathlib import Path
++from typing import Callable
++
++from filelock import FileLock
++
++
++def prepare_local_avae_cache(source: Path, cache_root: Path, materialize: Callable[[str], None]) -> Path:
++    """Publish a complete, source/content-specific cache under a cross-process lock."""
++    source = source.resolve(strict=True)
++    required = ("avae_48k_noncausal_25hz_64ch.ckpt", "avae_48k_noncausal_25hz_64ch.json")
++    if all((source / name).is_file() for name in required):
++        return source
++
++    files = sorted(p for p in source.iterdir() if p.is_file())
++    digest = hashlib.sha256(b"cosmos-avae-cache-v1\0" + os.fsencode(source))
++    for path in files:
++        digest.update(b"\0" + os.fsencode(path.name) + b"\0")
++        with path.open("rb") as stream:
++            for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b""):
++                digest.update(chunk)
++    fingerprint = digest.hexdigest()
++    cache_root.mkdir(parents=True, exist_ok=True)
++    cache_dir = cache_root / fingerprint
++    marker = cache_dir / "complete.json"
++
++    with FileLock(str(cache_root / f"{fingerprint}.lock"), timeout=300):
++        if marker.is_file() and all((cache_dir / name).is_file() for name in required):
++            if json.loads(marker.read_text()) == {"fingerprint": fingerprint}:
++                return cache_dir
++
++        # Readers take the same lock and only see a directory after both outputs exist.
++        with tempfile.TemporaryDirectory(prefix=f".{fingerprint}.", dir=cache_root) as tmp:
++            stage = Path(tmp)
++            for path in files:
++                shutil.copy2(path, stage / path.name)
++            materialize(str(stage))
++            if not all((stage / name).is_file() for name in required):
++                raise RuntimeError(f"AVAE conversion did not produce both legacy assets: {source}")
++            (stage / "complete.json").write_text(json.dumps({"fingerprint": fingerprint}))
++            if cache_dir.is_symlink():
++                raise RuntimeError(f"Refusing to replace a symlinked AVAE cache: {cache_dir}")
++            if cache_dir.exists():
++                shutil.rmtree(cache_dir)
++            os.replace(stage, cache_dir)
++    return cache_dir
 diff --git a/cosmos_framework/utils/memory_format.py b/cosmos_framework/utils/memory_format.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..9d7a2e2ab07811c98049d7a1f292317015beed91
@@ -7057,7 +6465,7 @@ index 3022e0a2b053c9b16c9253333fde33afd67e55d9..14c33c1432cf39081803c132a852a091
  class NVTXRangeContext:
 diff --git a/cosmos_framework/utils/video_decode.py b/cosmos_framework/utils/video_decode.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..6b8327c4d1766501bd4a1893e8af3c4bfdbfa39a
+index 0000000000000000000000000000000000000000..ef1d2b87f4c7cda2ce8d8d9b9f347bd5e95bc25a
 --- /dev/null
 +++ b/cosmos_framework/utils/video_decode.py
 @@ -0,0 +1,103 @@
@@ -7112,8 +6520,8 @@ index 0000000000000000000000000000000000000000..6b8327c4d1766501bd4a1893e8af3c4b
 +    return decoder_cls(source, *args, **kwargs)
 +
 +
-+def probe_has_audio_stream(source: Any) -> bool:
-+    """Probe whether the video/audio container has an audio stream."""
++def probe_has_audio_stream(source: Any) -> bool | None:
++    """Return True/False for a known result, or None when probing is unavailable."""
 +    try:
 +        from torchcodec._core import create_from_bytes, get_container_metadata
 +
@@ -7125,7 +6533,7 @@ index 0000000000000000000000000000000000000000..6b8327c4d1766501bd4a1893e8af3c4b
 +            return has_audio
 +    except (ImportError, AttributeError, OSError, RuntimeError):
 +        pass
-+    return False
++    return None
 +
 +
 +def _make_video_decoder(source: Any) -> Any:
@@ -8837,6 +8245,403 @@ index 0000000000000000000000000000000000000000..c55233fc4b7980b32e3fe475c617e9fe
 +
 +if __name__ == "__main__":
 +    unittest.main()
+diff --git a/tests/hcu/test_patch_review_regressions.py b/tests/hcu/test_patch_review_regressions.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..017fd3cc299553e9dbe15a4fab222c95f09fadec
+--- /dev/null
++++ b/tests/hcu/test_patch_review_regressions.py
+@@ -0,0 +1,391 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 Hygon Information Technology Co., Ltd.
++# SPDX-License-Identifier: OpenMDW-1.1
++"""CPU contract tests for patch regressions; no model, compiler, or HCU execution.
++
++Extract small source functions to avoid importing the framework's training stack.
++Run after applying the patch: python -m unittest discover -s tests/hcu -v
++"""
++
++from __future__ import annotations
++
++import ast
++import concurrent.futures
++import contextlib
++import copy
++import importlib.util
++import tempfile
++import threading
++import time
++import types
++import unittest
++from pathlib import Path
++from unittest import mock
++
++import torch
++
++ROOT = Path(__file__).resolve().parents[2]
++MODEL = "cosmos_framework/model/generator/omni_mot_model.py"
++VAE = "cosmos_framework/model/generator/tokenizers/wan2pt2_vae_4x16x16.py"
++RUNTIME = "cosmos_framework/data/generator/sequence_packing/runtime.py"
++
++
++def nodes(path, name):
++    return [
++        n
++        for n in ast.walk(ast.parse((ROOT / path).read_text(encoding="utf-8")))
++        if isinstance(n, ast.FunctionDef) and n.name == name
++    ]
++
++
++def load(path, name, namespace=None, index=0):
++    namespace = {"torch": torch, "log": mock.Mock(), **(namespace or {})}
++    node = copy.deepcopy(nodes(path, name)[index])
++    node.decorator_list = []
++    module = ast.Module(
++        body=[ast.ImportFrom(module="__future__", names=[ast.alias(name="annotations")], level=0), node],
++        type_ignores=[],
++    )
++    exec(compile(ast.fix_missing_locations(module), path, "exec"), namespace)
++    return namespace[name]
++
++
++class ModelContracts(unittest.TestCase):
++    def test_timestep_transfers_complete_before_host_reads(self):
++        tree = ast.parse((ROOT / MODEL).read_text(encoding="utf-8"))
++        assignments = [
++            n
++            for n in ast.walk(tree)
++            if isinstance(n, ast.Assign)
++            and any(isinstance(x, ast.Name) and x.id in {"timesteps_vision_cpu", "sample_ts"} for x in n.targets)
++            and "timesteps_" in ast.unparse(n.value)
++        ]
++        self.assertEqual(len(assignments), 3)
++
++        class DeviceTensor:
++            def squeeze(self, dim):
++                return self
++
++            def cpu(self):
++                return "completed-host-copy"
++
++            def to(self, *args, **kwargs):
++                raise AssertionError("host reader must not receive a pending async copy")
++
++        env = {f"timesteps_{kind}": DeviceTensor() for kind in ("vision", "action", "sound")}
++        for statement in assignments:
++            exec(compile(ast.Module(body=[statement], type_ignores=[]), MODEL, "exec"), env)
++            self.assertEqual(env[statement.targets[0].id], "completed-host-copy")
++
++    def test_video_normalization_preserves_5d_and_accepts_4d_and_lists(self):
++        normalize = load(MODEL, "_normalize_video_databatch_inplace")
++        owner = types.SimpleNamespace(input_video_key="video", tensor_kwargs_fp32={"dtype": torch.float32})
++        for item in [
++            torch.full((3, 4, 2, 2), 255, dtype=torch.uint8),
++            torch.full((1, 3, 4, 2, 2), 255, dtype=torch.uint8),
++            [torch.full((3, 4, 2, 2), 255, dtype=torch.uint8)],
++        ]:
++            with self.subTest(kind=type(item).__name__):
++                batch = {"video": [item]}
++                normalize(owner, batch)
++                self.assertEqual(batch["video"][0].shape, (1, 3, 4, 2, 2))
++                self.assertTrue(torch.equal(batch["video"][0], torch.ones(1, 3, 4, 2, 2)))
++
++    def test_multiview_encoding_and_positions_do_not_cross_cameras(self):
++        encode = load(MODEL, "_encode_vision_item")
++        calls = []
++
++        def per_camera(x):
++            calls.append(x.clone())
++            return x.mean(dim=2, keepdim=True)
++
++        owner = types.SimpleNamespace(encode=per_camera)
++        clip = torch.cat([torch.zeros(1, 3, 4, 2, 2), torch.ones(1, 3, 4, 2, 2)], dim=2)
++        latent = encode(owner, clip, num_views=2, frames_per_view=4)
++        self.assertEqual(len(calls), 2)
++        self.assertEqual(latent[0, 0, :, 0, 0].tolist(), [0.0, 1.0])
++        positions = load(MODEL, "_get_temporal_positions_vision", {"get_vision_data_resolution": lambda size: "test"})
++        owner.config = types.SimpleNamespace(
++            diffusion_expert_config=types.SimpleNamespace(vision_temporal_position_mode="uniae_source_right_edge")
++        )
++        owner.tokenizer_vision_gen = types.SimpleNamespace(
++            get_latent_temporal_positions=lambda **kw: torch.tensor([3.0])
++        )
++        self.assertEqual(positions(owner, [clip], [latent], [2], [4])[0].tolist(), [3.0, 3.0])
++        get_data = ast.unparse(nodes(MODEL, "get_data_and_condition")[0])
++        self.assertIn("self._get_multiview_vae_metadata", get_data)
++        self.assertIn("self._encode_vision_x0_tokens", get_data)
++
++    def test_moe_hook_updates_both_controllers_and_ema(self):
++        calls = []
++        names = [
++            "update_expert_biases",
++            "sync_expert_biases_to_ema",
++            "update_router_biases",
++            "sync_router_biases_to_ema",
++        ]
++        helpers = {name: (lambda name=name, **kw: calls.append(name)) for name in names}
++        hook = load(MODEL, "on_before_optimizer_step", helpers)
++        owner = types.SimpleNamespace(
++            _uses_aux_loss_free_load_balancing=True,
++            _uses_ema_router_bias=True,
++            parallel_dims=None,
++            net=object(),
++            net_ema=object(),
++            config=types.SimpleNamespace(ema=types.SimpleNamespace(enabled=True)),
++        )
++        hook(owner, None, None, 1)
++        self.assertEqual(calls, names)
++        calls.clear()
++        owner._uses_aux_loss_free_load_balancing = owner._uses_ema_router_bias = False
++        hook(owner, None, None, 2)
++        self.assertEqual(calls, [])
++
++
++class AOTContracts(unittest.TestCase):
++    def test_latent_and_cache_mismatch_are_rejected(self):
++        eager = lambda x, cache, scale: (torch.ones(2), [torch.ones(2)])
++        check = load(
++            VAE,
++            "_variant_matches_eager",
++            {
++                "_rand_input": lambda *args: torch.ones(1),
++                "_to_channels_last_3d": lambda x: x,
++                "probe_cache_map": {(2, 3): {0: [None]}},
++                "wanvae_model": types.SimpleNamespace(_encode_chunk_impl=eager),
++                "rank": 0,
++                "scale": None,
++            },
++        )
++        key = (1, 2, 3, 0)
++        self.assertTrue(check(lambda x, c: (torch.ones(2), [torch.ones(2)]), key))
++        self.assertFalse(check(lambda x, c: (torch.zeros(2), [torch.ones(2)]), key))
++        self.assertFalse(check(lambda x, c: (torch.ones(2), [torch.zeros(2)]), key))
++        self.assertFalse(check(lambda x, c: (torch.ones(2), []), key))
++        method = ast.unparse(nodes(VAE, "compile_encode")[0])
++        self.assertIn("if _variant_matches_eager(fn, key)", method)
++
++    def test_non_square_warmup_shape(self):
++        collect = load(
++            VAE, "_collect_warmup_shapes", {"VIDEO_RES_SIZE_INFO": {"480": {"16,9": (832, 480)}}, "Mapping": dict}
++        )
++        owner = types.SimpleNamespace(encode_chunk_frames={"480": 24})
++        self.assertEqual(collect(owner, ["480"], "16,9"), [(24, 240, 416)])
++
++    def test_stale_packages_are_reset_before_compile(self):
++        reset = load(VAE, "_synchronized_reset_dir", {"os": __import__("os")})
++        with tempfile.TemporaryDirectory() as tmp:
++            path = Path(tmp) / "aot"
++            path.mkdir()
++            (path / "old.pt2").write_text("stale")
++            reset(str(path), is_distributed=False, rank=0, mode="recreate")
++            self.assertEqual(list(path.iterdir()), [])
++            reset(str(path), is_distributed=False, rank=0, mode="delete")
++            self.assertFalse(path.exists())
++        method = ast.unparse(nodes(VAE, "compile_encode")[0])
++        self.assertLess(method.index("mode='recreate'"), method.index("def _compile_variant"))
++
++
++class AttentionContracts(unittest.TestCase):
++    def test_bucket_only_consumed_by_compiled_hip_attention(self):
++        bucket = load(RUNTIME, "_bucket_flash_attn_max_seqlen", {"FLASH_ATTN_MAX_SEQLEN_BUCKETS": (1024, 2048, 65536)})
++        reader = load(
++            "cosmos_framework/model/generator/mot/attention.py",
++            "_fa_max_len",
++            {"_bucket_flash_attn_max_seqlen": bucket},
++        )
++        for hip, compiled in [(None, False), (None, True), ("hcu", False)]:
++            with mock.patch.object(torch.version, "hip", hip), mock.patch.object(
++                torch.compiler, "is_compiling", return_value=compiled
++            ):
++                self.assertEqual(reader({"max_sample_len": 74000}, "max_sample_len"), 74000)
++        with mock.patch.object(torch.version, "hip", "hcu"), mock.patch.object(
++            torch.compiler, "is_compiling", return_value=True
++        ):
++            for length in [0, 1, 65536, 65537, 74000, 100000]:
++                result = reader({"max_sample_len": length}, "max_sample_len")
++                self.assertGreaterEqual(result, length)
++                self.assertLess(result, length + 1024 if length > 65536 else 65537)
++
++
++class AudioContracts(unittest.TestCase):
++    def test_unknown_probe_tries_public_decoder_in_both_callers(self):
++        probe = load("cosmos_framework/utils/video_decode.py", "probe_has_audio_stream")
++        with mock.patch.dict("sys.modules", {"torchcodec._core": None}):
++            self.assertIsNone(probe(b"clip"))
++        for index in [0, 1]:
++            for result, expected_calls in [(False, 0), (None, 1), (True, 1)]:
++                decoder = mock.Mock(side_effect=RuntimeError("test decoder failure"))
++                extract = load(
++                    "cosmos_framework/data/generator/augmentors/video_parsing.py",
++                    "_extract_audio_chunk",
++                    {"probe_has_audio_stream": lambda _: result, "create_audio_decoder": decoder},
++                    index,
++                )
++                self.assertIsNone(extract(None, b"clip", 24.0, [0, 1]))
++                self.assertEqual(decoder.call_count, expected_calls)
++
++
++class CacheContracts(unittest.TestCase):
++    def test_source_content_and_concurrent_materialization(self):
++        spec = importlib.util.spec_from_file_location(
++            "local_avae_cache", ROOT / "cosmos_framework/utils/local_avae_cache.py"
++        )
++        module = importlib.util.module_from_spec(spec)
++        spec.loader.exec_module(module)
++        prepare = module.prepare_local_avae_cache
++        required = ("avae_48k_noncausal_25hz_64ch.ckpt", "avae_48k_noncausal_25hz_64ch.json")
++        calls = []
++
++        def materialize(path):
++            p = Path(path)
++            value = (p / "model.safetensors").read_text(encoding="utf-8")
++            calls.append(value)
++            for name in required:
++                (p / name).write_text(value)
++
++        with tempfile.TemporaryDirectory() as tmp:
++            root = Path(tmp)
++            for name in ["A", "B"]:
++                (root / name).mkdir()
++                (root / name / "model.safetensors").write_text(name)
++            a = prepare(root / "A", root / "cache", materialize)
++            b = prepare(root / "B", root / "cache", materialize)
++            self.assertNotEqual(a, b)
++            self.assertEqual((b / required[0]).read_text(encoding="utf-8"), "B")
++            (root / "A" / "model.safetensors").write_text("changed")
++            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
++                paths = list(pool.map(lambda _: prepare(root / "A", root / "cache", materialize), range(4)))
++            self.assertEqual(len(set(paths)), 1)
++            self.assertNotEqual(paths[0], a)
++            self.assertEqual(calls.count("changed"), 1)
++            self.assertEqual((paths[0] / required[0]).read_text(encoding="utf-8"), "changed")
++
++    def test_incomplete_materialization_is_not_published(self):
++        spec = importlib.util.spec_from_file_location(
++            "local_avae_cache", ROOT / "cosmos_framework/utils/local_avae_cache.py"
++        )
++        module = importlib.util.module_from_spec(spec)
++        spec.loader.exec_module(module)
++        with tempfile.TemporaryDirectory() as tmp:
++            source = Path(tmp) / "source"
++            source.mkdir()
++            (source / "model.safetensors").write_text("weights")
++            cache = Path(tmp) / "cache"
++            with self.assertRaises(RuntimeError):
++                module.prepare_local_avae_cache(source, cache, lambda _: None)
++            self.assertEqual(list(cache.glob("*/complete.json")), [])
++
++
++class CheckpointContracts(unittest.TestCase):
++    def run_ranks(self, fail_rank, already_staged=False):
++        # Mock the training all_reduce with a two-thread rendezvous. This is fault
++        # injection into the decision path, not a Gloo/RCCL multiprocess test.
++        import torch.distributed._state_dict_utils as state_utils
++
++        local = threading.local()
++        barrier = threading.Barrier(2, timeout=5)
++        values = [None, None]
++        modes = types.SimpleNamespace(ASYNC_WITH_PINNED_MEM="async", DISABLED="sync")
++
++        def reduce(tensor, op):
++            values[local.rank] = tensor.item()
++            barrier.wait()
++            tensor.fill_(max(values))
++            barrier.wait()
++
++        dist = types.SimpleNamespace(
++            is_available=lambda: True,
++            is_initialized=lambda: True,
++            get_backend=lambda: "gloo",
++            all_reduce=reduce,
++            ReduceOp=types.SimpleNamespace(MAX="max"),
++        )
++
++        def allocate(*args, **kwargs):
++            if local.rank == fail_rank:
++                raise OSError("injected shared-memory allocation failure")
++            return {"staged": True}
++
++        class Queue:
++            def __init__(self):
++                self.items = []
++                self.closed = False
++
++            def put(self, value):
++                self.items.append(value)
++
++            put_nowait = put
++
++            def close(self):
++                self.closed = True
++
++        class Process:
++            def join(self, timeout=None):
++                pass
++
++            def is_alive(self):
++                return False
++
++        term = type("Terminate", (), {})
++        function = load(
++            "cosmos_framework/checkpoint/dcp.py",
++            "_checkpoint_async_with_pinned_memory",
++            {"dist": dist, "AsyncMode": modes, "Terminate": term, "time": time},
++        )
++        owners = [
++            types.SimpleNamespace(
++                async_mode="async",
++                cpu_offload_state_dict={"staged": True} if already_staged and rank == 0 else None,
++                mp_queue_send=Queue(),
++                mp_queue_recv=Queue(),
++                mp=Process(),
++                callbacks=mock.Mock(),
++                staging_stream=types.SimpleNamespace(synchronize=lambda: None),
++                checkpoint_in_progress=False,
++                save_state_dict_worker=mock.Mock(),
++            )
++            for rank in range(2)
++        ]
++        errors = []
++
++        def run(rank):
++            local.rank = rank
++            try:
++                function(owners[rank], "iter_1", {"trainer": ({"iteration": 1}, "output")})
++            except Exception as error:
++                errors.append(error)
++
++        with mock.patch.object(state_utils, "_create_cpu_state_dict", side_effect=allocate), mock.patch.object(
++            state_utils, "_copy_state_dict", side_effect=lambda state, dest, **kw: dest
++        ), mock.patch.object(torch.cuda, "stream", side_effect=lambda _: contextlib.nullcontext()):
++            threads = [threading.Thread(target=run, args=(rank,)) for rank in range(2)]
++            for thread in threads:
++                thread.start()
++            for thread in threads:
++                thread.join(timeout=10)
++            self.assertFalse(any(thread.is_alive() for thread in threads))
++        self.assertEqual(errors, [])
++        return owners, term
++
++    def test_one_rank_allocation_failure_forces_every_rank_to_sync(self):
++        for staged in [False, True]:
++            owners, term = self.run_ranks(fail_rank=1, already_staged=staged)
++            for owner in owners:
++                self.assertEqual(owner.async_mode, "sync")
++                self.assertIsNone(owner.cpu_offload_state_dict)
++                owner.save_state_dict_worker.assert_called_once()
++                owner.callbacks.on_save_checkpoint_success.assert_called_once()
++                self.assertEqual(len(owner.mp_queue_send.items), 1)
++                self.assertIsInstance(owner.mp_queue_send.items[0], term)
++                self.assertTrue(owner.mp_queue_send.closed)
++
++    def test_successful_ranks_both_submit_async_jobs(self):
++        owners, _ = self.run_ranks(fail_rank=None)
++        for owner in owners:
++            self.assertEqual(owner.async_mode, "async")
++            owner.save_state_dict_worker.assert_not_called()
++            self.assertIsInstance(owner.mp_queue_send.items[0], tuple)
++
++
++if __name__ == "__main__":
++    unittest.main()
 diff --git a/tests/wan_vae_clean_fused_op_test.py b/tests/wan_vae_clean_fused_op_test.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..13cbdf8b37bdd8ad7a8ceac99a014bcfc08a9278
@@ -9038,10 +8843,10 @@ index 0000000000000000000000000000000000000000..19f4236819518507b784ea523c2c622f
 +    unittest.main()
 diff --git a/tools/run_framework_inference_local_assets.py b/tools/run_framework_inference_local_assets.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..a97536e420d2336274128fdfe72d988e21553abe
+index 0000000000000000000000000000000000000000..11187656ac09fc3540b0b4c6a3f40a8ee1595b91
 --- /dev/null
 +++ b/tools/run_framework_inference_local_assets.py
-@@ -0,0 +1,299 @@
+@@ -0,0 +1,272 @@
 +#!/usr/bin/env python3
 +"""Run official Cosmos Framework inference with local asset paths.
 +
@@ -9053,47 +8858,20 @@ index 0000000000000000000000000000000000000000..a97536e420d2336274128fdfe72d988e
 +
 +import os
 +import runpy
-+import shutil
 +import sys
-+import time
 +from pathlib import Path
 +
 +
 +def _prepare_local_sound_tokenizer(local_sound_tokenizer: Path) -> Path:
-+    """Ensure legacy AVAE ckpt/json expected by native loader are materialized from local safetensors."""
-+    legacy_ckpt = local_sound_tokenizer / "avae_48k_noncausal_25hz_64ch.ckpt"
-+    legacy_json = local_sound_tokenizer / "avae_48k_noncausal_25hz_64ch.json"
-+    if legacy_ckpt.exists() and legacy_json.exists():
-+        return local_sound_tokenizer
-+
++    """Resolve AVAE assets without reusing another model's materialized weights."""
 +    from cosmos_framework.inference.common.checkpoints import _materialize_avae_ckpt
++    from cosmos_framework.utils.local_avae_cache import prepare_local_avae_cache
 +
-+    cache_dir = Path(__file__).resolve().parents[1] / "outputs" / "sound_tokenizer_cache"
-+    cache_dir.mkdir(parents=True, exist_ok=True)
-+    if (cache_dir / "avae_48k_noncausal_25hz_64ch.ckpt").exists() and (cache_dir / "avae_48k_noncausal_25hz_64ch.json").exists():
-+        return cache_dir
-+
-+    rank = int(os.environ.get("RANK", "0"))
-+    if rank == 0:
-+        for name in ("config.json", "diffusion_pytorch_model.safetensors", "model.safetensors"):
-+            src = local_sound_tokenizer / name
-+            if not src.exists():
-+                continue
-+            dst = cache_dir / name
-+            tmp = cache_dir / f".{name}.tmp"
-+            shutil.copyfile(src, tmp)
-+            os.replace(tmp, dst)
-+        _materialize_avae_ckpt(str(cache_dir))
-+    else:
-+        deadline = time.monotonic() + 180.0
-+        while not (
-+            (cache_dir / "avae_48k_noncausal_25hz_64ch.ckpt").exists()
-+            and (cache_dir / "avae_48k_noncausal_25hz_64ch.json").exists()
-+        ):
-+            if time.monotonic() >= deadline:
-+                raise TimeoutError(f"Timed out waiting for AVAE cache: {cache_dir}")
-+            time.sleep(0.5)
-+    return cache_dir
++    return prepare_local_avae_cache(
++        local_sound_tokenizer,
++        Path(__file__).resolve().parents[1] / "outputs" / "sound_tokenizer_cache",
++        _materialize_avae_ckpt,
++    )
 +
 +
 +def parse_and_validate_custom_args() -> tuple[Path | None, Path | None, Path | None, Path | None, Path | None, Path | None]:
