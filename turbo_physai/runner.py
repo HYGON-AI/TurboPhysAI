@@ -203,21 +203,42 @@ def _configured_numa_node(local_rank: str) -> int | None:
 
 
 def _discover_rank_numa_node(local_rank: str) -> int:
-    """Resolve ``LOCAL_RANK`` through HIP_VISIBLE_DEVICES and hy-smi topology."""
+    """Resolve ``LOCAL_RANK`` to the physical HCU reported by hy-smi.
+
+    ``ROCR_VISIBLE_DEVICES`` is applied before ``HIP_VISIBLE_DEVICES``.  Thus,
+    with ``ROCR_VISIBLE_DEVICES=4,5`` and ``HIP_VISIBLE_DEVICES=0,1``, HIP
+    device 0 is physical HCU 4 rather than HCU 0.
+    """
 
     try:
         rank = int(local_rank)
     except ValueError as exc:
         raise RuntimeError(f"LOCAL_RANK must be an integer, got {local_rank!r}") from exc
-    visible = os.environ.get("HIP_VISIBLE_DEVICES", "")
-    devices = [item.strip() for item in visible.split(",") if item.strip()]
-    device = devices[rank] if devices and rank < len(devices) else str(rank)
+    hip_visible = os.environ.get("HIP_VISIBLE_DEVICES", "")
+    hip_devices = [item.strip() for item in hip_visible.split(",") if item.strip()]
+    device = hip_devices[rank] if hip_devices and rank < len(hip_devices) else str(rank)
     try:
         device_id = int(device)
     except ValueError as exc:
         raise RuntimeError(
             f"cannot infer NUMA node for HIP_VISIBLE_DEVICES entry {device!r}"
         ) from exc
+    rocr_visible = os.environ.get("ROCR_VISIBLE_DEVICES", "")
+    rocr_devices = [item.strip() for item in rocr_visible.split(",") if item.strip()]
+    if rocr_devices:
+        if device_id < 0 or device_id >= len(rocr_devices):
+            raise RuntimeError(
+                "HIP device index is outside ROCR_VISIBLE_DEVICES: "
+                f"{device_id} not in 0..{len(rocr_devices) - 1}"
+            )
+        physical_device = rocr_devices[device_id]
+        try:
+            device_id = int(physical_device)
+        except ValueError as exc:
+            raise RuntimeError(
+                "cannot infer physical HCU from ROCR_VISIBLE_DEVICES entry "
+                f"{physical_device!r}"
+            ) from exc
     hy_smi = shutil.which("hy-smi")
     if hy_smi is None:
         raise RuntimeError("automatic NUMA binding requires hy-smi in PATH")
