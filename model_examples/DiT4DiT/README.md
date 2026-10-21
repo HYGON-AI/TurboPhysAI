@@ -93,8 +93,6 @@ turbo-physai run \
 
 该配置使用两个训练进程、每卡 batch size 2、梯度累积 4，对应 global batch size 16。RuntimeConfig 会依据 HCU 可见性为各 rank 自动选择本地 NUMA node。
 
-产品化交付时，建议使用配套 `DiT4DiT-das` 仓库提供的镜像构建、容器启动和双卡训练脚本，避免遗漏设备、共享内存、模型路径和环境校验参数。
-
 ## 7. 优化范围与验收
 
 默认 Recipe 原子应用 10 个 DiT4DiT Optimization Group，覆盖数据加载、Cosmos Attention/Cache/VAE/视频整理、Cosmos 分段编译、Action 编译、Fused AdamW 和训练指标同步。
