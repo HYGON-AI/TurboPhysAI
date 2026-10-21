@@ -68,30 +68,11 @@ git -C /workspace/openpi_TurboPhysAI/openpi submodule update --init --recursive
 
 ### 4.2 安装 TurboPhysAI
 
-根据 OpenPI 优化的合入状态选择以下一种来源。使用本分支时，执行“OpenPI 集成分支”中的命令。
-
-官方主分支：
-
 ```bash
 cd /workspace/openpi_TurboPhysAI
 git clone --branch main \
   https://github.com/HYGON-AI/TurboPhysAI.git \
   TurboPhysAI
-
-cd /workspace/openpi_TurboPhysAI/TurboPhysAI
-python -c 'import torch; print(torch.__version__)'
-python -m pip install ninja wheel setuptools
-MAX_JOBS=8 python setup.py bdist_wheel
-python -m pip install --no-deps --force-reinstall dist/turbo_physai-*.whl
-turbo-physai --help
-```
-
-OpenPI 集成分支（与上方二选一）：
-
-```bash
-cd /workspace/openpi_TurboPhysAI
-git clone --branch openpi-TurboPhysAI-Optimization \
-  https://github.com/Coulsonq/TurboPhysAI.git TurboPhysAI
 
 cd /workspace/openpi_TurboPhysAI/TurboPhysAI
 python -c 'import torch; print(torch.__version__)'
