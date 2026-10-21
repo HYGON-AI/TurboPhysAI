@@ -149,7 +149,7 @@ PY
 
 ### 6.1 下载 PI0.5 base 权重
 
-从官方 `gs://openpi-assets/checkpoints/pi05_base` 下载完整 JAX checkpoint。以下代码沿用原流程，支持断点续传，并输出进度、速度和预计剩余时间。
+从官方 `gs://openpi-assets/checkpoints/pi05_base` 下载完整 JAX checkpoint。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
