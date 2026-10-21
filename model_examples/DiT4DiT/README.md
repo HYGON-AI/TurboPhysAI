@@ -18,7 +18,7 @@ TurboPhysAI 的 DiT4DiT 优化基于官方仓库 commit `d8854a11713f846b8b3f768
 - Diffusers 0.38.0；
 - Accelerate 1.13.0。
 
-产品基础镜像不包含 DiT4DiT 源码、模型权重或数据集。对外交付时应使用经过验证的完整镜像地址和不可变 digest，不使用 `latest`。
+
 
 ## 3. 准备模型源码
 
@@ -44,11 +44,13 @@ python3 -m pip install -e . --no-build-isolation --no-deps
 
 ## 5. 准备模型权重与数据
 
-按照 DiT4DiT 上游文档准备以下资源：
+训练使用以下资源：
 
-- Cosmos-Predict2.5-2B 模型及 VAE；
-- Action 模型和 VLM 所需权重；
-- RoboCasa 使用的 `PhysicalAI-Robotics-GR00T-X-Embodiment-Sim` 数据集。
+- [Cosmos-Predict2.5-2B](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)，使用 `diffusers/base/post-trained` revision。该目录已包含 text encoder、VAE 和 transformer，无需单独下载 VAE/VLM 权重。
+- [physical-intelligence/fast](https://huggingface.co/physical-intelligence/fast) Action Tokenizer。
+- [PhysicalAI-Robotics-GR00T-X-Embodiment-Sim](https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim) 数据集，实际 data mix 为 `fourier_gr1_unified_1000`。
+- 可选：[DiT4DiT-RoboCasa-GR1 预训练检查点](https://huggingface.co/TeliMa/dit4dit_robocasa_gr1)。从头训练不需要该检查点。
+
 
 下面的训练命令假设资源位于：
 
@@ -58,7 +60,6 @@ python3 -m pip install -e . --no-build-isolation --no-deps
 /workspace/outputs
 ```
 
-TurboPhysAI 不下载或重新分发模型权重与数据集。用户必须遵守对应资源的许可证和使用条款。
 
 ## 6. 通过 turbo-physai run 启动训练
 
