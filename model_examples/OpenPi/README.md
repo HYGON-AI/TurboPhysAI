@@ -1,92 +1,152 @@
 # OpenPI 应用说明
 
-本文以 PI0.5 LIBERO 为例，说明如何在 HCU 环境中接入 TurboPhysAI 并启动训练。HCU 镜像和通用安装参见 [TurboPhysAI 安装指南](https://github.com/HYGON-AI/TurboPhysAI/blob/main/docs/zh/get_started/installation.md)。
+本文说明如何在 HCU 环境中，基于官方 OpenPI 仓库应用 TurboPhysAI 优化。下文提供镜像构建、源码安装、资源准备和训练启动命令；通用环境说明参见[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)。
 
-## 模型简介
+## 1. 模型简介
 
-[OpenPI](https://github.com/Physical-Intelligence/openpi) 是 Physical Intelligence 开源的机器人学习代码库，提供 PI0、PI0-FAST、PI0.5 等视觉-语言-动作（VLA）模型及训练、微调和推理示例；模型根据视觉观测和语言指令生成机器人动作。本例使用 PyTorch 入口 `scripts/train_pytorch.py`，在单机 8 卡 HCU 上训练 `pi05_libero`。
+[OpenPI](https://github.com/Physical-Intelligence/openpi) 是 Physical Intelligence 开源的机器人学习代码库，提供 PI0、PI0-FAST 和 PI0.5 等视觉-语言-动作（VLA）模型，根据视觉观测和语言指令生成机器人动作，用于机器人操作任务。
 
-## 优化接入基线
+## 2. 优化接入基线
 
-- OpenPI commit：`215abfb217dbac7d5f1273282331b9b1866c0479`
-- TurboPhysAI OpenPI 集成：[openpi-TurboPhysAI-Optimization](https://github.com/Coulsonq/TurboPhysAI/tree/openpi-TurboPhysAI-Optimization)，位于 `turbo_physai/optimizations/models/openpi`
-- 配置中的兼容性指纹对应上述 OpenPI commit；更换版本后需重新检查优化配置。
+TurboPhysAI 的 OpenPI 优化基于官方仓库 commit `215abfb217dbac7d5f1273282331b9b1866c0479` 接入。优化接入基线的使用建议见[模型支持清单](../../docs/zh/models/support_list.md)。
 
-## 准备环境和源码
+`openpi.disable_tqdm` 依赖生成优化配置时的 tqdm 版本，需确认训练日志中的应用状态为 `applied`。
 
-参考环境：Ubuntu 22.04、Python 3.10、DTK 26.04、PyTorch 2.10。使用与宿主机驱动匹配的 HCU 镜像，保留镜像自带的 Torch、TorchVision、FlashAttention 和 Triton。
+## 3. 准备训练环境
 
-容器挂载示例（镜像和宿主机目录按实际环境替换）：
+以下命令在宿主机执行。构建文件来自原流程附件：[Dockerfile](./openpi-docker-build-torch210-20261021/Dockerfile)、[requirements.txt](./openpi-docker-build-torch210-20261021/requirements.txt) 和 [.dockerignore](./openpi-docker-build-torch210-20261021/.dockerignore)。
+
+### 3.1 拉取基础镜像并构建训练镜像
 
 ```bash
-mkdir -p "$PWD/openpi-workspace"
+git clone --single-branch --branch openpi-TurboPhysAI-Optimization \
+  https://github.com/Coulsonq/TurboPhysAI.git TurboPhysAI
+cd TurboPhysAI/model_examples/OpenPi
 
+docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10
+
+cd openpi-docker-build-torch210-20261021
+docker build \
+  -f Dockerfile \
+  -t openpi-dcu:vla-base-20261021 .
+```
+
+Dockerfile 保留附件中的 `AICC_URL` 和 `DTK_BLAS_URL`。下载地址失效时需更新对应构建参数；原流程提供的 BLAS 下载目录为 [DTK nightly](http://42.228.13.241:18000/dtk-archived/nightly/dtk-26.10/)。
+
+### 3.2 创建并进入容器
+
+```bash
 docker run -dit \
-  --name openpi-turbophysai \
   --restart unless-stopped \
-  --network host \
+  --network=host \
+  --name=openpi-train-TurboPhysAI-v11 \
+  --privileged \
   --device=/dev/kfd \
   --device=/dev/dri \
   --ipc=host \
   --shm-size=128G \
   --group-add video \
+  --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined \
+  -u root \
   --ulimit stack=-1:-1 \
   --ulimit memlock=-1:-1 \
   -v /opt/hyhal:/opt/hyhal:ro \
-  -v "$PWD/openpi-workspace:/workspace/openpi_TurboPhysAI" \
   -w /workspace/openpi_TurboPhysAI \
-  your-hcu-image:your-tag \
+  openpi-dcu:vla-base-20261021 \
   bash -lc 'exec tail -f /dev/null'
 
-docker exec -it openpi-turbophysai bash
+docker exec -it openpi-train-TurboPhysAI-v11 bash
 ```
 
-容器内拉取固定版本源码，并构建安装 TurboPhysAI wheel：
+## 4. 准备模型源码并安装 TurboPhysAI
+
+下文命令均在容器内执行。镜像提供 OpenPI 训练依赖，模型源码在容器启动后拉取。
+
+### 4.1 准备官方 OpenPI 源码
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
+git clone https://github.com/Physical-Intelligence/openpi.git \
+  /workspace/openpi_TurboPhysAI/openpi
+git -C /workspace/openpi_TurboPhysAI/openpi checkout --detach \
+  215abfb217dbac7d5f1273282331b9b1866c0479
+git -C /workspace/openpi_TurboPhysAI/openpi submodule update --init --recursive
+```
 
-git clone https://github.com/Physical-Intelligence/openpi.git openpi
-git -C openpi checkout --detach 215abfb217dbac7d5f1273282331b9b1866c0479
-git -C openpi submodule update --init --recursive
+### 4.2 安装 TurboPhysAI
 
-git clone --single-branch \
-  --branch openpi-TurboPhysAI-Optimization \
-  https://github.com/Coulsonq/TurboPhysAI.git TurboPhysAI
+根据 OpenPI 优化的合入状态选择以下一种来源。使用本分支时，执行“OpenPI 集成分支”中的命令。
+
+官方主分支：
+
+```bash
+cd /workspace/openpi_TurboPhysAI
+git clone --branch main \
+  https://github.com/HYGON-AI/TurboPhysAI.git \
+  TurboPhysAI
 
 cd /workspace/openpi_TurboPhysAI/TurboPhysAI
-python -c 'import torch; print("torch:", torch.__version__)'
+python -c 'import torch; print(torch.__version__)'
 python -m pip install ninja wheel setuptools
 MAX_JOBS=8 python setup.py bdist_wheel
 python -m pip install --no-deps --force-reinstall dist/turbo_physai-*.whl
 turbo-physai --help
 ```
 
-## 准备 LIBERO 数据集
-
-下载 [LIBERO 数据集](https://huggingface.co/datasets/physical-intelligence/libero)。需要镜像时可设置 `HF_ENDPOINT`。
+OpenPI 集成分支（与上方二选一）：
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
+git clone --branch openpi-TurboPhysAI-Optimization \
+  https://github.com/Coulsonq/TurboPhysAI.git TurboPhysAI
+
+cd /workspace/openpi_TurboPhysAI/TurboPhysAI
+python -c 'import torch; print(torch.__version__)'
+python -m pip install ninja wheel setuptools
+MAX_JOBS=8 python setup.py bdist_wheel
+python -m pip install --no-deps --force-reinstall dist/turbo_physai-*.whl
+turbo-physai --help
+```
+
+## 5. 准备官方 LIBERO 数据
+
+### 5.1 下载数据集
+
+从 [Hugging Face](https://huggingface.co/datasets/physical-intelligence/libero) 下载 LIBERO 数据集，数据目录与 `HF_LEROBOT_HOME/physical-intelligence/libero` 对应。
+
+```bash
+cd /workspace/openpi_TurboPhysAI
+
 python -m pip install --no-deps --force-reinstall 'huggingface_hub==0.36.2'
 
-# 可选：Hugging Face 镜像
-# export HF_ENDPOINT=https://hf-mirror.com
+export HF_ENDPOINT=https://hf-mirror.com
 export HF_HUB_DISABLE_XET=1
 
-mkdir -p static_data/.lerobot_root/physical-intelligence/libero
+mkdir -p /workspace/openpi_TurboPhysAI/static_data/.lerobot_root/physical-intelligence/libero
+
 hf download physical-intelligence/libero \
   --repo-type dataset \
   --local-dir /workspace/openpi_TurboPhysAI/static_data/.lerobot_root/physical-intelligence/libero
 ```
 
-计算 `norm_stats.json`，输出到 `static_data/assets/pi05_libero/physical-intelligence/libero/`：
+### 5.2 准备归一化统计
+
+使用本例的 LIBERO 数据时，可直接使用附件中的 [norm_stats.json](./norm_stats.json)：
+
+```bash
+mkdir -p /workspace/openpi_TurboPhysAI/static_data/assets/pi05_libero/physical-intelligence/libero
+cp /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/norm_stats.json \
+  /workspace/openpi_TurboPhysAI/static_data/assets/pi05_libero/physical-intelligence/libero/norm_stats.json
+```
+
+需要重新计算，或使用其他数据集时，运行以下命令；更换数据集需同步调整训练配置名称。结果保存到 `static_data/assets/pi05_libero/physical-intelligence/libero/norm_stats.json`。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI/static_data
 
 export PYTHONPATH="/workspace/openpi_TurboPhysAI/openpi/src:/workspace/openpi_TurboPhysAI/openpi/packages/openpi-client/src${PYTHONPATH:+:${PYTHONPATH}}"
-export HF_LEROBOT_HOME=/workspace/openpi_TurboPhysAI/static_data/.lerobot_root
+export HF_LEROBOT_HOME="/workspace/openpi_TurboPhysAI/static_data/.lerobot_root"
 export JAX_PLATFORMS=cpu
 
 python - <<'PY'
@@ -95,10 +155,12 @@ import dataclasses
 import runpy
 import sys
 
-if not hasattr(datetime, "UTC"):
-    datetime.UTC = datetime.timezone.utc
+# Python 3.10 兼容：必须在导入 OpenPI 模块前设置
+datetime.UTC = datetime.timezone.utc
 
 import openpi.training.config as config
+
+# 关闭统计脚本的数据加载 worker，避免子进程丢失上述兼容补丁
 original_get_config = config.get_config
 config.get_config = lambda name: dataclasses.replace(
     original_get_config(name), num_workers=0
@@ -110,43 +172,205 @@ runpy.run_path(script, run_name="__main__")
 PY
 ```
 
-## 准备 PI0.5 权重和 tokenizer
+## 6. 准备预训练权重和 tokenizer
 
-使用 [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) 下载官方 PI0.5 base checkpoint：
+### 6.1 下载 PI0.5 base 权重
 
-```bash
-cd /workspace/openpi_TurboPhysAI
-mkdir -p static_data/pi05_base
-
-gcloud storage rsync \
-  gs://openpi-assets/checkpoints/pi05_base \
-  /workspace/openpi_TurboPhysAI/static_data/pi05_base \
-  --recursive
-
-test -f static_data/pi05_base/params/commit_success.txt \
-  && echo DOWNLOAD_COMPLETE \
-  || { echo 'Checkpoint download is incomplete'; exit 1; }
-```
-
-安装要求的 Transformers 版本，并应用 OpenPI 随附的 Transformers 补丁：
+从官方 `gs://openpi-assets/checkpoints/pi05_base` 下载完整 JAX checkpoint。以下代码沿用原流程，支持断点续传，并输出进度、速度和预计剩余时间。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
 
 python - <<'PY'
-import transformers
-print("transformers:", transformers.__version__)
-assert transformers.__version__ == "4.53.2"
-PY
+import http.client
+import json
+import os
+import re
+import socket
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
 
-TRANSFORMERS_DIR="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/transformers"
-cp -a openpi/src/openpi/models_pytorch/transformers_replace/. "${TRANSFORMERS_DIR}/"
+BUCKET = "openpi-assets"
+PREFIX = "checkpoints/pi05_base/"
+DEST = Path("/workspace/openpi_TurboPhysAI/static_data/pi05_base")
+DEST.mkdir(parents=True, exist_ok=True)
+ROOT = DEST.resolve()
+
+# 获取对象列表
+objects = []
+token = None
+while True:
+    query = {"prefix": PREFIX, "maxResults": "1000"}
+    if token:
+        query["pageToken"] = token
+    url = f"https://storage.googleapis.com/storage/v1/b/{BUCKET}/o?{urllib.parse.urlencode(query)}"
+    with urllib.request.urlopen(url, timeout=60) as response:
+        page = json.load(response)
+    objects.extend(page.get("items", []))
+    token = page.get("nextPageToken")
+    if not token:
+        break
+
+if not objects:
+    raise RuntimeError(f"GCS 中没有找到对象：{PREFIX}")
+
+def paths_for(obj):
+    name = obj["name"]
+    rel = name[len(PREFIX):]
+    target = (ROOT / rel).resolve()
+    target.relative_to(ROOT)  # 确认目标仍在下载目录内
+    part = Path(str(target) + ".part")
+    return target, part
+
+def local_bytes():
+    total = 0
+    for obj in objects:
+        expected = int(obj["size"])
+        target, part = paths_for(obj)
+        if target.exists() and target.stat().st_size == expected:
+            total += expected
+        elif part.exists():
+            total += min(part.stat().st_size, expected)
+    return total
+
+def publish_part(part, target, expected):
+    if target.exists():
+        if target.stat().st_size == expected:
+            return
+        raise RuntimeError(f"正式文件已存在但大小不符，未覆盖：{target}")
+    os.link(part, target)
+
+total_bytes = sum(int(obj["size"]) for obj in objects)
+initial_bytes = local_bytes()
+started = time.monotonic()
+print(f"{len(objects)} 个对象，共 {total_bytes / 1024**3:.2f} GiB；已有数据 {initial_bytes / 1024**3:.2f} GiB")
+
+for index, obj in enumerate(objects, 1):
+    expected = int(obj["size"])
+    target, part = paths_for(obj)
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    if target.exists():
+        actual = target.stat().st_size
+        if actual == expected:
+            print(f"跳过 {index}/{len(objects)}：{obj['name']}（已完整）")
+            continue
+        raise RuntimeError(f"正式文件大小不符，为避免覆盖而停止：{target}")
+
+    if part.exists() and part.stat().st_size > expected:
+        raise RuntimeError(f".part 大于 GCS 对象大小，为避免覆盖而停止：{part}")
+
+    if part.exists() and part.stat().st_size == expected:
+        publish_part(part, target, expected)
+        print(f"完成 {index}/{len(objects)}：{obj['name']}（已有完整 .part）")
+        continue
+
+    object_url = (
+        f"https://storage.googleapis.com/storage/v1/b/{BUCKET}/o/"
+        f"{urllib.parse.quote(obj['name'], safe='')}"
+    )
+    params = {"alt": "media"}
+    if obj.get("generation"):
+        params["generation"] = obj["generation"]
+    object_url += "?" + urllib.parse.urlencode(params)
+
+    print(f"下载 {index}/{len(objects)}：{obj['name']}；"
+          f"续传位置 {part.stat().st_size if part.exists() else 0} 字节")
+
+    for attempt in range(1, 9):
+        offset = part.stat().st_size if part.exists() else 0
+        headers = {"Range": f"bytes={offset}-"} if offset else {}
+        request = urllib.request.Request(object_url, headers=headers)
+        last_report = time.monotonic()
+        bytes_since_report = 0
+
+        try:
+            with urllib.request.urlopen(request, timeout=300) as response:
+                status = getattr(response, "status", 200)
+                if status == 206:
+                    content_range = response.headers.get("Content-Range", "")
+                    match = re.match(r"bytes (\d+)-\d+/", content_range)
+                    if not match or int(match.group(1)) != offset:
+                        raise RuntimeError(f"服务器返回了不匹配的续传范围：{content_range}")
+                elif offset:
+                    raise RuntimeError(f"服务器未接受 Range 续传（HTTP {status}），未覆盖已有部分文件")
+
+                mode = "ab" if offset else "wb"
+                with open(part, mode, buffering=0) as output:
+                    while True:
+                        chunk = response.read(8 * 1024 * 1024)
+                        if not chunk:
+                            break
+                        output.write(chunk)
+                        bytes_since_report += len(chunk)
+
+                        now = time.monotonic()
+                        if bytes_since_report >= 64 * 1024**2 or now - last_report >= 10:
+                            done = local_bytes()
+                            elapsed = max(now - started, 0.001)
+                            speed = max(done - initial_bytes, 0) / elapsed / 1024**2
+                            remaining_mib = max(total_bytes - done, 0) / 1024**2
+                            eta = (
+                                f"{remaining_mib / (speed * 60):.1f} 分钟"
+                                if speed >= 0.1 else "估算中"
+                            )
+                            print(f"总进度 {done / total_bytes * 100:.1f}%  "
+                                  f"{speed:.1f} MiB/s  剩余约 {eta}")
+                            last_report = now
+                            bytes_since_report = 0
+
+            actual = part.stat().st_size
+            if actual != expected:
+                raise EOFError(f"对象不完整：本地 {actual} 字节，预期 {expected} 字节")
+
+            publish_part(part, target, expected)
+            print(f"完成 {index}/{len(objects)}：{obj['name']}")
+            break
+
+        except urllib.error.HTTPError as error:
+            if error.code not in (408, 429, 500, 502, 503, 504):
+                raise
+            failure = error
+        except (TimeoutError, socket.timeout, urllib.error.URLError,
+                http.client.HTTPException, ConnectionError, EOFError) as error:
+            failure = error
+
+        if attempt == 8:
+            raise RuntimeError(
+                f"重试 8 次仍失败：{obj['name']}；部分数据保留在 {part}"
+            ) from failure
+
+        wait = min(60, 2 ** (attempt - 1))
+        offset = part.stat().st_size if part.exists() else 0
+        print(f"读取失败：{failure}；{wait}s 后从 {offset} 字节处重试")
+        time.sleep(wait)
+
+print(f"\n下载完成：{ROOT}")
+PY
 ```
 
-将 JAX checkpoint 转为 PyTorch 权重：
+### 6.2 转换为 PyTorch 格式
+
+转换前将 OpenPI 提供的 Transformers 补丁复制到当前 Python 环境。转换结果保存到 `static_data/pi05_base_pytorch`。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI/openpi
+
+TRANSFORMERS_DIR="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/transformers"
+
+cp -a \
+  /workspace/openpi_TurboPhysAI/openpi/src/openpi/models_pytorch/transformers_replace/. \
+  "${TRANSFORMERS_DIR}/"
+
+python -m pip install --no-cache-dir --no-deps --force-reinstall \
+  'huggingface-hub>=0.30.0,<1.0'
+
+test -f /workspace/openpi_TurboPhysAI/static_data/pi05_base/params/commit_success.txt \
+  && echo DOWNLOAD_COMPLETE \
+  || echo "下载尚未完成，先不要转换"
 
 export PYTHONPATH="/workspace/openpi_TurboPhysAI/openpi/src:/workspace/openpi_TurboPhysAI/openpi/packages/openpi-client/src${PYTHONPATH:+:${PYTHONPATH}}"
 export JAX_PLATFORMS=cpu
@@ -156,8 +380,7 @@ import datetime
 import runpy
 import sys
 
-if not hasattr(datetime, "UTC"):
-    datetime.UTC = datetime.timezone.utc
+datetime.UTC = datetime.timezone.utc
 
 script = "examples/convert_jax_model_to_pytorch.py"
 sys.argv = [
@@ -171,7 +394,7 @@ runpy.run_path(script, run_name="__main__")
 PY
 ```
 
-下载 [PaliGemma tokenizer](https://storage.googleapis.com/big_vision/paligemma_tokenizer.model)：
+### 6.3 下载 PaliGemma tokenizer
 
 ```bash
 mkdir -p /workspace/openpi_TurboPhysAI/static_data/assets
@@ -180,71 +403,20 @@ curl -fL --retry 5 --retry-delay 2 \
   -o /workspace/openpi_TurboPhysAI/static_data/assets/paligemma_tokenizer.model
 ```
 
-## 检查配置并启动训练
+## 7. 通过 turbo-physai run 启动训练
 
-检查随 OpenPI 集成提供的优化配置：
+启动脚本通过 `turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。按设备调整 RuntimeConfig 的可见卡、数据集和库路径。
 
-```bash
-cd /workspace/openpi_TurboPhysAI/TurboPhysAI
-
-export PYTHONPATH="/workspace/openpi_TurboPhysAI/TurboPhysAI:/workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/compat:/workspace/openpi_TurboPhysAI/openpi/src:/workspace/openpi_TurboPhysAI/openpi/packages/openpi-client/src${PYTHONPATH:+:${PYTHONPATH}}"
-export JAX_PLATFORMS=cpu
-
-turbo-physai optimization check \
-  turbo_physai/optimizations/models/openpi/configs/optimization.yaml \
-  --repo /workspace/openpi_TurboPhysAI/openpi
-```
-
-按设备修改 `configs/runtime.yaml` 中的可见卡、数据集路径和 DTK/BLAS 库路径。启动脚本会设置运行目录、资源路径及输出目录：
+### 7.1 显式指定配置
 
 ```bash
-cd /workspace/openpi_TurboPhysAI
-source TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/prepare_tune_runtime.sh
-set -o pipefail
+/workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/run_openpi_torchrun_tune_by_config.sh
 ```
 
-按模型名启动（单机 8 卡，全局 batch size 256）：
+### 7.2 按模型名加载配置
 
 ```bash
-turbo-physai run \
-  --model openpi \
-  --log-report \
-  -- \
-  torchrun --standalone --nnodes=1 --nproc_per_node=8 \
-    scripts/train_pytorch.py pi05_libero \
-    --exp_name "pi05_libero_8gpu_bs32_by_model_${STAMP}" \
-    --batch-size 256 \
-    --assets-base-dir "${ASSETS_BASE_DIR}" \
-    --checkpoint-base-dir "${CHECKPOINT_BASE_DIR}" \
-    --pytorch_weight_path "${WEIGHT_PATH}" \
-    --num_train_steps 10000 \
-    --log-interval 1 \
-    --save-interval 500 \
-    --no-wandb-enabled \
-  2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_model_${STAMP}.log"
+/workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/run_openpi_torchrun_tune_by_model.sh
 ```
 
-显式指定优化配置和 Runtime 配置：
-
-```bash
-turbo-physai run \
-  --optimization-config "${OPENPI_MODEL_DIR}/configs/optimization.yaml" \
-  --runtime-config "${OPENPI_MODEL_DIR}/configs/runtime.yaml" \
-  --log-report \
-  -- \
-  torchrun --standalone --nnodes=1 --nproc_per_node=8 \
-    scripts/train_pytorch.py pi05_libero \
-    --exp_name "pi05_libero_8gpu_bs32_by_config_${STAMP}" \
-    --batch-size 256 \
-    --assets-base-dir "${ASSETS_BASE_DIR}" \
-    --checkpoint-base-dir "${CHECKPOINT_BASE_DIR}" \
-    --pytorch_weight_path "${WEIGHT_PATH}" \
-    --num_train_steps 30000 \
-    --log-interval 1 \
-    --save-interval 2000 \
-    --no-wandb-enabled \
-    --seed 42 \
-  2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_config_${STAMP}.log"
-```
-
-日志和检查点默认写入工作区的 `output/logs/` 与 `output/checkpoints/`。检查 `--log-report`，确认预期优化组状态为 `applied`。
+两个脚本均为单机八卡、全局 batch size 256，训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
