@@ -15,8 +15,8 @@ turbo-physai run \
     --assets-base-dir "${ASSETS_BASE_DIR}" \
     --checkpoint-base-dir "${CHECKPOINT_BASE_DIR}" \
     --pytorch_weight_path "${WEIGHT_PATH}" \
-    --num_train_steps 10000 \
+    --num_train_steps 30000 \
     --log-interval 1 \
-    --save-interval 500 \
+    --save-interval 2000 \
     --no-wandb-enabled \
     2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_model_${STAMP}.log"
