@@ -25,8 +25,6 @@ docker build \
   -t openpi-dcu:vla-base-20261021 .
 ```
 
-Dockerfile 保留附件中的 `AICC_URL` 和 `DTK_BLAS_URL`。下载地址失效时需更新对应构建参数；原流程提供的 BLAS 下载目录为 [DTK nightly](http://42.228.13.241:18000/dtk-archived/nightly/dtk-26.10/)。
-
 ### 3.2 创建并进入容器
 
 ```bash
