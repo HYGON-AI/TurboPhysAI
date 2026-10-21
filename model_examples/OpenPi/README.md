@@ -441,7 +441,7 @@ turbo-physai run \
 
 ## 8. 目录结构
 
-完成上述流程后，容器内主要目录如下；`output/` 在启动训练时创建。
+完成上述流程后，容器内主要目录如下；
 
 ```text
 /workspace/openpi_TurboPhysAI/
