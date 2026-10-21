@@ -325,9 +325,9 @@ print(f"\n下载完成：{ROOT}")
 PY
 ```
 
-### 6.2 转换为 PyTorch 格式
+### 6.2 应用 Transformers 补丁
 
-转换前将 OpenPI 提供的 Transformers 补丁复制到当前 Python 环境。转换结果保存到 `static_data/pi05_base_pytorch`。
+将 OpenPI 提供的 Transformers 补丁复制到当前 Python 环境，并安装兼容版本的 huggingface-hub。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI/openpi
@@ -340,6 +340,14 @@ cp -a \
 
 python -m pip install --no-cache-dir --no-deps --force-reinstall \
   'huggingface-hub>=0.30.0,<1.0'
+```
+
+### 6.3 转换为 PyTorch 格式
+
+将下载完成的 JAX 权重转换为 PyTorch 格式，结果保存到 `static_data/pi05_base_pytorch`。
+
+```bash
+cd /workspace/openpi_TurboPhysAI/openpi
 
 test -f /workspace/openpi_TurboPhysAI/static_data/pi05_base/params/commit_success.txt \
   && echo DOWNLOAD_COMPLETE \
@@ -367,7 +375,7 @@ runpy.run_path(script, run_name="__main__")
 PY
 ```
 
-### 6.3 下载 PaliGemma tokenizer
+### 6.4 下载 PaliGemma tokenizer
 
 ```bash
 mkdir -p /workspace/openpi_TurboPhysAI/static_data/assets
