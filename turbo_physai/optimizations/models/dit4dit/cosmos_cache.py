@@ -209,7 +209,7 @@ class _Caches:
             max_sequence_length: int,
         ) -> torch.Tensor:
             prompt_list = [prompt] if isinstance(prompt, str) else prompt
-    
+
             cache_output = self._text_encoder_output_cache_is_safe()
             output_key = (
                 tuple(prompt_list),
@@ -221,7 +221,7 @@ class _Caches:
                 cached_output = self._prompt_embeds_cache.get(output_key)
                 if cached_output is not None:
                     return cached_output
-    
+
             input_ids_batch = []
             for sample_idx in range(len(prompt_list)):
                 token_key = (prompt_list[sample_idx], max_sequence_length)
@@ -241,7 +241,7 @@ class _Caches:
                     },
                     {"role": "user", "content": [{"type": "text", "text": prompt_list[sample_idx]}]},
                 ]
-    
+
                 input_ids = self.tokenizer.apply_chat_template(
                     conversations,
                     tokenize=True,
@@ -256,17 +256,17 @@ class _Caches:
                     self._token_ids_cache.clear()
                 self._token_ids_cache[token_key] = input_ids_tensor
                 input_ids_batch.append(input_ids_tensor)
-    
+
             input_ids_batch = torch.stack(input_ids_batch, dim=0).to(device)
             outputs = self.text_encoder(input_ids_batch, output_hidden_states=True)
             hidden_states = outputs.hidden_states
-    
+
             normalized_hidden_states = []
             for layer_idx in range(1, len(hidden_states)):
                 hs = hidden_states[layer_idx]
                 hs = (hs - hs.mean(dim=-1, keepdim=True)) / (hs.std(dim=-1, keepdim=True) + 1e-8)
                 normalized_hidden_states.append(hs)
-    
+
             prompt_embeds = torch.cat(normalized_hidden_states, dim=-1).to(dtype=dtype, device=device)
             if cache_output:
                 # Bound GPU memory: this tensor is large because it concatenates
@@ -286,13 +286,13 @@ class _Caches:
             mean, std = self._get_latent_stats(
                 device=latents.device, dtype=latents.dtype
             )
-    
+
             # If mean/std have a temporal dimension, slice to match
             if mean.ndim == 5 and latents.ndim == 5 and mean.shape[2] >= latents.shape[2]:
                 mean = mean[:, :, : latents.shape[2]]
             if std.ndim == 5 and latents.ndim == 5 and std.shape[2] >= latents.shape[2]:
                 std = std[:, :, : latents.shape[2]]
-    
+
             return latents * std + mean
 
     def _encode_video_to_latents_norm(self, video_bcthw: torch.Tensor) -> torch.Tensor:
@@ -308,17 +308,17 @@ class _Caches:
                 latents_raw = enc.latent_dist.mean
             else:
                 latents_raw = enc
-    
+
             latents_raw = latents_raw.to(dtype=torch.float32)
             mean, std = self._get_latent_stats(
                 device=latents_raw.device, dtype=latents_raw.dtype
             )
-    
+
             if mean.ndim == 5 and mean.shape[2] >= latents_raw.shape[2]:
                 mean = mean[:, :, : latents_raw.shape[2]]
             if std.ndim == 5 and std.shape[2] >= latents_raw.shape[2]:
                 std = std[:, :, : latents_raw.shape[2]]
-    
+
             return (latents_raw - mean) / std
 
 

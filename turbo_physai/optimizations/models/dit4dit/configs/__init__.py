@@ -2,4 +2,3 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Packaged DiT4DiT configurations."""
-
