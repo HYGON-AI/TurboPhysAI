@@ -6,7 +6,7 @@
 
 ### 拉取镜像及创建容器
 ```
-docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10-20260929
+docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10
 
 docker run -it --network=host --name=cosmos_hygon --privileged --device=/dev/kfd --device=/dev/dri --ipc=host --shm-size=512G --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -u root --ulimit stack=-1:-1 --ulimit memlock=-1:-1  -v /opt/hyhal:/opt/hyhal:ro  harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10-20260929
 ```
@@ -81,6 +81,7 @@ export TORCH_NCCL_HIGH_PRIORITY=1
 设置数据与权重路径后运行：
 
 ```bash
+source /opt/MacCodecSDK/env.sh
 export HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export DATASET_PATH=/path/to/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge
 export BASE_CHECKPOINT_PATH=/path/to/Cosmos3-Nano-DCP
@@ -208,17 +209,15 @@ export DROID_ROOT=/path/to/perf64/droid_plus_lerobot_640x360_20260412
 export KEEP_RANGES_PATH="$DROID_ROOT/keep_ranges_perf64.json"
 ```
 
-metadata 和共享数据文件可能包含未选片段，验证时必须使用生成的 `keep_ranges_perf64.json`。复用 Action Policy 的 70 步训练命令；使用启动脚本时，直接修改脚本配置区中的相应路径。
+metadata 和共享数据文件可能包含未选片段，验证时必须使用生成的 `keep_ranges_perf64.json`。准备好数据后，复用前文 Action Policy 的 70 步训练命令。
 
 Generator 的 BridgeData2、Reasoner 的 VideoPhy2 和 Qwen3-VL tokenizer 均按前文链接的上游官方流程准备，模型权重同样沿用上游流程。
 
 ## 运行说明
 
-- 本页 `torchrun` 命令使用 Shell 中的环境设置；使用启动脚本时以脚本配置区为准。日志与训练产物由 `IMAGINAIRE_OUTPUT_ROOT` 指定。
+- 本页 `torchrun` 命令使用 Shell 中的环境设置。日志与训练产物由 `IMAGINAIRE_OUTPUT_ROOT` 指定。
 - 重复使用同一输出目录和任务名会自动恢复已有 checkpoint；需要从头测试时，请使用新目录或任务名。
 - `checkpoint.save_iter=1000` 只调整周期保存间隔，训练结束时仍会保存最终 checkpoint，请预留存储空间。
 - 修改卡数时，同步调整 `HIP_VISIBLE_DEVICES`、`--nproc_per_node` 和 `data_parallel_shard_degree`。
 - 调整 Reasoner 训练步数时，同步修改 `trainer.max_iter` 和 `scheduler.cycle_lengths`。
 - 单项优化通过模型的环境变量或训练配置控制。
-- 使用 patch 中的 `examples/launch_sft_*_hcu.sh` 前，直接编辑脚本开头的资产路径、输出目录和运行参数，再执行脚本。直接赋值的配置会覆盖外部 `export`；保留默认值语法的参数仍按脚本原有方式处理。
-- 四份 `examples/launch_inference_generator_vision_*_{hcu,nvidia_local}.sh` 推理脚本也需直接编辑开头的运行参数与资产路径；输入文件中的图片路径必须指向实际图片。补丁不附带本地 I2V 示例图片。
