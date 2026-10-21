@@ -105,10 +105,10 @@ optimization_groups:
   trust:
     source_hashes:
       scripts.train_pytorch.tqdm.tqdm:
-      - source-v1:924b2cc9e4248079565bb8e3e7fc7d9019035c0f07ccfd972124de3a0a347403
+      - source-v1:26e2045c79940aabe8086d5d357326f5996e346c4cb0c5d2559dd8308b81c54d
     ast_hashes:
       scripts.train_pytorch.tqdm.tqdm:
-      - ast-v1:781bc3f8d26620af6868b2eea9b043799e8a76c31d7625c31ebd7085a0e188a6
+      - ast-v1:b512b0d93f2ce7455bc16518b5de0731302c1c47b40a10a0929ff03f4f86a52b
 - id: openpi.inductor_settings
   enabled: true
   options:
