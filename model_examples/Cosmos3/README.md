@@ -44,7 +44,7 @@ pip install lerobot --no-deps
 
 ## 数据与模型权重
 
-数据与权重沿用上游的官方来源及下载、处理步骤：参见 [训练与数据准备](https://github.com/NVIDIA/cosmos-framework/blob/9726697a83315540c6885baefd2fe353d9c74920/docs/training.md)、[DROID 数据准备](https://github.com/NVIDIA/cosmos-framework/blob/9726697a83315540c6885baefd2fe353d9c74920/docs/action_policy_droid_posttrain.md#full-reproduction) 和 [模型权重准备](https://github.com/NVIDIA/cosmos-framework/blob/9726697a83315540c6885baefd2fe353d9c74920/docs/setup.md#downloading-base-checkpoints)。准备好以下资产后，将后文的 `/path/to/...` 替换为实际路径；使用已有验证数据包时，见[快速验证（可选）](#快速验证可选)。
+数据与权重沿用上游的官方来源及下载、处理步骤：参见 [训练与数据准备](https://github.com/NVIDIA/cosmos-framework/blob/9726697a83315540c6885baefd2fe353d9c74920/docs/training.md)、[DROID 数据准备](https://github.com/NVIDIA/cosmos-framework/blob/9726697a83315540c6885baefd2fe353d9c74920/docs/action_policy_droid_posttrain.md#full-reproduction) 和 [模型权重准备](https://github.com/NVIDIA/cosmos-framework/blob/9726697a83315540c6885baefd2fe353d9c74920/docs/setup.md#downloading-base-checkpoints)。准备好以下资产后，将后文的 `/path/to/...` 替换为实际路径；DROID 小规模测试见[快速验证（可选）](#快速验证可选)。
 
 | 任务 | 数据 | 模型权重 |
 | --- | --- | --- |
@@ -183,43 +183,34 @@ HF_HUB_OFFLINE=0 torchrun --nproc_per_node=8 --master_port=29715 \
 
 ## 快速验证（可选）
 
-以下数据包用于快速验证 HCU 训练流程。按任务下载并解压后，将对应训练小节中的路径替换为下表值，复用其 70 步训练命令；模型权重仍按上游流程准备。
+Action Policy 可从官方 [Cosmos3-DROID](https://huggingface.co/datasets/nvidia/Cosmos3-DROID) 生成前 64 个片段的 perf64 子集，无需下载完整数据集。以下固定数据版本，仅下载 metadata 和所需的 8 个数据、视频文件，共约 1.7 GiB。
 
 在 `cosmos-framework` 根目录执行：
 
 ```bash
-(
-cd /data
-wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/BridgeData2-Subset-Synthetic-Captions.zip
-unzip BridgeData2-Subset-Synthetic-Captions.zip
+hf download nvidia/Cosmos3-DROID --repo-type dataset \
+  --revision 5c11a20accb11497270a5247a7f1e66ad04c956c \
+  --local-dir /path/to/droid-official/droid_plus_lerobot_640x360_20260412 \
+  --include "success/meta/*" "success/data/chunk-000/file-000.parquet" \
+  "success/videos/observation.image.exterior_image_[12]_left/chunk-000/file-00[0-2].mp4" \
+  "success/videos/observation.image.wrist_image_left/chunk-000/file-000.mp4"
 
-wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/videophysics_official.tar.gz
-tar -xzf videophysics_official.tar.gz -C /data/
-
-wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/Cosmos3-DROID-perf64.tar.gz
-tar -xzf Cosmos3-DROID-perf64.tar.gz -C /data/
-
-wget http://42.228.13.241:18000/docker-images/tencent/Cosmos3/Qwen3-VL-8B-Instruct-tokenizer-cache.tar.gz
-tar -xzf Qwen3-VL-8B-Instruct-tokenizer-cache.tar.gz -C /data/
-)
+python examples/prepare_droid_perf_subset.py \
+  --source-success /path/to/droid-official/droid_plus_lerobot_640x360_20260412/success \
+  --output-root /path/to/perf64/droid_plus_lerobot_640x360_20260412 \
+  --episodes 64
 ```
 
-DROID perf64 压缩包包含 `success/` 下的 metadata、数据和视频，以及 `keep_ranges_perf64.json`。上游 loader 根据 `DROID_ROOT` 的目录名选择数据版本，为子集建立目录别名即可，无需复制数据；已有正确别名时跳过：
+输出目录直接命名为 `droid_plus_lerobot_640x360_20260412`，供上游 loader 识别数据版本，无需建立软链接。将 Action Policy 训练小节中的数据路径替换为：
 
 ```bash
-mkdir -p /data/droid-perf64
-ln -sT /data/Cosmos3-DROID-perf64 /data/droid-perf64/droid_plus_lerobot_640x360_20260412
+export DROID_ROOT=/path/to/perf64/droid_plus_lerobot_640x360_20260412
+export KEEP_RANGES_PATH="$DROID_ROOT/keep_ranges_perf64.json"
 ```
 
-| 训练场景 | 变量 | 验证数据路径 |
-| --- | --- | --- |
-| Generator Nano | `DATASET_PATH` | `/data/BridgeData2-Subset-Synthetic-Captions/sft_dataset_bridge` |
-| Action Policy（DROID） | `DROID_ROOT` | `/data/droid-perf64/droid_plus_lerobot_640x360_20260412` |
-| Action Policy（DROID） | `KEEP_RANGES_PATH` | `/data/Cosmos3-DROID-perf64/keep_ranges_perf64.json` |
-| Reasoner VideoPhy2 | `VIDEOPHYSICS_ROOT` | `/data/videophysics_official` |
-| 使用上述 tokenizer 缓存时 | `HF_HOME` | `/data/hf-cache` |
+metadata 和共享数据文件可能包含未选片段，验证时必须使用生成的 `keep_ranges_perf64.json`。复用 Action Policy 的 70 步训练命令；使用启动脚本时，直接修改脚本配置区中的相应路径。
 
-perf64 的 metadata 和共享数据文件可能包含未选 episode，验证时必须使用配套过滤文件。Tokenizer 缓存不包含 Qwen 模型权重。使用启动脚本时，直接修改脚本配置区中的相应路径。
+Generator 的 BridgeData2、Reasoner 的 VideoPhy2 和 Qwen3-VL tokenizer 均按前文链接的上游官方流程准备，模型权重同样沿用上游流程。
 
 ## 运行说明
 
