@@ -378,18 +378,55 @@ curl -fL --retry 5 --retry-delay 2 \
 
 ## 7. 通过 turbo-physai run 启动训练
 
-启动脚本通过 `turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。按设备调整 RuntimeConfig 的可见卡、数据集和库路径。
+`turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。按设备调整 RuntimeConfig 的可见卡、数据集和库路径。`prepare_tune_runtime.sh` 设置资源和输出路径，并切换到 OpenPI 源码目录。
 
 ### 7.1 显式指定配置
 
 ```bash
-/workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/run_openpi_torchrun_tune_by_config.sh
+cd /workspace/openpi_TurboPhysAI
+source TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/prepare_tune_runtime.sh
+
+turbo-physai run \
+  --optimization-config "${OPENPI_MODEL_DIR}/configs/optimization.yaml" \
+  --runtime-config "${OPENPI_MODEL_DIR}/configs/runtime.yaml" \
+  --log-report \
+  -- \
+  torchrun --standalone --nnodes=1 --nproc_per_node=8 \
+    scripts/train_pytorch.py pi05_libero \
+    --exp_name "pi05_libero_8gpu_bs32_by_config_${STAMP}" \
+    --batch-size 256 \
+    --assets-base-dir "${ASSETS_BASE_DIR}" \
+    --checkpoint-base-dir "${CHECKPOINT_BASE_DIR}" \
+    --pytorch_weight_path "${WEIGHT_PATH}" \
+    --num_train_steps 30000 \
+    --log-interval 1 \
+    --save-interval 2000 \
+    --no-wandb-enabled \
+  2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_config_${STAMP}.log"
 ```
 
 ### 7.2 按模型名加载配置
 
 ```bash
-/workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/run_openpi_torchrun_tune_by_model.sh
+cd /workspace/openpi_TurboPhysAI
+source TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/prepare_tune_runtime.sh
+
+turbo-physai run \
+  --model openpi \
+  --log-report \
+  -- \
+  torchrun --standalone --nnodes=1 --nproc_per_node=8 \
+    scripts/train_pytorch.py pi05_libero \
+    --exp_name "pi05_libero_8gpu_bs32_by_model_${STAMP}" \
+    --batch-size 256 \
+    --assets-base-dir "${ASSETS_BASE_DIR}" \
+    --checkpoint-base-dir "${CHECKPOINT_BASE_DIR}" \
+    --pytorch_weight_path "${WEIGHT_PATH}" \
+    --num_train_steps 30000 \
+    --log-interval 1 \
+    --save-interval 2000 \
+    --no-wandb-enabled \
+  2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_model_${STAMP}.log"
 ```
 
-两个脚本均为单机八卡、全局 batch size 256，训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
+两种方式均为单机八卡、全局 batch size 256，训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
