@@ -438,3 +438,43 @@ turbo-physai run \
 ```
 
 训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
+
+## 8. 目录结构
+
+完成上述流程后，容器内主要目录如下；`output/` 在启动训练时创建。
+
+```text
+/workspace/openpi_TurboPhysAI/
+├── openpi/                                  # OpenPI 官方源码
+│   ├── scripts/train_pytorch.py
+│   └── src/openpi/
+├── TurboPhysAI/                             # TurboPhysAI 源码
+│   ├── model_examples/OpenPi/
+│   │   ├── README.md
+│   │   ├── norm_stats.json                  # 本例提供的 LIBERO 统计文件
+│   │   └── openpi-docker-build-torch210/
+│   │       ├── Dockerfile
+│   │       ├── requirements.txt
+│   │       └── .dockerignore
+│   └── turbo_physai/optimizations/models/openpi/
+│       ├── configs/
+│       │   ├── recipe.yaml
+│       │   ├── optimization.yaml
+│       │   └── runtime.yaml
+│       ├── compat/
+│       └── scripts/
+├── static_data/                             # 数据集、权重和运行资源
+│   ├── .lerobot_root/physical-intelligence/libero/
+│   │   ├── data/
+│   │   └── meta/
+│   ├── pi05_base/params/                    # 原始 JAX 权重
+│   ├── pi05_base_pytorch/                   # 转换后的 PyTorch 权重
+│   │   ├── config.json
+│   │   └── model.safetensors
+│   └── assets/
+│       ├── paligemma_tokenizer.model
+│       └── pi05_libero/physical-intelligence/libero/norm_stats.json
+└── output/                                  # 训练输出
+    ├── logs/
+    └── checkpoints/
+```
