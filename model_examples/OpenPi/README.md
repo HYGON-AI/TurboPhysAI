@@ -19,10 +19,10 @@ TurboPhysAI 的 OpenPI 优化基于官方仓库 commit `215abfb217dbac7d5f127328
 ```bash
 docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10
 
-cd openpi-docker-build-torch210-20261021
+cd openpi-docker-build-torch210
 docker build \
   -f Dockerfile \
-  -t openpi-dcu:vla-base-20261021 .
+  -t openpi-dcu:vla-base .
 ```
 
 ### 3.2 创建并进入容器
@@ -31,7 +31,7 @@ docker build \
 docker run -dit \
   --restart unless-stopped \
   --network=host \
-  --name=openpi-train-TurboPhysAI-v11 \
+  --name=openpi-train-TurboPhysAI \
   --privileged \
   --device=/dev/kfd \
   --device=/dev/dri \
@@ -45,10 +45,10 @@ docker run -dit \
   --ulimit memlock=-1:-1 \
   -v /opt/hyhal:/opt/hyhal:ro \
   -w /workspace/openpi_TurboPhysAI \
-  openpi-dcu:vla-base-20261021 \
+  openpi-dcu:vla-base \
   bash -lc 'exec tail -f /dev/null'
 
-docker exec -it openpi-train-TurboPhysAI-v11 bash
+docker exec -it openpi-train-TurboPhysAI bash
 ```
 
 ## 4. 准备模型源码并安装 TurboPhysAI
