@@ -4,7 +4,7 @@
 
 ## 模型简介
 
-[OpenPI](https://github.com/Physical-Intelligence/openpi) 提供 PI0、PI0-FAST 和 PI0.5 等模型。本例使用 PyTorch 入口 `scripts/train_pytorch.py`，在单机 8 卡 HCU 上训练 `pi05_libero`。
+[OpenPI](https://github.com/Physical-Intelligence/openpi) 是 Physical Intelligence 开源的机器人学习代码库，提供 PI0、PI0-FAST、PI0.5 等视觉-语言-动作（VLA）模型及训练、微调和推理示例；模型根据视觉观测和语言指令生成机器人动作。本例使用 PyTorch 入口 `scripts/train_pytorch.py`，在单机 8 卡 HCU 上训练 `pi05_libero`。
 
 ## 优化接入基线
 
