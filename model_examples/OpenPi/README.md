@@ -10,8 +10,6 @@
 
 TurboPhysAI 的 OpenPI 优化基于官方仓库 commit `215abfb217dbac7d5f1273282331b9b1866c0479` 接入。优化接入基线的使用建议见[模型支持清单](../../docs/zh/models/support_list.md)。
 
-`openpi.disable_tqdm` 依赖生成优化配置时的 tqdm 版本，需确认训练日志中的应用状态为 `applied`。
-
 ## 3. 准备训练环境
 
 以下命令在宿主机执行。构建文件来自原流程附件：[Dockerfile](./openpi-docker-build-torch210-20261021/Dockerfile)、[requirements.txt](./openpi-docker-build-torch210-20261021/requirements.txt) 和 [.dockerignore](./openpi-docker-build-torch210-20261021/.dockerignore)。
