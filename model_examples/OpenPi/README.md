@@ -446,8 +446,6 @@ turbo-physai run \
 ```text
 /workspace/openpi_TurboPhysAI/
 ├── openpi/                                  # OpenPI 官方源码
-│   ├── scripts/train_pytorch.py
-│   └── src/openpi/
 ├── TurboPhysAI/                             # TurboPhysAI 源码
 │   ├── model_examples/OpenPi/
 │   │   ├── README.md
