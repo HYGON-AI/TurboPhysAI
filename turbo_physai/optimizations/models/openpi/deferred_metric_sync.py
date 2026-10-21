@@ -153,7 +153,7 @@ def deferred_metric_train_loop(config):
     peak_lr = config.lr_schedule.peak_lr
     decay_steps = config.lr_schedule.decay_steps
     end_lr = config.lr_schedule.decay_lr
-    from turbo_physai.optimizations.models.openpi.replacement_fused_adamw import fused_adamw_enabled
+    from turbo_physai.optimizations.models.openpi.fused_adamw import fused_adamw_enabled
 
     optimizer_kwargs = {}
     if fused_adamw_enabled():
