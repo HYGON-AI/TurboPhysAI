@@ -93,18 +93,4 @@ turbo-physai run \
 
 该配置使用两个训练进程、每卡 batch size 2、梯度累积 4，对应 global batch size 16。RuntimeConfig 会依据 HCU 可见性为各 rank 自动选择本地 NUMA node。
 
-## 7. 优化范围与验收
-
-默认 Recipe 原子应用 10 个 DiT4DiT Optimization Group，覆盖数据加载、Cosmos Attention/Cache/VAE/视频整理、Cosmos 分段编译、Action 编译、Fused AdamW 和训练指标同步。
-
-Action Compile 与 `fallback_random=True` 位于同一个不可拆分 Group，用于保持 Dropout 等随机算子的 eager RNG 路径。Action 和 Cosmos 编译段固定使用当前 PyTorch 2.10 DAS 所需的 `alignment_asserts=False`；该选项只关闭 Inductor 生成代码的运行时对齐断言，不关闭 Flash-Attention，也不启用 TF32 或其他降精度选项。
-
-正式验收至少应满足：
-
-- OptimizationReport 中预期的 10 个 Group 全部为 `applied`；
-- 双 rank 完成规定的 optimizer steps，Loss 无 NaN/Inf；
-- Loss 与性能基线使用相同的 PyTorch、DTK、模型 commit、数据顺序、seed、batch size 和梯度累积；
-- CPU/NUMA、MIOpen user DB 和 BLAS 产物与目标节点及镜像版本匹配；
-- 记录 `action_dit_loss`、`future_video_loss`、`total_loss`、稳态 step time 和吞吐。
-
 优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
