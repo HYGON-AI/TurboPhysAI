@@ -1,6 +1,6 @@
 # OpenPI 应用说明
 
-本文说明如何在 HCU 环境中，基于官方 OpenPI 仓库应用 TurboPhysAI 优化。下文提供镜像构建、源码安装、资源准备和训练启动命令；通用环境说明参见[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)。
+本文说明如何在 HCU 环境中，直接使用 VLA 基础镜像，在容器内安装依赖、准备资源并应用 TurboPhysAI 优化，无需 Dockerfile。通用环境说明参见[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)。
 
 ## 1. 模型简介
 
@@ -26,7 +26,7 @@ docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubun
 docker run -dit \
   --restart unless-stopped \
   --network=host \
-  --name=openpi-train-TurboPhysAI \
+  --name=openpi-train-TurboPhysAI-v12-nodockerfile \
   --privileged \
   --device=/dev/kfd \
   --device=/dev/dri \
@@ -43,12 +43,12 @@ docker run -dit \
   harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10 \
   bash -lc 'exec tail -f /dev/null'
 
-docker exec -it openpi-train-TurboPhysAI bash
+docker exec -it openpi-train-TurboPhysAI-v12-nodockerfile bash
 ```
 
 ## 4. 准备模型源码并安装 TurboPhysAI
 
-下文命令均在容器内执行。镜像提供 OpenPI 训练依赖，模型源码在容器启动后拉取。
+下文命令均在容器内执行。基础镜像保留原有 Torch、TorchVision、FlashAttention 和 Triton，Python 依赖与独立 BLAS 在后续步骤安装。
 
 ### 4.1 准备官方 OpenPI 源码
 
@@ -61,15 +61,29 @@ git -C /workspace/openpi_TurboPhysAI/openpi checkout --detach \
 git -C /workspace/openpi_TurboPhysAI/openpi submodule update --init --recursive
 ```
 
-### 4.2 安装 TurboPhysAI
+### 4.2 拉取 TurboPhysAI 源码
+
+当前 OpenPI 接入使用集成分支：
+
+```bash
+cd /workspace/openpi_TurboPhysAI
+git clone --branch openpi-TurboPhysAI-Optimization \
+  https://github.com/Coulsonq/TurboPhysAI.git TurboPhysAI
+```
+
+如果使用的官方版本已包含 OpenPI 接入，可改用以下命令；与上面的拉取命令二选一：
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
 git clone --branch main \
-  https://github.com/HYGON-AI/TurboPhysAI.git \
-  TurboPhysAI
+  https://github.com/HYGON-AI/TurboPhysAI.git TurboPhysAI
+```
 
+### 4.3 编译并安装 TurboPhysAI
+
+```bash
 cd /workspace/openpi_TurboPhysAI/TurboPhysAI
+
 python -c 'import torch; print(torch.__version__)'
 python -m pip install ninja wheel setuptools
 MAX_JOBS=8 python setup.py bdist_wheel
@@ -77,9 +91,30 @@ python -m pip install --no-deps --force-reinstall dist/turbo_physai-*.whl
 turbo-physai --help
 ```
 
-## 5. 准备官方 LIBERO 数据
+## 5. 安装 Python 依赖
 
-### 5.1 下载数据集
+普通依赖通过 [requirements.txt](./requirements.txt) 安装，其中已包含 Jinja2、Transformers 4.53.2 和 Tokenizers 0.21.4。
+
+```bash
+cd /workspace/openpi_TurboPhysAI/TurboPhysAI
+
+python -m pip install --no-cache-dir \
+  --index-url https://pypi.tuna.tsinghua.edu.cn/simple \
+  -r model_examples/OpenPi/requirements.txt
+```
+
+LeRobot 和 gym-aloha 使用 `--no-deps` 安装，避免其依赖要求替换基础镜像的 Torch 栈。
+
+```bash
+python -m pip install --no-cache-dir --no-deps \
+  --index-url https://pypi.tuna.tsinghua.edu.cn/simple \
+  gym-aloha==0.1.1 \
+  'lerobot @ git+https://github.com/huggingface/lerobot.git@0cf864870cf29f4738d3ade893e6fd13fbd7cdb5'
+```
+
+## 6. 准备必要资源
+
+### 6.1 下载 LIBERO 数据集
 
 从 [Hugging Face](https://huggingface.co/datasets/physical-intelligence/libero) 或使用以下命令下载 LIBERO 数据集。
 
@@ -98,51 +133,7 @@ hf download physical-intelligence/libero \
   --local-dir /workspace/openpi_TurboPhysAI/static_data/.lerobot_root/physical-intelligence/libero
 ```
 
-### 5.2 准备归一化统计
-
-使用本例的 LIBERO 数据时，可直接使用附件中的 [norm_stats.json](./norm_stats.json)：
-
-```bash
-mkdir -p /workspace/openpi_TurboPhysAI/static_data/assets/pi05_libero/physical-intelligence/libero
-cp /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/norm_stats.json \
-  /workspace/openpi_TurboPhysAI/static_data/assets/pi05_libero/physical-intelligence/libero/norm_stats.json
-```
-
-需要重新计算，或使用其他数据集时，运行以下命令；更换数据集需同步调整训练配置名称。结果保存到 `static_data/assets/pi05_libero/physical-intelligence/libero/norm_stats.json`。
-
-```bash
-cd /workspace/openpi_TurboPhysAI/static_data
-
-export PYTHONPATH="/workspace/openpi_TurboPhysAI/openpi/src:/workspace/openpi_TurboPhysAI/openpi/packages/openpi-client/src${PYTHONPATH:+:${PYTHONPATH}}"
-export HF_LEROBOT_HOME="/workspace/openpi_TurboPhysAI/static_data/.lerobot_root"
-export JAX_PLATFORMS=cpu
-
-python - <<'PY'
-import datetime
-import dataclasses
-import runpy
-import sys
-
-# Python 3.10 兼容：必须在导入 OpenPI 模块前设置
-datetime.UTC = datetime.timezone.utc
-
-import openpi.training.config as config
-
-# 关闭统计脚本的数据加载 worker，避免子进程丢失上述兼容补丁
-original_get_config = config.get_config
-config.get_config = lambda name: dataclasses.replace(
-    original_get_config(name), num_workers=0
-)
-
-script = "/workspace/openpi_TurboPhysAI/openpi/scripts/compute_norm_stats.py"
-sys.argv = [script, "--config-name", "pi05_libero"]
-runpy.run_path(script, run_name="__main__")
-PY
-```
-
-## 6. 准备预训练权重和 tokenizer
-
-### 6.1 下载 PI0.5 base 权重
+### 6.2 下载 PI0.5 base 权重
 
 从官方 `gs://openpi-assets/checkpoints/pi05_base` 下载完整 JAX checkpoint。
 
@@ -320,7 +311,7 @@ print(f"\n下载完成：{ROOT}")
 PY
 ```
 
-### 6.2 应用 Transformers 补丁
+### 6.3 应用 Transformers 补丁
 
 将 OpenPI 提供的 Transformers 补丁复制到当前 Python 环境，并安装兼容版本的 huggingface-hub。
 
@@ -337,7 +328,7 @@ python -m pip install --no-cache-dir --no-deps --force-reinstall \
   'huggingface-hub>=0.30.0,<1.0'
 ```
 
-### 6.3 转换为 PyTorch 格式
+### 6.4 转换为 PyTorch 格式
 
 将下载完成的 JAX 权重转换为 PyTorch 格式，结果保存到 `static_data/pi05_base_pytorch`。
 
@@ -370,7 +361,52 @@ runpy.run_path(script, run_name="__main__")
 PY
 ```
 
-### 6.4 下载 PaliGemma tokenizer
+### 6.5 准备归一化统计
+
+使用本例的 LIBERO 数据时，可直接使用附件中的 [norm_stats.json](./norm_stats.json)：
+
+```bash
+mkdir -p /workspace/openpi_TurboPhysAI/static_data/assets/pi05_libero/physical-intelligence/libero
+cp /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/norm_stats.json \
+  /workspace/openpi_TurboPhysAI/static_data/assets/pi05_libero/physical-intelligence/libero/norm_stats.json
+```
+
+需要重新计算，或使用其他数据集时，运行以下命令；更换数据集需同步调整训练配置名称。结果保存到 `static_data/assets/pi05_libero/physical-intelligence/libero/norm_stats.json`。
+
+```bash
+python -m pip install --no-deps multiprocess
+python -m pip install --no-deps attr
+
+cd /workspace/openpi_TurboPhysAI/static_data
+
+export PYTHONPATH="/workspace/openpi_TurboPhysAI/openpi/src:/workspace/openpi_TurboPhysAI/openpi/packages/openpi-client/src${PYTHONPATH:+:${PYTHONPATH}}"
+export HF_LEROBOT_HOME="/workspace/openpi_TurboPhysAI/static_data/.lerobot_root"
+export JAX_PLATFORMS=cpu
+
+python - <<'PY'
+import datetime
+import dataclasses
+import runpy
+import sys
+
+# Python 3.10 兼容：必须在导入 OpenPI 模块前设置
+datetime.UTC = datetime.timezone.utc
+
+import openpi.training.config as config
+
+# 关闭统计脚本的数据加载 worker，避免子进程丢失上述兼容补丁
+original_get_config = config.get_config
+config.get_config = lambda name: dataclasses.replace(
+    original_get_config(name), num_workers=0
+)
+
+script = "/workspace/openpi_TurboPhysAI/openpi/scripts/compute_norm_stats.py"
+sys.argv = [script, "--config-name", "pi05_libero"]
+runpy.run_path(script, run_name="__main__")
+PY
+```
+
+### 6.6 下载 PaliGemma tokenizer
 
 ```bash
 mkdir -p /workspace/openpi_TurboPhysAI/static_data/assets
@@ -379,9 +415,51 @@ curl -fL --retry 5 --retry-delay 2 \
   -o /workspace/openpi_TurboPhysAI/static_data/assets/paligemma_tokenizer.model
 ```
 
+### 6.7 安装独立 BLAS 优化包
+
+在容器内下载并解压 BLAS 包，创建与 `runtime.yaml` 对应的库路径。以下命令用于首次安装，目标软链接应尚不存在。
+
+```bash
+(
+  set -Eeuo pipefail
+
+  mkdir -p /opt/openpi/dtk-26.04-blas-raw
+
+  curl -fsSL --retry 3 --retry-delay 2 \
+    http://42.228.13.241:18000/dtk-archived/nightly/dtk-26.04/0921/DTK-26.04-blas-nightly-0921-cut-ubuntu20.04-x86_64.tar.gz \
+    -o /tmp/dtk-blas.tar.gz
+
+  tar -xzf /tmp/dtk-blas.tar.gz \
+    -C /opt/openpi/dtk-26.04-blas-raw
+
+  BLAS_LIB_DIR="$(find /opt/openpi/dtk-26.04-blas-raw \
+    -type f -name 'librocblas.so*' -printf '%h\n' | head -n 1)"
+
+  test -n "$BLAS_LIB_DIR"
+  mkdir -p /opt/openpi/dtk-26.04-blas
+  ln -s "$BLAS_LIB_DIR" /opt/openpi/dtk-26.04-blas/lib
+  test -e /opt/openpi/dtk-26.04-blas/lib/librocblas.so
+  echo "BLAS 安装并验证成功：$BLAS_LIB_DIR"
+)
+```
+
 ## 7. 通过 turbo-physai run 启动训练
 
 `turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。按设备调整 RuntimeConfig 的可见卡、数据集和库路径。`prepare_tune_runtime.sh` 设置资源和输出路径，并切换到 OpenPI 源码目录。
+
+可以直接执行以下任一脚本：
+
+```bash
+bash /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/run_openpi_torchrun_tune_by_config.sh
+```
+
+或：
+
+```bash
+bash /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/run_openpi_torchrun_tune_by_model.sh
+```
+
+两种脚本对应的完整启动命令如下。手动执行时也需先 `source prepare_tune_runtime.sh`，由它初始化变量并切换到 OpenPI 根目录，保证相对入口 `scripts/train_pytorch.py` 和 RuntimeConfig 中的相对路径正确解析。
 
 ### 7.1 显式指定配置
 
@@ -432,11 +510,13 @@ turbo-physai run \
   2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_model_${STAMP}.log"
 ```
 
+`openpi.disable_tqdm` 优化组依赖 tqdm 版本，需检查报告中的实际应用结果。完整启用时，汇总应为 `applied=9`、`blocked=0`、`failed=0`，且每组 `Execution` 状态为 `applied`。
+
 训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
 
 ## 8. 目录结构
 
-完成上述流程后，容器内主要目录如下；
+完成上述流程后，容器内主要目录如下：
 
 ```text
 /workspace/openpi_TurboPhysAI/
@@ -444,18 +524,18 @@ turbo-physai run \
 ├── TurboPhysAI/                             # TurboPhysAI 源码
 │   ├── model_examples/OpenPi/
 │   │   ├── README.md
-│   │   ├── norm_stats.json                  # 本例提供的 LIBERO 统计文件
-│   │   └── openpi-docker-build-torch210/
-│   │       ├── Dockerfile
-│   │       ├── requirements.txt
-│   │       └── .dockerignore
+│   │   ├── requirements.txt
+│   │   └── norm_stats.json                  # 本例提供的 LIBERO 统计文件
 │   └── turbo_physai/optimizations/models/openpi/
 │       ├── configs/
 │       │   ├── recipe.yaml
 │       │   ├── optimization.yaml
 │       │   └── runtime.yaml
-│       ├── compat/
+│       ├── sitecustomize.py
 │       └── scripts/
+│           ├── prepare_tune_runtime.sh
+│           ├── run_openpi_torchrun_tune_by_config.sh
+│           └── run_openpi_torchrun_tune_by_model.sh
 ├── static_data/                             # 数据集、权重和运行资源
 │   ├── .lerobot_root/physical-intelligence/libero/
 │   │   ├── data/
