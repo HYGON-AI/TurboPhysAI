@@ -86,7 +86,7 @@ turbo-physai --help
 
 ### 5.1 下载数据集
 
-从 [Hugging Face](https://huggingface.co/datasets/physical-intelligence/libero) 下载 LIBERO 数据集，数据目录与 `HF_LEROBOT_HOME/physical-intelligence/libero` 对应。
+从 [Hugging Face](https://huggingface.co/datasets/physical-intelligence/libero) 或使用以下命令下载 LIBERO 数据集。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
