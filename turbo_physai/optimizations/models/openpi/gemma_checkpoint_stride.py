@@ -41,7 +41,7 @@ def wrap_gemma_forward(original, options: Mapping[str, Any]):
     stride-zero path as direct calls, exactly as the patched source does,
     while leaving the official checkout untouched.
     """
-    stride = int(options.get("layer_stride", 1))
+    stride = int(options.get("layer_stride", 0))
     if stride < 0:
         raise ValueError("layer_stride must be non-negative")
 
@@ -229,7 +229,7 @@ def wrap_gemma_forward(original, options: Mapping[str, Any]):
 # the model path because a checkpoint helper wrapper causes Dynamo variants per
 # layer index inside the outer compiled graph.
 def wrap_gemma_checkpoint(original, options: Mapping[str, Any]):
-    stride = int(options.get("layer_stride", 1))
+    stride = int(options.get("layer_stride", 0))
     if stride < 0:
         raise ValueError("layer_stride must be non-negative")
 

@@ -35,11 +35,7 @@ optimization_groups:
       - ast-v1:c668b1dee7842737f683387ac61505764734b7b044bdafc1c6e6ac9f14865a87
 - id: openpi.ddp_static_fast_path
   enabled: true
-  options:
-    broadcast_buffers: false
-    find_unused_parameters: false
-    gradient_as_bucket_view: true
-    static_graph: true
+  options: {}
   trust:
     source_hashes:
       torch.nn.parallel.DistributedDataParallel.__init__:
@@ -50,10 +46,7 @@ optimization_groups:
 - id: openpi.compile_stack
   enabled: true
   options:
-    compile: true
-    direct: true
     mode: max-autotune-no-cudagraphs
-    optimize_ddp: false
   trust:
     source_hashes:
       scripts.train_pytorch.init_logging:
@@ -71,8 +64,7 @@ optimization_groups:
       - ast-v1:ae6349ec995e07fd5351b2580be59fe386ee59bae85f7e95edb08921255b5e6a
 - id: openpi.gemma_checkpoint_stride
   enabled: true
-  options:
-    layer_stride: 0
+  options: {}
   trust:
     source_hashes:
       openpi.models_pytorch.gemma_pytorch.PaliGemmaWithExpertModel.forward:
@@ -82,8 +74,7 @@ optimization_groups:
       - ast-v1:6213a8af7cf1edb2ed10e1c6eb1dbb7502a1a7fc6255ff34184f9a313e58a8a1
 - id: openpi.fused_adamw
   enabled: true
-  options:
-    fused: true
+  options: {}
   trust:
     source_hashes:
       torch.optim.AdamW:
@@ -113,10 +104,7 @@ optimization_groups:
       - ast-v1:b512b0d93f2ce7455bc16518b5de0731302c1c47b40a10a0929ff03f4f86a52b
 - id: openpi.inductor_settings
   enabled: true
-  options:
-    inductor:
-      layout_optimization: true
-      shape_padding: true
+  options: {}
   trust:
     source_hashes:
       torch.compile:

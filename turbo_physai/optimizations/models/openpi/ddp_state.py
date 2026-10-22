@@ -69,7 +69,7 @@ def configure_optimize_ddp() -> None:
         return
     import torch
 
-    mode = _COMPILE_OPTIONS.get("optimize_ddp", "no_optimization")
+    mode = _COMPILE_OPTIONS.get("optimize_ddp", False)
     if isinstance(mode, str):
         normalized = mode.strip().lower()
         if normalized in {"0", "false", "off"}:

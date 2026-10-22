@@ -31,7 +31,9 @@ def wrap_torch_compile(original, group_options: Mapping[str, Any]):
     ):
         import torch
 
-        inductor_options = compile_group_options.get("inductor", {})
+        inductor_options = compile_group_options.get(
+            "inductor", {"layout_optimization": True, "shape_padding": True}
+        )
         if isinstance(inductor_options, Mapping):
             config = getattr(getattr(torch, "_inductor", None), "config", None)
             if config is not None:
