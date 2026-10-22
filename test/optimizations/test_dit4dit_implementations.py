@@ -197,6 +197,23 @@ def test_video_pack_rejects_mixed_future_frame_counts():
         )
 
 
+def test_video_pack_compile_wrapper_preserves_supported_gt_ranges(monkeypatch):
+    torch = pytest.importorskip("torch")
+    from turbo_physai.optimizations.models.dit4dit import video_pack
+
+    monkeypatch.setattr(torch, "compile", lambda fn, **kwargs: fn)
+    compiled_pack = video_pack.compile_pack_wrapper(None, {})
+    videos = torch.linspace(-1.0, 1.0, 12).reshape(1, 3, 1, 2, 2)
+
+    for gt in (
+        torch.linspace(0.0, 1.0, 12).reshape(1, 3, 1, 2, 2),
+        torch.linspace(-1.0, 1.0, 12).reshape(1, 3, 1, 2, 2),
+    ):
+        expected = video_pack.pack_flow_matching_video(videos, gt)
+        actual = compiled_pack(videos, gt)
+        torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+
 def test_action_dropout_fallback_matches_eager_rng_on_hcu():
     torch = pytest.importorskip("torch")
     if not torch.cuda.is_available():
