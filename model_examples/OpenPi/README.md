@@ -26,7 +26,7 @@ docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubun
 docker run -dit \
   --restart unless-stopped \
   --network=host \
-  --name=openpi-train-TurboPhysAI-v12-nodockerfile \
+  --name=openpi-train-TurboPhysAI \
   --privileged \
   --device=/dev/kfd \
   --device=/dev/dri \
@@ -43,7 +43,7 @@ docker run -dit \
   harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10 \
   bash -lc 'exec tail -f /dev/null'
 
-docker exec -it openpi-train-TurboPhysAI-v12-nodockerfile bash
+docker exec -it openpi-train-TurboPhysAI bash
 ```
 
 ## 4. 准备模型源码并安装 TurboPhysAI
@@ -62,16 +62,6 @@ git -C /workspace/openpi_TurboPhysAI/openpi submodule update --init --recursive
 ```
 
 ### 4.2 拉取 TurboPhysAI 源码
-
-当前 OpenPI 接入使用集成分支：
-
-```bash
-cd /workspace/openpi_TurboPhysAI
-git clone --branch openpi-TurboPhysAI-Optimization \
-  https://github.com/Coulsonq/TurboPhysAI.git TurboPhysAI
-```
-
-如果使用的官方版本已包含 OpenPI 接入，可改用以下命令；与上面的拉取命令二选一：
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
@@ -93,7 +83,7 @@ turbo-physai --help
 
 ## 5. 安装 Python 依赖
 
-普通依赖通过 [requirements.txt](./requirements.txt) 安装，其中已包含 Jinja2、Transformers 4.53.2 和 Tokenizers 0.21.4。
+普通依赖通过 [requirements.txt](./requirements.txt) 安装。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI/TurboPhysAI
