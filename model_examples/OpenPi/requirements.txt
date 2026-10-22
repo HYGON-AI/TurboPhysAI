@@ -39,11 +39,3 @@ tyro==1.0.8
 typing-extensions>=4.12.2
 wandb==0.24.2
 websockets>=13
-
-# Packages previously installed separately; keep vendor Torch stack in the base image.
-Jinja2>=3.1,<4
-gym-aloha==0.1.1
-huggingface-hub==0.36.2
-lerobot @ git+https://github.com/huggingface/lerobot.git@0cf864870cf29f4738d3ade893e6fd13fbd7cdb5
-tokenizers==0.21.4
-transformers==4.53.2
