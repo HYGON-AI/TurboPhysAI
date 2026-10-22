@@ -22,9 +22,19 @@ def pack_flow_matching_video(videos_bcthw, gt_bcthw):
 
 
 def _pack_normalized(videos_bcthw, gt_bcthw):
+    # Preserve the upstream contract for both accepted GT ranges while keeping
+    # the data-dependent choice inside the compiled graph.
+    normalized_gt = torch.where(
+        gt_bcthw.amin() >= 0,
+        gt_bcthw * 2.0 - 1.0,
+        gt_bcthw,
+    )
     return torch.cat(
-        [videos_bcthw.to(device=gt_bcthw.device, dtype=gt_bcthw.dtype),
-         gt_bcthw * 2.0 - 1.0], dim=2
+        [
+            videos_bcthw.to(device=gt_bcthw.device, dtype=gt_bcthw.dtype),
+            normalized_gt,
+        ],
+        dim=2,
     )
 
 
