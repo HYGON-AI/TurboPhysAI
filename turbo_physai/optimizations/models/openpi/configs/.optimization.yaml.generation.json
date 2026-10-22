@@ -4,20 +4,20 @@
   "model_commit": "215abfb217dbac7d5f1273282331b9b1866c0479",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "7980455caced7d3db963c3884f43cee749001b32e81df8ce526bc7290b28c309"
+    "sha256": "ba49078e9ee72746a2871ef9ff47b53ed99d56ec5f5e397736fff535acbbc1c3"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "package",
       "path": "optimizations/models/openpi/configs/recipe.yaml",
-      "sha256": "0cfe348590a9a70be63322c1d9024faace3d875fc02765dad2afd0eb21015006"
+      "sha256": "99c20b46bb14c13e97f8a50b4d9b0a939955428e2524d2bebf43f481be0663ec"
     },
     {
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/openpi/catalog.py",
-      "sha256": "9ff84e9dc105cda632ed44952ac94caf180efe805c9a838d42628d51ddf5c94c"
+      "sha256": "37e4edc56ab54a64adc851b1bed2e9f6bb30da4076cb7ab36a7771b8c8692092"
     }
   ]
 }
