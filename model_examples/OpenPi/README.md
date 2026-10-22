@@ -12,17 +12,12 @@ TurboPhysAI 的 OpenPI 优化基于官方仓库 commit `215abfb217dbac7d5f127328
 
 ## 3. 准备训练环境
 
-以下命令在宿主机执行。将构建文件 [Dockerfile](./openpi-docker-build-torch210/Dockerfile)、[requirements.txt](./openpi-docker-build-torch210/requirements.txt) 和 [.dockerignore](./openpi-docker-build-torch210/.dockerignore) 保存到同一个 `openpi-docker-build-torch210` 目录。
+以下命令在宿主机执行:
 
-### 3.1 拉取基础镜像并构建训练镜像
+### 3.1 拉取基础镜像
 
 ```bash
 docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10
-
-cd openpi-docker-build-torch210
-docker build \
-  -f Dockerfile \
-  -t openpi-dcu:vla-base .
 ```
 
 ### 3.2 创建并进入容器
@@ -45,7 +40,7 @@ docker run -dit \
   --ulimit memlock=-1:-1 \
   -v /opt/hyhal:/opt/hyhal:ro \
   -w /workspace/openpi_TurboPhysAI \
-  openpi-dcu:vla-base \
+  harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10 \
   bash -lc 'exec tail -f /dev/null'
 
 docker exec -it openpi-train-TurboPhysAI bash
