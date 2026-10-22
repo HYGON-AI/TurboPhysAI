@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """HCU PCI-to-NUMA binding copied from the validated OpenPI launcher semantics."""
 
 from __future__ import annotations

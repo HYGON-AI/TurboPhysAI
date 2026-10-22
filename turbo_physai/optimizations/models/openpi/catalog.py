@@ -1,7 +1,9 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """TurboPhysAI catalog for OpenPI optimization groups."""
 
 from turbo_physai import group, replace, wrap
-
 
 CATALOG_GROUPS = (
     "openpi.numa",
@@ -15,7 +17,6 @@ CATALOG_GROUPS = (
     "openpi.inductor_settings",
 )
 
-
 NUMA = group(
     "openpi.numa",
     wrap(
@@ -23,7 +24,6 @@ NUMA = group(
         replacement="turbo_physai.optimizations.models.openpi.numa.wrap_process_group_numa",
     ),
 )
-
 
 NETWORK = group(
     "openpi.network",
@@ -33,7 +33,6 @@ NETWORK = group(
     ),
 )
 
-
 DDP_STATIC_FAST_PATH = group(
     "openpi.ddp_static_fast_path",
     wrap(
@@ -41,7 +40,6 @@ DDP_STATIC_FAST_PATH = group(
         replacement="turbo_physai.optimizations.models.openpi.ddp_static_fast_path.wrap_ddp_static_fast_path",
     ),
 )
-
 
 COMPILE_STACK = group(
     "openpi.compile_stack",
@@ -59,9 +57,6 @@ COMPILE_STACK = group(
     ),
 )
 
-
-
-
 GEMMA_CHECKPOINT_STRIDE = group(
     "openpi.gemma_checkpoint_stride",
     wrap(
@@ -69,7 +64,6 @@ GEMMA_CHECKPOINT_STRIDE = group(
         replacement="turbo_physai.optimizations.models.openpi.gemma_checkpoint_stride.wrap_gemma_forward",
     ),
 )
-
 
 FUSED_ADAMW = group(
     "openpi.fused_adamw",
@@ -79,7 +73,6 @@ FUSED_ADAMW = group(
     ),
 )
 
-
 DEFERRED_METRIC_SYNC = group(
     "openpi.deferred_metric_sync",
     replace(
@@ -88,7 +81,6 @@ DEFERRED_METRIC_SYNC = group(
     ),
 )
 
-
 DISABLE_TQDM = group(
     "openpi.disable_tqdm",
     wrap(
@@ -96,9 +88,6 @@ DISABLE_TQDM = group(
         replacement="turbo_physai.optimizations.models.openpi.disable_tqdm.wrap_tqdm_disabled",
     ),
 )
-
-
-
 
 INDUCTOR_SETTINGS = group(
     "openpi.inductor_settings",

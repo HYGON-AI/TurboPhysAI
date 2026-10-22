@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -15,8 +18,8 @@ turbo-physai run \
     --assets-base-dir "${ASSETS_BASE_DIR}" \
     --checkpoint-base-dir "${CHECKPOINT_BASE_DIR}" \
     --pytorch_weight_path "${WEIGHT_PATH}" \
-    --num_train_steps 30000 \
+    --num_train_steps 10000 \
     --log-interval 1 \
-    --save-interval 2000 \
+    --save-interval 5000 \
     --no-wandb-enabled \
     2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_model_${STAMP}.log"

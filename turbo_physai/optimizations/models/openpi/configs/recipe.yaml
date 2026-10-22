@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 schema_version: turbophysai/optimization-config/v1
 kind: OptimizationConfig
 
@@ -38,7 +41,6 @@ optimization_groups:
       optimize_ddp: false
       compile: true
       direct: true
-      fullgraph: false
       mode: max-autotune-no-cudagraphs
 
   - id: openpi.gemma_checkpoint_stride

@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Compatibility shims that remain active independently of optimization groups."""
 
 from __future__ import annotations

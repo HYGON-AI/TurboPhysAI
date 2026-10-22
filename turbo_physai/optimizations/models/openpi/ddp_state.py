@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Shared dispatcher for the two independent DDP optimizations.
 
 Turbo applies wrappers targeting the same ``DistributedDataParallel.__init__``

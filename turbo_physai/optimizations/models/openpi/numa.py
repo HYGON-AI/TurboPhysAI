@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Require NUMA affinity to be set before Torch starts each training rank."""
 
 from __future__ import annotations
@@ -16,7 +19,7 @@ def wrap_train_loop_numa(original, options: Mapping[str, Any]):
     def wrapped(*args, **kwargs):
         if os.environ.get("OPENPI_TURBO_NUMA_PREBOUND") != "1":
             raise RuntimeError(
-                "openpi.numa must bind the rank in compat/sitecustomize.py before Torch import; "
+                "openpi.numa must bind the rank in sitecustomize.py before Torch import; "
                 "refusing to bind after Torch initialization"
             )
         return original(*args, **kwargs)

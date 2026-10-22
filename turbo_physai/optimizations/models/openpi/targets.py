@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Stable external aliases for official OpenPI targets.
 
 The two PI0 compile groups need independent Turbo configuration while both

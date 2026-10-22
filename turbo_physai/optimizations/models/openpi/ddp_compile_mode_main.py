@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Set torch Dynamo's DDP compile mode before upstream model construction."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """External replacement for the official PI0 outer checkpoint dispatcher."""
 
 from __future__ import annotations
