@@ -625,6 +625,53 @@ def _make_cosmos_segment(
     return run_segment if compile_kwargs is None else torch.compile(run_segment, **compile_kwargs)
 
 
+def _get_expanded_padding_mask(
+    transformer,
+    padding_mask: torch.Tensor,
+    *,
+    spatial_size: tuple[int, int],
+    batch_size: int,
+    num_frames: int,
+) -> torch.Tensor:
+    """Resize and expand one mask without unsafe allocator-address reuse."""
+    padding_cache = transformer._dit4dit_padding_mask_cache
+    padding_key = (
+        id(padding_mask),
+        padding_mask._version,
+        tuple(padding_mask.shape),
+        tuple(spatial_size),
+        batch_size,
+        num_frames,
+        str(padding_mask.device),
+        padding_mask.dtype,
+    )
+    cached = padding_cache.get(padding_key)
+    if cached is not None:
+        cached_mask, cached_expanded = cached
+        if cached_mask is padding_mask:
+            return cached_expanded
+
+    padding_mask_resized = transforms.functional.resize(
+        padding_mask,
+        list(spatial_size),
+        interpolation=transforms.InterpolationMode.NEAREST,
+    )
+    padding_mask_expanded = padding_mask_resized.unsqueeze(2).repeat(
+        batch_size, 1, num_frames, 1, 1
+    )
+
+    # Retain the source tensor in each entry. This prevents Python object IDs
+    # and allocator addresses from being reused while the cached result is
+    # reachable. A version change invalidates an in-place modified tensor.
+    for stale_key, (cached_mask, _) in tuple(padding_cache.items()):
+        if cached_mask is padding_mask:
+            del padding_cache[stale_key]
+    if len(padding_cache) >= 4:
+        padding_cache.clear()
+    padding_cache[padding_key] = (padding_mask, padding_mask_expanded)
+    return padding_mask_expanded
+
+
 def _segmented_cosmos_forward(
     self,
     hidden_states: torch.Tensor,
@@ -660,30 +707,13 @@ def _segmented_cosmos_forward(
         hidden_states = torch.cat([hidden_states, condition_mask], dim=1)
 
     if self.config.concat_padding_mask:
-        padding_cache = self._dit4dit_padding_mask_cache
-        padding_key = (
-            padding_mask.data_ptr(),
-            padding_mask._version,
-            tuple(padding_mask.shape),
-            tuple(hidden_states.shape[-2:]),
-            batch_size,
-            num_frames,
-            str(padding_mask.device),
-            padding_mask.dtype,
+        padding_mask_expanded = _get_expanded_padding_mask(
+            self,
+            padding_mask,
+            spatial_size=tuple(hidden_states.shape[-2:]),
+            batch_size=batch_size,
+            num_frames=num_frames,
         )
-        padding_mask_expanded = padding_cache.get(padding_key)
-        if padding_mask_expanded is None:
-            padding_mask_resized = transforms.functional.resize(
-                padding_mask,
-                list(hidden_states.shape[-2:]),
-                interpolation=transforms.InterpolationMode.NEAREST,
-            )
-            padding_mask_expanded = padding_mask_resized.unsqueeze(2).repeat(
-                batch_size, 1, num_frames, 1, 1
-            )
-            if len(padding_cache) >= 4:
-                padding_cache.clear()
-            padding_cache[padding_key] = padding_mask_expanded
         hidden_states = torch.cat(
             [hidden_states, padding_mask_expanded],
             dim=1,

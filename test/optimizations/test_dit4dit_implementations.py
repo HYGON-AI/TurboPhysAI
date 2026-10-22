@@ -112,6 +112,43 @@ def test_cosmos_segment_compile_rejects_alignment_asserts(monkeypatch):
         )
 
 
+def test_padding_mask_cache_is_identity_safe_and_versioned():
+    torch = pytest.importorskip("torch")
+    transformer = types.SimpleNamespace(_dit4dit_padding_mask_cache={})
+    padding_mask = torch.zeros((1, 2, 2))
+
+    first = cosmos_forward._get_expanded_padding_mask(
+        transformer,
+        padding_mask,
+        spatial_size=(4, 4),
+        batch_size=2,
+        num_frames=3,
+    )
+    second = cosmos_forward._get_expanded_padding_mask(
+        transformer,
+        padding_mask,
+        spatial_size=(4, 4),
+        batch_size=2,
+        num_frames=3,
+    )
+
+    assert second is first
+    assert next(iter(transformer._dit4dit_padding_mask_cache.values()))[0] is padding_mask
+
+    padding_mask.fill_(1)
+    after_mutation = cosmos_forward._get_expanded_padding_mask(
+        transformer,
+        padding_mask,
+        spatial_size=(4, 4),
+        batch_size=2,
+        num_frames=3,
+    )
+
+    assert after_mutation is not first
+    assert torch.equal(after_mutation, torch.ones_like(after_mutation))
+    assert len(transformer._dit4dit_padding_mask_cache) == 1
+
+
 def test_entry_sets_deepspeed_accumulation_consistently():
     plugin = types.SimpleNamespace(
         gradient_accumulation_steps=1,
