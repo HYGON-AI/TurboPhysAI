@@ -439,18 +439,6 @@ curl -fL --retry 5 --retry-delay 2 \
 
 可以直接执行以下任一脚本：
 
-```bash
-bash /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/run_openpi_torchrun_tune_by_config.sh
-```
-
-或：
-
-```bash
-bash /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/run_openpi_torchrun_tune_by_model.sh
-```
-
-两种脚本对应的完整启动命令如下。手动执行时也需先 `source prepare_tune_runtime.sh`，由它初始化变量并切换到 OpenPI 根目录，保证相对入口 `scripts/train_pytorch.py` 和 RuntimeConfig 中的相对路径正确解析。
-
 ### 7.1 显式指定配置
 
 ```bash
@@ -499,8 +487,6 @@ turbo-physai run \
     --no-wandb-enabled \
   2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_model_${STAMP}.log"
 ```
-
-`openpi.disable_tqdm` 优化组依赖 tqdm 版本，需检查报告中的实际应用结果。完整启用时，汇总应为 `applied=9`、`blocked=0`、`failed=0`，且每组 `Execution` 状态为 `applied`。
 
 训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
 
