@@ -8,7 +8,7 @@
 
 ## 2. 优化接入基线
 
-本接入基于官方 FlashOCC 仓库 commit `449dc7947d6549ccb72a99d6f6d8c02f166ec0dd`，TurboPhysAI 优化实现位于 [`flashocc-optimization` 分支](https://github.com/Coulsonq/TurboPhysAI/tree/flashocc-optimization/turbo_physai/optimizations/models/flashocc)。
+本接入基于官方 FlashOCC 仓库 commit `449dc7947d6549ccb72a99d6f6d8c02f166ec0dd`，TurboPhysAI 优化实现位于 [`flashocc-optimization`]分支(https://github.com/Coulsonq/TurboPhysAI/tree/flashocc-optimization/turbo_physai/optimizations/models/flashocc)。
 
 启动时通过 `--optimization-config` 和 `--runtime-config` 显式指定该模型的配置；不需要修改官方 FlashOCC 源码。配置文件的作用说明见 [OptimizationConfig 文档](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig 文档](../../docs/zh/user_guide/runtime_config.md)。
 
