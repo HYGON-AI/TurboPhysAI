@@ -423,19 +423,6 @@ setup(
     name="turbo-physai",
     version=VERSION,
     description="Model training performance optimization for the DAS software stack",
-    license_files=(
-        "LICENSE",
-        "NOTICE",
-        "THIRD_PARTY_NOTICES.md",
-        "third_party/licenses/*",
-    ),
-    data_files=[
-        (
-            "share/doc/turbo-physai",
-            ["THIRD_PARTY_NOTICES.md"]
-            + [str(path) for path in sorted(Path("third_party/licenses").glob("*"))],
-        ),
-    ],
     packages=find_packages(),
     include_package_data=True,
     package_data={
