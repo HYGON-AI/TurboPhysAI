@@ -4,9 +4,13 @@
 """Action compilation and native RNG fallback are one indivisible operation."""
 
 import functools
+import os
 
 
 def build_framework_wrapper(original, options):
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+        return original
+
     from torch._inductor import config
 
     if not hasattr(config, "fallback_random"):

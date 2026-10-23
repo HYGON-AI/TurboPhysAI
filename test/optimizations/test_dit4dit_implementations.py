@@ -13,6 +13,7 @@ from turbo_physai.optimizations.models.dit4dit import (
     cosmos_cache,
     cosmos_forward,
     entry,
+    video_pack,
 )
 
 
@@ -24,6 +25,21 @@ def _install_fake_inductor(monkeypatch, *, fallback_random=True):
     inductor = types.ModuleType("torch._inductor")
     inductor.config = config
     monkeypatch.setitem(sys.modules, "torch._inductor", inductor)
+
+
+@pytest.mark.parametrize(
+    "factory",
+    (
+        video_pack.compile_pack_wrapper,
+        cosmos_forward.compile_segment_wrapper,
+        action_compile.build_framework_wrapper,
+    ),
+)
+def test_compile_wrappers_honor_global_disable(monkeypatch, factory):
+    monkeypatch.setenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "1")
+    original = lambda *args, **kwargs: (args, kwargs)
+
+    assert factory(original, {}) is original
 
 
 def test_action_compile_keeps_rng_fallback_atomic(monkeypatch):

@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Sequence
 import numpy as np
 import torch
@@ -39,6 +40,8 @@ def _pack_normalized(videos_bcthw, gt_bcthw):
 
 
 def compile_pack_wrapper(original, options):
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+        return original
     # Returning the compiled callable lets the engine own install/rollback;
     # no mutable global compile switch or lazy singleton is required.
     return torch.compile(
