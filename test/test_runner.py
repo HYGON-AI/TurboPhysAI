@@ -5,8 +5,11 @@ import json
 import os
 import subprocess
 import sys
+import types
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from turbo_physai.bootstrap import (
     ACTIVATION_FAILURE_EXIT_CODE,
@@ -181,6 +184,7 @@ def test_runner_replays_the_original_command_when_reexecing(monkeypatch):
 
 
 def test_runner_discovers_rank_numa_from_hy_smi(monkeypatch):
+    monkeypatch.delenv("ROCR_VISIBLE_DEVICES", raising=False)
     monkeypatch.setenv("HIP_VISIBLE_DEVICES", "4,5")
     monkeypatch.setattr("turbo_physai.runner.shutil.which", lambda _: "/usr/bin/hy-smi")
     completed = type("Completed", (), {
@@ -191,6 +195,36 @@ def test_runner_discovers_rank_numa_from_hy_smi(monkeypatch):
     with patch("turbo_physai.runner.subprocess.run", return_value=completed) as command:
         assert _discover_rank_numa_node("0") == 1
     assert command.call_args.args[0] == ["/usr/bin/hy-smi", "--showtopo"]
+
+
+def test_runner_maps_logical_hip_device_through_rocr_visibility(monkeypatch):
+    monkeypatch.setenv("ROCR_VISIBLE_DEVICES", "4,5")
+    monkeypatch.setenv("HIP_VISIBLE_DEVICES", "0,1")
+    monkeypatch.setattr("turbo_physai.runner.shutil.which", lambda _: "/usr/bin/hy-smi")
+    completed = type("Completed", (), {
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "HCU[4] : (Topology) Numa Node 4\nHCU[5] : (Topology) Numa Node 5\n",
+    })()
+    with patch("turbo_physai.runner.subprocess.run", return_value=completed):
+        assert _discover_rank_numa_node("0") == 4
+        assert _discover_rank_numa_node("1") == 5
+
+
+@pytest.mark.parametrize(
+    ("rocr_visible", "hip_visible", "message"),
+    (
+        ("GPU-deadbeef", "0", "cannot infer physical HCU"),
+        ("4", "1", "outside ROCR_VISIBLE_DEVICES"),
+    ),
+)
+def test_runner_rejects_unsupported_rocr_numa_discovery(
+    monkeypatch, rocr_visible, hip_visible, message
+):
+    monkeypatch.setenv("ROCR_VISIBLE_DEVICES", rocr_visible)
+    monkeypatch.setenv("HIP_VISIBLE_DEVICES", hip_visible)
+    with pytest.raises(RuntimeError, match=message):
+        _discover_rank_numa_node("0")
 
 
 def test_runner_starts_training_when_an_independent_group_is_blocked(tmp_path):
@@ -629,3 +663,27 @@ def test_run_training_command_reports_a_missing_executable():
             assert "failed to execute training command" in str(error)
         else:
             raise AssertionError("a missing executable was not reported")
+
+
+@pytest.mark.parametrize(
+    ("rocr", "hip", "rank", "physical"),
+    [("4,5", "", "1", 5), ("4,5", "1,0", "0", 5), ("", "5,4", "1", 4)],
+)
+def test_runner_resolves_visibility_order(monkeypatch, rocr, hip, rank, physical):
+    monkeypatch.setenv("ROCR_VISIBLE_DEVICES", rocr)
+    monkeypatch.setenv("HIP_VISIBLE_DEVICES", hip)
+    monkeypatch.setattr("turbo_physai.runner.shutil.which", lambda _: "/usr/bin/hy-smi")
+    completed = types.SimpleNamespace(
+        returncode=0, stderr="",
+        stdout=f"HCU[{physical}] : (Topology) Numa Node 3\n",
+    )
+    with patch("turbo_physai.runner.subprocess.run", return_value=completed):
+        assert _discover_rank_numa_node(rank) == 3
+
+
+@pytest.mark.parametrize(("hip", "rank"), [("0,1", "2"), ("0,1", "-1"), ("-1", "0")])
+def test_runner_rejects_invalid_visible_device_indices(monkeypatch, hip, rank):
+    monkeypatch.delenv("ROCR_VISIBLE_DEVICES", raising=False)
+    monkeypatch.setenv("HIP_VISIBLE_DEVICES", hip)
+    with pytest.raises(RuntimeError):
+        _discover_rank_numa_node(rank)
