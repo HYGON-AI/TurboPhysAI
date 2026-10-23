@@ -1,7 +1,8 @@
+# Copyright 2025 The NVIDIA Team and The HuggingFace Team.
 # Copyright 2025 DiT4DiT team. All rights reserved.
 # Copyright 2026 Hygon Information Technology Co., Ltd.
-# SPDX-License-Identifier: MIT
-# Adapted from DiT4DiT d8854a1; see THIRD_PARTY_NOTICES.md.
+# Modified for TurboPhysAI; see THIRD_PARTY_NOTICES.md.
+# Licensed under the Apache License, Version 2.0.
 
 """Verified VAE batching and hidden capture; segment compilation is optional."""
 
