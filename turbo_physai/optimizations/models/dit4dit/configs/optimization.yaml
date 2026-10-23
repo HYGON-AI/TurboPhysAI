@@ -94,10 +94,10 @@ optimization_groups:
   trust:
     source_hashes:
       turbo_physai.optimizations.models.dit4dit.cosmos_forward.install_segmented_cosmos_forward:
-      - source-v1:d6eaba4f58de2b650c9e4b98f65deb51b04d47d9092bde4809aef2d26f307712
+      - source-v1:f4f59fcef099073e2656fd2f656895a7716197c6cc96f9f20090426e2a65d50e
     ast_hashes:
       turbo_physai.optimizations.models.dit4dit.cosmos_forward.install_segmented_cosmos_forward:
-      - ast-v1:2018a750114a357c0ef83594b68a198d14d5846cd1867c224d7aff4643b0f0e0
+      - ast-v1:b1f3f83205b4c5d46187ab1a702a249a45ee71bd86beccd85a71e4adbe486396
 - id: dit4dit.cosmos.video_pack
   enabled: true
   options: {}
