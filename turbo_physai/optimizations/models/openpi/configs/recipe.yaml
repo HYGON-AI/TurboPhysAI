@@ -48,3 +48,24 @@ optimization_groups:
 
   - id: openpi.inductor_settings
     enabled: true
+
+  - id: openpi.gemma_gate_lookup
+    enabled: true
+
+  - id: openpi.siglip_gelu_lookup
+    enabled: true
+
+  - id: openpi.rope_trig_cache
+    enabled: true
+
+  - id: openpi.softmax_forward_schedule
+    enabled: true
+
+  - id: openpi.softmax_backward_reuse
+    enabled: true
+
+  - id: openpi.clip_grad_scale
+    enabled: true
+
+  - id: openpi.batched_adamw
+    enabled: true

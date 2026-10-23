@@ -13,12 +13,14 @@ import sys as _sys
 
 _NUMA_GROUP = "openpi.numa"
 _NUMA_PREBOUND = "OPENPI_TURBO_NUMA_PREBOUND"
-_TRAIN_FUNCTIONS = ("setup_ddp", "init_logging", "train_loop")
+_TRAIN_FUNCTIONS = ("setup_ddp", "init_logging", "set_seed", "build_datasets", "train_loop")
 _DIRECT_ENTRY_BRIDGE_GROUPS = frozenset(
     {
         "openpi.numa",
         "openpi.compile_stack",
         "openpi.deferred_metric_sync",
+        "openpi.gemma_gate_lookup",
+        "openpi.siglip_gelu_lookup",
     }
 )
 

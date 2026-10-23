@@ -1,0 +1,12 @@
+{
+  "cases": {
+    "1267df3f8df27a55d6dcb46d6b2aec0ff7d4c0fe6989e20e4fb1a552a05389ff:fp1": {
+      "block": 4096,
+      "warps": 4
+    },
+    "71123f299c080dec447533c09ab0e586d77f66a2d093f194fb7ae850201a8232:fp1": {
+      "block": 2048,
+      "warps": 4
+    }
+  }
+}

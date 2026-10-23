@@ -13,6 +13,8 @@ environment:
     HF_DATASETS_CACHE: "/dev/shm/openpi_8gpu_cache/hf_datasets"
     TORCHINDUCTOR_CACHE_DIR: "/dev/shm/openpi_8gpu_cache/inductor"
     TRITON_CACHE_DIR: "/dev/shm/openpi_8gpu_cache/triton"
+    OPENPI_TORCH_TIMING_OUTPUT: "/workspace/openpi_TurboPhysAI/output/openpi_torch_kernel_runtime"
+    OPENPI_TORCH_KERNEL_CACHE_DIR: "/dev/shm/openpi_8gpu_cache/openpi_turbo_kernels"
     LD_LIBRARY_PATH: "/opt/openpi/dtk-26.04-blas/lib:/usr/local/lib/:/usr/local/lib64/:/opt/mpi/lib:/opt/hwloc/lib:/opt/ucx/lib:/opt/dtk/dcc/gcvm/lib:/opt/dtk/hip/lib:/opt/dtk/llvm/lib:/opt/dtk/lib:/opt/dtk/lib64:/opt/hyhal/lib:/opt/hyhal/lib64:/opt/dtk/dushmem/lib:/opt/dtk/opencl/lib"
     ROCBLAS_TENSILE_LIBPATH: "/opt/openpi/dtk-26.04-blas/lib/rocblas/library_gpu6"
     HIPBLASLT_ALLOW_TF32: "0"

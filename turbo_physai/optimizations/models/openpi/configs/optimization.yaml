@@ -112,5 +112,75 @@ optimization_groups:
     ast_hashes:
       torch.compile:
       - ast-v1:d8f452754fb75629052ce766c364e20b202808a57554c0af443a6841970971d9
+- id: openpi.gemma_gate_lookup
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      scripts.train_pytorch.set_seed:
+      - source-v1:6adc049eb0139c16e49162f71e72cee359d14385ee1ddb1a3c69f0e2c7479da4
+    ast_hashes:
+      scripts.train_pytorch.set_seed:
+      - ast-v1:d27d4f7c83443ca6e1592c3553d43cc811e5636810cfec806f6e00fefc8e6598
+- id: openpi.siglip_gelu_lookup
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      scripts.train_pytorch.build_datasets:
+      - source-v1:8ca8832419d54c74209498d36e05ce36bb80303f3656db299f2884e54545d257
+    ast_hashes:
+      scripts.train_pytorch.build_datasets:
+      - ast-v1:d8020011935fa6085341d24be1897b690dd422157cef5ca8b91e320d06a4eea7
+- id: openpi.rope_trig_cache
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      openpi.models_pytorch.pi0_pytorch.PI0Pytorch.__init__:
+      - source-v1:dfbd687843f86e48d65d03f5e87153a13243bc2bd7815acb33b619d6ca5ef0b8
+    ast_hashes:
+      openpi.models_pytorch.pi0_pytorch.PI0Pytorch.__init__:
+      - ast-v1:ea480ed331093c344dad0d8e6b0cf4b3fe3869b8cd332317d8c3645a74a2c389
+- id: openpi.softmax_forward_schedule
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      openpi.models_pytorch.gemma_pytorch.PaliGemmaWithExpertModel.__init__:
+      - source-v1:e989d11c32b6496e7a3276ce3fb3fd93fd0ea08024d53f653a80a8aa0d685c4f
+    ast_hashes:
+      openpi.models_pytorch.gemma_pytorch.PaliGemmaWithExpertModel.__init__:
+      - ast-v1:d1e0bd0147ec1a18dbcee22abf862c214a2098113f2e6d71de9cbc4a8bf86640
+- id: openpi.softmax_backward_reuse
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      openpi.models_pytorch.pi0_pytorch.PI0Pytorch.gradient_checkpointing_enable:
+      - source-v1:009a1b1aba17ca4b076a63aa9570c74edee2f24f9195f4d5bfb19e2696796d52
+    ast_hashes:
+      openpi.models_pytorch.pi0_pytorch.PI0Pytorch.gradient_checkpointing_enable:
+      - ast-v1:2a43b5eac31035eac5f53c6c715a3cfb668b8802b40a8fbd070b757119858271
+- id: openpi.clip_grad_scale
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch.nn.utils.clip_grad_norm_:
+      - source-v1:ec7e5ef692a2f1679f547a8899fd9d29e934b1f8791d78546821927483d379ca
+    ast_hashes:
+      torch.nn.utils.clip_grad_norm_:
+      - ast-v1:13617e57b63740dac73109327b6fa5bf361c63858250f582abd4a156a60aa479
+- id: openpi.batched_adamw
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch.optim.adamw.AdamW.step:
+      - source-v1:a30c184cf93b5e1b06bf6abf2ef3642eb1e6c2a03992e4914f538239fd28a5f2
+    ast_hashes:
+      torch.optim.adamw.AdamW.step:
+      - ast-v1:88db36aeec63d2f3f4950d6fdd160d7625caf04371628a14de14a5b5b38392f9
 optimization_modules:
 - turbo_physai.optimizations.models.openpi.catalog

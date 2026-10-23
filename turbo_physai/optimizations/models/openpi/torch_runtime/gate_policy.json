@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "cases": {
+    "0178c425a37d5990c2c041d60a8937f194fae19a730389bc3e597277d5ac5dca:fp1": {
+      "kind": "forward",
+      "backend": "triton_lookup",
+      "variant": "tanh",
+      "config": {
+        "persistent": false,
+        "XBLOCK": 8192,
+        "num_warps": 4,
+        "grid": 61952
+      }
+    },
+    "bfe8c072aadc67a14eb9e56cee6db25c2683045711f1991ac19dc5c3426aeeaa:fp1": {
+      "kind": "backward",
+      "backend": "triton_lookup",
+      "variant": "tanh",
+      "config": {
+        "persistent": false,
+        "XBLOCK": 2048,
+        "num_warps": 4,
+        "grid": 247808
+      }
+    }
+  },
+  "evidence_run": "20261015_121731_gate_exact_tanh_screen",
+  "promotion": "local bitwise gates passed; full training verification pending"
+}
