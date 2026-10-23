@@ -40,7 +40,19 @@ cd /workspace/model/DiT4DiT
 python3 -m pip install -e . --no-build-isolation --no-deps
 ```
 
-产品镜像提供经过验证的 HCU/PyTorch 依赖。不要直接安装上游 `requirements.txt`，否则可能覆盖 HCU PyTorch 或引入 CUDA 依赖。
+DiT4DiT HCU 交付镜像在通用基础镜像之上安装模型依赖；通用基础镜像本身不包含 Accelerate 和 Diffusers。已验证的关键版本如下：
+
+| 依赖 | HCU 交付版本 | DiT4DiT 上游版本 |
+| --- | --- | --- |
+| PyTorch | 2.10 DAS/HIP | 2.6.0 |
+| DeepSpeed | 0.18.4 DAS | 0.18.4 |
+| Accelerate | 1.13.0 | 1.12.0 |
+| Diffusers | 0.38.0 | Git commit `3996788b602eaae4da41a1d45726b62e662b73cf` |
+| OmegaConf | 2.3.0 | 2.3.0 |
+| Decord | 0.6.0 | 0.6.0 |
+| Transformers | 4.57.1 | 4.57.6 |
+
+Accelerate 1.13.0 和 Diffusers 0.38.0 是经过双卡 HCU 训练验证的产品组合；TurboPhysAI 的 Cosmos 优化直接适配 Diffusers 0.38.0，不能单独替换为上游 commit。上游通用依赖中的 PEFT 未被该固定基线的 RoboCasa 训练路径导入，因此交付镜像不安装 PEFT。不要直接安装上游 `requirements.txt`，否则可能覆盖 HCU PyTorch 或引入 CUDA 依赖。
 
 ## 5. 准备模型权重与数据
 
@@ -51,6 +63,27 @@ python3 -m pip install -e . --no-build-isolation --no-deps
 - [PhysicalAI-Robotics-GR00T-X-Embodiment-Sim](https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim) 数据集，实际 data mix 为 `fourier_gr1_unified_1000`。
 - 可选：[DiT4DiT-RoboCasa-GR1 预训练检查点](https://huggingface.co/TeliMa/dit4dit_robocasa_gr1)。从头训练不需要该检查点。
 
+下载 Cosmos 权重：
+
+```bash
+mkdir -p /workspace/models
+huggingface-cli download nvidia/Cosmos-Predict2.5-2B \
+  --revision diffusers/base/post-trained \
+  --local-dir /workspace/models/Cosmos-Predict2.5-2B-diffusers
+```
+
+按上游脚本下载 RoboCasa 使用的数据子集，并将下载目录映射到下文训练路径：
+
+```bash
+cd /workspace/model/DiT4DiT
+python3 examples/Robocasa_tabletop/train_files/download_gr00t_ft_data.py
+
+mkdir -p /workspace/dataset
+ln -s "$PWD/playground/Datasets/nvidia/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim" \
+  /workspace/dataset/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim
+```
+
+如果目标链接已经存在，请直接复用现有目录，不要重复创建。
 
 下面的训练命令假设资源位于：
 
@@ -63,7 +96,7 @@ python3 -m pip install -e . --no-build-isolation --no-deps
 
 ## 6. 通过 turbo-physai run 启动训练
 
-`turbo-physai run` 自动加载随包交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)，无需修改 DiT4DiT 模型源码即可应用优化。
+`turbo-physai run` 自动加载随包交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)，无需修改 DiT4DiT 模型源码即可应用优化。使用自定义配置时，通过 `--optimization-config /path/to/optimization.yaml` 和 `--runtime-config /path/to/runtime.yaml` 显式指定文件。
 
 ### 6.1 单机双卡训练
 
@@ -71,7 +104,6 @@ python3 -m pip install -e . --no-build-isolation --no-deps
 cd /workspace/model/DiT4DiT
 
 export WANDB_MODE=disabled
-export TOKENIZERS_PARALLELISM=false
 
 turbo-physai run \
   --model dit4dit \

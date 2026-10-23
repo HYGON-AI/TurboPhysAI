@@ -867,7 +867,6 @@ def install_segmented_cosmos_forward(
         transformer, "_dit4dit_compiled_segments", compiled_segments
     )
     object.__setattr__(transformer, "_dit4dit_padding_mask_cache", {})
-    object.__setattr__(transformer, "_dit4dit_original_forward", transformer.forward)
     object.__setattr__(transformer, "_dit4dit_segmented_forward", True)
     transformer.forward = types.MethodType(_segmented_cosmos_forward, transformer)
     return segment_ranges
