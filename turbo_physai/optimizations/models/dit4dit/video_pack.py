@@ -1,7 +1,7 @@
 # Copyright 2025 DiT4DiT team. All rights reserved.
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: MIT
-# Adapted from DiT4DiT 3a0c3c5; see THIRD_PARTY_NOTICES.md.
+# Adapted from DiT4DiT d8854a1; see THIRD_PARTY_NOTICES.md.
 
 """Video preparation on normalized training tensors; one scoped compile wrapper."""
 
