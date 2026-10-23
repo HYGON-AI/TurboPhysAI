@@ -18,6 +18,7 @@ environment:
 
 process:
   numa: true
+  rank_numa: {}
 ```
 
 字段含义如下：
@@ -29,6 +30,7 @@ process:
 | `environment.unset` | 从启动环境中删除指定变量 |
 | `environment.set` | 设置环境变量；非字符串值在加载时转换为字符串 |
 | `process.numa` | 是否启用 NUMA 绑定；默认为 `true` |
+| `process.rank_numa` | 可选的 rank 到 NUMA node 显式映射；显式映射优先于自动发现 |
 
 ## 2. 环境变量
 
@@ -53,10 +55,23 @@ turbo-physai run \
 
 ## 3. NUMA 绑定
 
-NUMA 只有开启和关闭两种使用方式：
+NUMA 支持自动发现、显式绑定和关闭三种使用方式：
 
-- 默认开启；
+- 默认自动发现；设置 `ROCR_VISIBLE_DEVICES=4,5` 和 `HIP_VISIBLE_DEVICES=0,1` 时，逻辑设备 0、1 会映射回物理 HCU 4、5，再通过 `hy-smi --showtopo` 查找 NUMA node；
+- 可在 RuntimeConfig 的 `process.rank_numa` 中显式指定每个 local rank 的 NUMA node；
 - 使用 `--disable-numa` 关闭本次启动的 NUMA 绑定。
+
+例如，手动将 rank 0、1 分别绑定到 NUMA node 3、1：
+
+```yaml
+process:
+  numa: true
+  rank_numa:
+    "0": 3
+    "1": 1
+```
+
+自动发现要求 `HIP_VISIBLE_DEVICES` 为逻辑整数索引，并要求 `ROCR_VISIBLE_DEVICES` 中对应项为物理 HCU 整数编号。使用 UUID、索引越界或拓扑无法解析时，Runner 会终止而不是静默绑定到错误节点；此时应使用 `process.rank_numa` 显式配置，或通过 `--disable-numa` 关闭自动绑定。
 
 ## 4. 配置选择与覆盖
 
