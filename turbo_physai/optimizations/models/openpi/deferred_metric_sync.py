@@ -284,9 +284,9 @@ def deferred_metric_train_loop(config):
                 )
                 training.logging.info(
                     f"step={global_step} loss={avg_loss:.4f} lr={avg_lr:.2e} "
-                    f"grad_norm={avg_grad_norm:.2f} time={elapsed:.1f}s"
+                    f"grad_norm={avg_grad_norm:.2f} time={elapsed:.3f}s"
                     if avg_grad_norm is not None
-                    else f"step={global_step} loss={avg_loss:.4f} lr={avg_lr:.2e} time={elapsed:.1f}s"
+                    else f"step={global_step} loss={avg_loss:.4f} lr={avg_lr:.2e} time={elapsed:.3f}s"
                 )
                 if config.wandb_enabled and infos:
                     payload = {

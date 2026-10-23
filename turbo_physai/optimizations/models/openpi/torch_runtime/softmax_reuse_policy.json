@@ -1,0 +1,34 @@
+{
+  "expression_key": "7f8a4cd71621f15d9dab8e939cbe411cf0580f6a76ade5c1370ddf8772e9a2c2",
+  "kwargs": {
+    "XBLOCK": 4,
+    "R0_BLOCK": 1024
+  },
+  "num_warps": 8,
+  "enable_fp_fusion": true,
+  "original_source_sha256": "c90cd5e56719194d56c0f8ddd5e7e8df2827ad06b6421b5da2c85830499cd6ae",
+  "native_configs": [
+    {
+      "kwargs": {
+        "XBLOCK": 8,
+        "R0_BLOCK": 512
+      },
+      "num_warps": 8
+    },
+    {
+      "kwargs": {
+        "XBLOCK": 4,
+        "R0_BLOCK": 1024
+      },
+      "num_warps": 8
+    },
+    {
+      "kwargs": {
+        "XBLOCK": 4,
+        "R0_BLOCK": 1024,
+        "waves_per_eu": 4
+      },
+      "num_warps": 8
+    }
+  ]
+}
