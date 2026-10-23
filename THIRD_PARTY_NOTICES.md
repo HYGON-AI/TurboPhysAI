@@ -87,7 +87,7 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 | `turbo_physai/optimizations/models/bevformer/training.py` | `projects/mmdet3d_plugin/bevformer/apis/train.py` | Modified |
 | `turbo_physai/optimizations/models/bevformer/tsa.py` | `projects/mmdet3d_plugin/bevformer/modules/temporal_self_attention.py` | Modified |
 
-### Diffusers Cosmos attention
+### Diffusers Cosmos transformer
 
 - Repository: <https://github.com/huggingface/diffusers>
 - Fixed commit: `275869dcae4ebcfee6a80253fdabc56033335020` (v0.38.0)
@@ -96,6 +96,7 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 | Local file | Upstream file | HYGON modification |
 | --- | --- | --- |
 | `turbo_physai/optimizations/models/dit4dit/cosmos_attention.py` | `src/diffusers/models/transformers/transformer_cosmos.py` | Modified |
+| `turbo_physai/optimizations/models/dit4dit/cosmos_forward.py` | `src/diffusers/models/transformers/transformer_cosmos.py` (`CosmosTransformer3DModel.forward`) | Modified |
 
 ### MMCV
 
