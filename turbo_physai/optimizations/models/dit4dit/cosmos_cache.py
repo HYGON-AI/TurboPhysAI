@@ -121,16 +121,28 @@ class _Caches:
             device = cond_indicator.device
             key = (
                 condition_frames,
-            tuple(cond_mask.shape),
+                id(cond_mask),
+                cond_mask._version,
+                tuple(cond_mask.shape),
+                cond_mask.dtype,
+                id(cond_indicator),
+                cond_indicator._version,
                 tuple(cond_indicator.shape),
+                cond_indicator.dtype,
                 str(device),
                 transformer_dtype,
                 float(conditional_frame_timestep),
                 height,
                 width,
             )
-            cached = self._forward_static_cache.get(key)
-            if cached is None:
+            cached_entry = self._forward_static_cache.get(key)
+            if cached_entry is not None:
+                cached_mask, cached_indicator, cached = cached_entry
+                if cached_mask is cond_mask and cached_indicator is cond_indicator:
+                    return cached
+                cached_entry = None
+
+            if cached_entry is None:
                 cond_timestep = (
                     torch.ones_like(cond_indicator)
                     * float(conditional_frame_timestep)
@@ -150,9 +162,20 @@ class _Caches:
                     inv_cond_indicator,
                     padding_mask,
                 )
+                # Retain both source tensors so their Python identities cannot
+                # be reused while this entry is reachable. Tensor versions in
+                # the key invalidate results after an in-place mutation.
+                for stale_key, entry in tuple(self._forward_static_cache.items()):
+                    cached_mask, cached_indicator, _ = entry
+                    if cached_mask is cond_mask or cached_indicator is cond_indicator:
+                        del self._forward_static_cache[stale_key]
                 if len(self._forward_static_cache) >= 4:
                     self._forward_static_cache.clear()
-                self._forward_static_cache[key] = cached
+                self._forward_static_cache[key] = (
+                    cond_mask,
+                    cond_indicator,
+                    cached,
+                )
             return cached
 
     def _text_encoder_output_cache_is_safe(self) -> bool:
