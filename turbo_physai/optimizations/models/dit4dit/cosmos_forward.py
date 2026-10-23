@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import functools
+import os
 import types
 from typing import Any, List, Optional, Union
 import torch
@@ -879,6 +880,9 @@ def register_direct_capture(self):
 
 
 def compile_segment_wrapper(original, options):
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+        return original
+
     from torch._inductor import config
 
     size = int(options.get("segment_size", 6))
