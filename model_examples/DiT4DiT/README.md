@@ -81,16 +81,34 @@ turbo-physai run \
     --num_processes 2 \
     -m turbo_physai.optimizations.models.dit4dit.entry \
     --config_yaml DiT4DiT/config/robocasa/dit4dit_robocasa_gr1.yaml \
-    --run_root_dir /workspace/outputs \
-    --run_id dit4dit_hcu_2card \
+    --framework.name DiT4DiT \
     --framework.cosmos25.base_model \
       /workspace/models/Cosmos-Predict2.5-2B-diffusers \
+    --framework.action_model.action_model_type DiT-B \
+    --framework.cosmos25.extract_layer 17 \
+    --framework.cosmos25.flow_matching.time_distribution uniform \
+    --framework.cosmos25.flow_matching.high_sigma_ratio null \
+    --framework.cosmos25.flow_matching.high_sigma_min null \
+    --framework.cosmos25.conditional_frame_timestep 0.0001 \
     --datasets.vla_data.data_root_dir \
       /workspace/dataset/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim \
+    --datasets.vla_data.data_mix fourier_gr1_unified_1000 \
     --datasets.vla_data.per_device_batch_size 2 \
-    --trainer.gradient_accumulation_steps 4
+    --datasets.vla_data.action_video_freq_ratio 2 \
+    --trainer.freeze_modules \
+      backbone_interface.extractor.text_encoder,backbone_interface.extractor.vae \
+    --trainer.max_train_steps 200000 \
+    --trainer.save_interval 50000 \
+    --trainer.logging_frequency 10 \
+    --trainer.eval_interval 100 \
+    --trainer.learning_rate.backbone_interface 1e-5 \
+    --trainer.learning_rate.action_model 1e-4 \
+    --trainer.num_warmup_steps 5000 \
+    --trainer.gradient_accumulation_steps 4 \
+    --run_root_dir /workspace/outputs \
+    --run_id dit4dit_hcu_2card
 ```
 
-该配置使用两个训练进程、每卡 batch size 2、梯度累积 4，对应 global batch size 16。RuntimeConfig 会依据 HCU 可见性为各 rank 自动选择本地 NUMA node。
+除硬件规模相关参数外，上述模型与训练 recipe 与上游 RoboCasa 训练脚本保持一致。为适配双卡 HCU 环境，示例将训练进程数由 16 调整为 2、每卡 batch size 由 4 调整为 2，并将梯度累积由 1 调整为 4，对应 global batch size 16。打包入口 `turbo_physai.optimizations.models.dit4dit.entry` 用于将梯度累积配置同步到 Accelerate 和 DeepSpeed；text encoder 和 VAE 仍按上游 recipe 保持冻结。RuntimeConfig 会依据 HCU 可见性为各 rank 自动选择本地 NUMA node。
 
 优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
