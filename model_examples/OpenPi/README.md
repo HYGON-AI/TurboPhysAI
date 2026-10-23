@@ -503,15 +503,6 @@ turbo-physai run \
 │   │   ├── requirements.txt
 │   │   └── norm_stats.json                  # 本例提供的 LIBERO 统计文件
 │   └── turbo_physai/optimizations/models/openpi/
-│       ├── configs/
-│       │   ├── recipe.yaml
-│       │   ├── optimization.yaml
-│       │   └── runtime.yaml
-│       ├── sitecustomize.py
-│       └── scripts/
-│           ├── prepare_tune_runtime.sh
-│           ├── run_openpi_torchrun_tune_by_config.sh
-│           └── run_openpi_torchrun_tune_by_model.sh
 ├── static_data/                             # 数据集、权重和运行资源
 │   ├── .lerobot_root/physical-intelligence/libero/
 │   │   ├── data/
