@@ -4,7 +4,7 @@
   "model_commit": "d8854a11713f846b8b3f768fc3bf2c6cba2bc17f",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "09d9389c79341f24a4acb4dc993d2d2b2f460af87f3f047bac5a417253bc9fab"
+    "sha256": "75d5dd5660f404bbd79ddfd2456e016e023b019e49543d9e08f59a600aa158cc"
   },
   "inputs": [
     {
