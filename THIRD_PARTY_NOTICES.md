@@ -126,8 +126,7 @@ The complete PyTorch v2.7.1 license text is in [third_party/licenses/PyTorch-BSD
 ### DiT4DiT
 
 - Repository: <https://github.com/Mondo-Robotics/DiT4DiT>
-- Optimization source commit: `3a0c3c5c5cdf60c4089611732338fea73b44b366`
-- Customer compatibility baseline: `d8854a11713f846b8b3f768fc3bf2c6cba2bc17f`
+- Fixed commit: `d8854a11713f846b8b3f768fc3bf2c6cba2bc17f`
 - License: MIT
 
 | Local file | Upstream file | HYGON modification |
