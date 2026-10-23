@@ -8,7 +8,12 @@ import types
 import pytest
 import yaml
 
-from turbo_physai.optimizations.models.dit4dit import action_compile, cosmos_forward, entry
+from turbo_physai.optimizations.models.dit4dit import (
+    action_compile,
+    cosmos_cache,
+    cosmos_forward,
+    entry,
+)
 
 
 def _install_fake_inductor(monkeypatch, *, fallback_random=True):
@@ -147,6 +152,62 @@ def test_padding_mask_cache_is_identity_safe_and_versioned():
     assert after_mutation is not first
     assert torch.equal(after_mutation, torch.ones_like(after_mutation))
     assert len(transformer._dit4dit_padding_mask_cache) == 1
+
+
+def test_forward_static_cache_is_identity_safe_and_versioned():
+    torch = pytest.importorskip("torch")
+
+    class CacheOwner(cosmos_cache._Caches):
+        pass
+
+    owner = CacheOwner()
+    mask = torch.zeros((1, 1, 2, 2, 2))
+    indicator = torch.zeros((1, 1, 2, 1, 1))
+    kwargs = {
+        "condition_frames": 1,
+        "transformer_dtype": torch.float32,
+        "conditional_frame_timestep": 0.1,
+        "height": 2,
+        "width": 2,
+    }
+
+    first = owner._get_forward_static_tensors(
+        cond_mask=mask, cond_indicator=indicator, **kwargs
+    )
+    repeated = owner._get_forward_static_tensors(
+        cond_mask=mask, cond_indicator=indicator, **kwargs
+    )
+    assert repeated is first
+
+    different_mask = torch.ones_like(mask)
+    different_indicator = torch.ones_like(indicator)
+    different = owner._get_forward_static_tensors(
+        cond_mask=different_mask,
+        cond_indicator=different_indicator,
+        **kwargs,
+    )
+    assert different is not first
+    assert torch.equal(different[1], different_mask)
+    assert torch.equal(different[2], torch.zeros_like(different_mask))
+    assert torch.equal(different[3], torch.zeros_like(different_indicator))
+
+    different_mask.zero_()
+    after_mutation = owner._get_forward_static_tensors(
+        cond_mask=different_mask,
+        cond_indicator=different_indicator,
+        **kwargs,
+    )
+    assert after_mutation is not different
+    assert torch.equal(after_mutation[1], different_mask)
+    matching_entries = [
+        entry
+        for entry in owner._forward_static_cache.values()
+        if entry[0] is different_mask
+    ]
+    assert len(matching_entries) == 1
+    cached_mask, cached_indicator, _ = matching_entries[0]
+    assert cached_mask is different_mask
+    assert cached_indicator is different_indicator
 
 
 def test_entry_sets_deepspeed_accumulation_consistently():
