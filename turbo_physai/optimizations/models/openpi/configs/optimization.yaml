@@ -53,14 +53,10 @@ optimization_groups:
       - source-v1:be220d1ad05210e14b52c66118f2b16459a3291983ec24f5f72dc9d25c32f67c
       openpi.models_pytorch.pi0_pytorch.PI0Pytorch._apply_checkpoint:
       - source-v1:92729f6322021e808f03b01ebf3359f10e4a87c67856941941eb49bec88032f3
-      turbo_physai.optimizations.models.openpi.targets.PI0PytorchImageAlias._apply_checkpoint:
-      - source-v1:92729f6322021e808f03b01ebf3359f10e4a87c67856941941eb49bec88032f3
     ast_hashes:
       scripts.train_pytorch.init_logging:
       - ast-v1:623dcfdb1f62edb160f09b5a3a6a6159aae74618e1bc24a5ac1c7beda25ef0a6
       openpi.models_pytorch.pi0_pytorch.PI0Pytorch._apply_checkpoint:
-      - ast-v1:ae6349ec995e07fd5351b2580be59fe386ee59bae85f7e95edb08921255b5e6a
-      turbo_physai.optimizations.models.openpi.targets.PI0PytorchImageAlias._apply_checkpoint:
       - ast-v1:ae6349ec995e07fd5351b2580be59fe386ee59bae85f7e95edb08921255b5e6a
 - id: openpi.gemma_checkpoint_stride
   enabled: true

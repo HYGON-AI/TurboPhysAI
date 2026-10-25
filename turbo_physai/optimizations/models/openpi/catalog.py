@@ -56,11 +56,7 @@ COMPILE_STACK = group(
     ),
     wrap(
         target="openpi.models_pytorch.pi0_pytorch.PI0Pytorch._apply_checkpoint",
-        replacement="turbo_physai.optimizations.models.openpi.pi0_checkpoint_main.wrap_pi0_main_apply_checkpoint",
-    ),
-    wrap(
-        target="turbo_physai.optimizations.models.openpi.targets.PI0PytorchImageAlias._apply_checkpoint",
-        replacement="turbo_physai.optimizations.models.openpi.pi0_checkpoint_image.wrap_pi0_image_apply_checkpoint",
+        replacement="turbo_physai.optimizations.models.openpi.pi0_compile.wrap_pi0_compile",
     ),
 )
 

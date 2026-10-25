@@ -4,7 +4,7 @@
   "model_commit": "215abfb217dbac7d5f1273282331b9b1866c0479",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "6c3ab51084a7eaf4bdf44cb00349768799f0e87892f47e12e5a19b47557f928a"
+    "sha256": "8fd3c0037c5ab8cee8012d29688217610a31ac4a7fcf5021f6aa1b0eb1421792"
   },
   "inputs": [
     {
@@ -17,7 +17,7 @@
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/openpi/catalog.py",
-      "sha256": "e9562872c17361ef41385ab342394f5da6999cdee9b7a93307054b224b2133dc"
+      "sha256": "04d9f46d5223c49110d9fa52b8b16a6106865800ba92adafaf1a1d2ca678354b"
     }
   ]
 }
