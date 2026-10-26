@@ -133,6 +133,33 @@ def test_cosmos_segment_compile_rejects_alignment_asserts(monkeypatch):
         )
 
 
+def test_high_sigma_sampling_skips_incomplete_strategy():
+    torch = pytest.importorskip("torch")
+    timesteps = torch.tensor([0.1, 0.4, 0.9], dtype=torch.float32)
+
+    result = cosmos_forward._apply_high_sigma_strategy(
+        timesteps,
+        high_sigma_ratio=0.05,
+        high_sigma_min=None,
+    )
+
+    assert result is timesteps
+
+
+def test_high_sigma_sampling_applies_complete_strategy():
+    torch = pytest.importorskip("torch")
+    timesteps = torch.zeros(8, dtype=torch.float32)
+
+    result = cosmos_forward._apply_high_sigma_strategy(
+        timesteps,
+        high_sigma_ratio=1.0,
+        high_sigma_min=0.98,
+    )
+
+    assert torch.all(result >= 0.98)
+    assert torch.all(result <= 1.0)
+
+
 def test_padding_mask_cache_is_identity_safe_and_versioned():
     torch = pytest.importorskip("torch")
     transformer = types.SimpleNamespace(_dit4dit_padding_mask_cache={})
