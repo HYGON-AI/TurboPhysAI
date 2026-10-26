@@ -46,49 +46,47 @@ source /opt/conda/etc/profile.d/conda.sh
 conda activate mmcv1
 export PYTHONDONTWRITEBYTECODE=1
 
-export ROOT=/workspace/FlashOCC_TurboPhysAI
-mkdir -p "$ROOT"
-cd "$ROOT"
+mkdir -p "/workspace/FlashOCC_TurboPhysAI"
+cd "/workspace/FlashOCC_TurboPhysAI"
 ```
 
 ### 3.3 拉取官方 FlashOCC 源码
 
 ```bash
-git clone https://github.com/Yzichen/FlashOCC.git "$ROOT/FlashOCC"
-git -C "$ROOT/FlashOCC" checkout --detach \
+git clone https://github.com/Yzichen/FlashOCC.git "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
+git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC" checkout --detach \
   449dc7947d6549ccb72a99d6f6d8c02f166ec0dd
 ```
 
 ### 3.4 拉取并安装 TurboPhysAI
 
 ```bash
-cd "$ROOT"
+cd "/workspace/FlashOCC_TurboPhysAI"
 git clone --branch flashocc-optimization \
   https://github.com/Coulsonq/TurboPhysAI.git \
-  "$ROOT/TurboPhysAI"
+  "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI"
 
-cd "$ROOT/TurboPhysAI"
+cd "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI"
 python -c 'import torch; print(torch.__version__, torch.version.hip)'
 python -m pip install ninja wheel setuptools
 MAX_JOBS=8 python setup.py bdist_wheel
 python -m pip install --no-deps --force-reinstall dist/turbo_physai-*.whl
 turbo-physai --help
 
-export PLUGIN="$ROOT/TurboPhysAI/turbo_physai/optimizations/models/flashocc"
 ```
 
 ### 3.5 准备外置 MMDetection3D 依赖并构建 HCU 扩展
 
 ```bash
-mkdir -p "$ROOT/runtime"
+mkdir -p "/workspace/FlashOCC_TurboPhysAI/runtime"
 git clone --branch v1.0.0rc4 \
   https://github.com/open-mmlab/mmdetection3d.git \
-  "$ROOT/runtime/mmdetection3d"
-git -C "$ROOT/runtime/mmdetection3d" checkout --detach \
+  "/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d"
+git -C "/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d" checkout --detach \
   c9541b0db89498fdea5cafd05b7b17f7b625b858
 
-export PYTHONPATH="$ROOT/TurboPhysAI:$ROOT/runtime/mmdetection3d:$ROOT/FlashOCC${PYTHONPATH:+:$PYTHONPATH}"
-bash "$PLUGIN/scripts/build_flashocc_ops_external.sh"
+export PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}"
+bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/scripts/build_flashocc_ops_external.sh"
 ```
 
 准备完成后的主要目录如下：
@@ -104,10 +102,10 @@ bash "$PLUGIN/scripts/build_flashocc_ops_external.sh"
 
 ## 4. 准备 nuScenes 数据并生成标注
 
-按照 [FlashOCC 官方安装文档 Step 3](https://github.com/Yzichen/FlashOCC/blob/master/doc/install.md) 下载并准备 nuScenes。将数据放到 `$ROOT/static_data/data/nuscenes`，至少包括以下目录：
+按照 [FlashOCC 官方安装文档 Step 3](https://github.com/Yzichen/FlashOCC/blob/master/doc/install.md) 下载并准备 nuScenes。将数据放到 `/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes`，至少包括以下目录：
 
 ```text
-$ROOT/static_data/data/nuscenes/
+/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/
 ├── v1.0-trainval/
 ├── sweeps/
 ├── samples/
@@ -118,22 +116,21 @@ $ROOT/static_data/data/nuscenes/
 在 `static_data` 目录运行官方数据转换脚本，生成训练所需的 PKL 标注：
 
 ```bash
-mkdir -p "$ROOT/static_data"
-cd "$ROOT/static_data"
+mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data"
+cd "/workspace/FlashOCC_TurboPhysAI/static_data"
 
-PYTHONPATH="$ROOT/TurboPhysAI:$ROOT/runtime/mmdetection3d:$ROOT/FlashOCC${PYTHONPATH:+:$PYTHONPATH}" \
+PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}" \
 python - <<'PY'
 import runpy
 import sys
 import types
 
-root = "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
 tools = types.ModuleType("tools")
-tools.__path__ = [f"{root}/tools"]
+tools.__path__ = ["/workspace/FlashOCC_TurboPhysAI/FlashOCC/tools"]
 sys.modules["tools"] = tools
 
 runpy.run_path(
-    f"{root}/tools/create_data_bevdet.py",
+    "/workspace/FlashOCC_TurboPhysAI/FlashOCC/tools/create_data_bevdet.py",
     run_name="__main__",
 )
 PY
@@ -142,19 +139,19 @@ PY
 训练脚本读取以下标注文件：
 
 ```text
-$ROOT/static_data/data/nuscenes/
+/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/
 ├── bevdetv2-nuscenes_infos_train.pkl
 └── bevdetv2-nuscenes_infos_val.pkl
 ```
 
 ## 5. 准备预训练权重
 
-下载 `bevdet-r50-cbgs.pth` 到训练脚本使用的 `$ROOT/static_data/ckpts`：
+下载 `bevdet-r50-cbgs.pth` 到训练脚本使用的 `/workspace/FlashOCC_TurboPhysAI/static_data/ckpts`：
 
 ```bash
-mkdir -p "$ROOT/static_data/ckpts"
+mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts"
 curl -fL --retry 5 --retry-delay 3 \
-  -o "$ROOT/static_data/ckpts/bevdet-r50-cbgs.pth" \
+  -o "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts/bevdet-r50-cbgs.pth" \
   https://haihub-model-bj-1251001002.cos.ap-beijing.myqcloud.com/HyperDrive/ckpt/bevdet-r50-cbgs.pth
 ```
 
@@ -162,40 +159,40 @@ curl -fL --retry 5 --retry-delay 3 \
 
 FlashOCC 的优化配置和运行环境配置分别位于：
 
-- `$PLUGIN/configs/optimization.yaml`
-- `$PLUGIN/configs/runtime.yaml`
+- `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml`
+- `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml`
 
 通过 `turbo-physai run` 显式加载配置并启动单机八卡训练：
 
 ```bash
-cd "$ROOT/FlashOCC"
+cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
 
 turbo-physai run \
-  --optimization-config "$PLUGIN/configs/optimization.yaml" \
-  --runtime-config "$PLUGIN/configs/runtime.yaml" \
+  --optimization-config "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml" \
+  --runtime-config "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml" \
   --log-report \
   -- \
   torchrun --nproc_per_node=8 tools/train.py \
     ./projects/configs/flashocc/flashocc-r50.py \
     --launcher pytorch \
-    --work-dir "$ROOT/work_dirs/flashocc_turbo_$(date +%Y%m%d_%H%M%S)" \
+    --work-dir "/workspace/FlashOCC_TurboPhysAI/work_dirs/flashocc_turbo_$(date +%Y%m%d_%H%M%S)" \
     --cfg-options \
       data.samples_per_gpu=16 \
       data.workers_per_gpu=4 \
-      "data.train.data_root=$ROOT/static_data/data/nuscenes/" \
-      "data.train.ann_file=$ROOT/static_data/data/nuscenes/bevdetv2-nuscenes_infos_train.pkl" \
-      "data.val.data_root=$ROOT/static_data/data/nuscenes/" \
-      "data.val.ann_file=$ROOT/static_data/data/nuscenes/bevdetv2-nuscenes_infos_val.pkl" \
-      "data.test.data_root=$ROOT/static_data/data/nuscenes/" \
-      "data.test.ann_file=$ROOT/static_data/data/nuscenes/bevdetv2-nuscenes_infos_val.pkl" \
-      "load_from=$ROOT/static_data/ckpts/bevdet-r50-cbgs.pth" \
+      "data.train.data_root=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/" \
+      "data.train.ann_file=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/bevdetv2-nuscenes_infos_train.pkl" \
+      "data.val.data_root=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/" \
+      "data.val.ann_file=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/bevdetv2-nuscenes_infos_val.pkl" \
+      "data.test.data_root=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/" \
+      "data.test.ann_file=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/bevdetv2-nuscenes_infos_val.pkl" \
+      "load_from=/workspace/FlashOCC_TurboPhysAI/static_data/ckpts/bevdet-r50-cbgs.pth" \
       log_config.interval=1
 ```
 
 也可以使用仓库提供的启动脚本，它封装了以上 `turbo-physai run` 和训练参数：
 
 ```bash
-bash "$PLUGIN/run_flashocc_turbo.sh"
+bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/run_flashocc_turbo.sh"
 ```
 
 NUMA 配置、优化应用结果及其检查方法见 [快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
