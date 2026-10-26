@@ -157,34 +157,91 @@ Where Apache-2.0 source code was modified, the source file retains the upstream 
 
 | Local patch | Upstream file / Added file | Change type |
 | --- | --- | --- |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `.gitattributes` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/__init__.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/callbacks/device_monitor.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/callbacks/grad_clip.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/checkpoint/dcp.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/checkpoint/load_only.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/base/defaults/parallelism.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/base/experiment/action/posttrain_config/action_policy_droid_nano.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/base/experiment/sft/vision_sft_nano.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/base/reasoner/experiment/videophy2_dataflow_roles.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/base/reasoner/experiment/videophy2_sft_edge.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/base/reasoner/experiment/videophy2_sft_nano.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/toml_config/sft_config.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/toml_config/sft_config_test.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/configs/toml_config/toml_config_helper.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/action/datasets/action_sft_dataset.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/action/datasets/cosmos3_action_lerobot.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/action/datasets/droid_lerobot_dataset.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/augmentors/interleaved_video_parsing.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/augmentors/video_parsing.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/dataflow/loader.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/joint_dataloader.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/reasoner/video_decoder_qwen.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/data/generator/sequence_packing/runtime.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/inference/args.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/inference/common/args.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/inference/common/config.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/inference/common/inference.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/inference/common/inference_test.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/inference/inference.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/inference/model.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/attention/backends.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/attention/flash2/__init__.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/attention/flash2/checks.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/attention/flash2/functions.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/attention/utils/__init__.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/algorithm/loss/cross_entropy.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/hf_model.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/mot/attention.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/mot/cosmos3_vfm_network.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/mot/unified_mot.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/omni_mot_model.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/parallelize_vlm.py` | Modified |
-| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/reasoner/qwen3_vl/__init__.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/reasoner/qwen3_vl/qwen3_vl.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/reasoner/qwen3_vl/utils.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/reasoner/qwen3_vl_moe/qwen3_vl_moe.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/__init__.py` | Added |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/_concat_layout.py` | Added |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/_hipdnn.py` | Added |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/concat_conv_bias.py` | Added |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/fused_ops/conv_bias.py` | Added |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/tokenizers/wan2pt2_vae_4x16x16.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/model/generator/vlm_model.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/scripts/convert_model_to_dcp.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/scripts/train.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/trainer/__init__.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/distributed.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/fsdp_ordered_comm.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/generator/hf_attention_cosmos.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/generator/qwen3_vl_hcu.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/generator/torchcodec_video.py` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/local_avae_cache.py` | Added |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/memory_format.py` | Added |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/memory_format_test.py` | Added |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/misc.py` | Modified |
 | `model_examples/Cosmos3/cosmos-framework.patch` | `cosmos_framework/utils/video_decode.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `examples/_sft_launcher_common.sh` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `examples/prepare_droid_perf_subset.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `examples/summarize_sft_perf.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `examples/toml/sft_config/vision_sft_nano.toml` | Modified |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `inputs/omni/t2v_n4.json` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `tests/action_hcu/test_config.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `tests/action_hcu/test_dataloader.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `tests/action_hcu/test_decoder_cache.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `tests/action_hcu/test_perf_subset.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `tests/hcu/test_patch_review_regressions.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `tests/hcu/test_review_followups.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `tests/wan_vae_clean_fused_op_test.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `tests/wan_vae_concat_layout_test.py` | Added |
+| `model_examples/Cosmos3/cosmos-framework.patch` | `tools/run_framework_inference_local_assets.py` | Added |
+
+The added `cosmos_framework/utils/generator/qwen3_vl_hcu.py` derives its vision
+forward methods from [Transformers Qwen3-VL](https://github.com/huggingface/transformers/blob/7dacdf4543ca4fe081f99dedacdb70d8df0fd366/src/transformers/models/qwen3_vl/modeling_qwen3_vl.py)
+at commit `7dacdf4543ca4fe081f99dedacdb70d8df0fd366` (v4.57.6), licensed under Apache-2.0.
+It retains the Qwen Team and Hugging Face copyright and Apache-2.0 notice, with
+a Hygon modification notice. The license text is in
+[Apache-2.0](third_party/licenses/Apache-2.0.txt). This file does not replace
+the Transformers model or AutoClass registrations.

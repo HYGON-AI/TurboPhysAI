@@ -8,6 +8,31 @@ index dba17f50bc1f5dc4f8691e3c1a0f24295c4132f2..58309b84fe5513694dc599db31332c2f
  tests/data/** linguist-generated=true
  ATTRIBUTIONS.md linguist-generated=true
  
+diff --git a/cosmos_framework/__init__.py b/cosmos_framework/__init__.py
+index 28a81be6930a6e76aa9c9a05c0cf8e4a199237ca..eeb4cb6e6a659f0bf015476c9f17d1121babcdcf 100644
+--- a/cosmos_framework/__init__.py
++++ b/cosmos_framework/__init__.py
+@@ -1,2 +1,20 @@
+ # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ # SPDX-License-Identifier: OpenMDW-1.1
++
++# Modified by Hygon Information Technology Co., Ltd., 2026.
++# Package initialization runs before every Cosmos submodule, including _train.
++import contextlib
++import os
++
++if not hasattr(contextlib, "chdir"):
++
++    @contextlib.contextmanager
++    def _chdir(path):
++        previous = os.getcwd()
++        os.chdir(path)
++        try:
++            yield
++        finally:
++            os.chdir(previous)
++
++    contextlib.chdir = _chdir
 diff --git a/cosmos_framework/callbacks/device_monitor.py b/cosmos_framework/callbacks/device_monitor.py
 index 65fd1d49d2403ba143649199be2cca024b3cffdb..afe5f16bc8bca61fc29b22fb77f332fbc8d059fd 100644
 --- a/cosmos_framework/callbacks/device_monitor.py
@@ -68,7 +93,7 @@ index c6a8f1661625d3ab396f2cef994411d06bce6c6c..b7bdcd917d5bca886458132b7ac8b749
          per_mesh_norms[mesh] = mesh_norm
  
 diff --git a/cosmos_framework/checkpoint/dcp.py b/cosmos_framework/checkpoint/dcp.py
-index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c61190e2ff 100644
+index ba5f996ad332ffc3d3e3cc5999e26136709003f6..ff267762110f0782f818d5ea9ec38274a5063321 100644
 --- a/cosmos_framework/checkpoint/dcp.py
 +++ b/cosmos_framework/checkpoint/dcp.py
 @@ -71,9 +71,9 @@
@@ -97,24 +122,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c6
  
          if self.async_mode == AsyncMode.ASYNC_WITH_PINNED_MEM:
              ctx = get_context("spawn")
-@@ -866,6 +874,16 @@
-                         raise ValueError(
-                             f"Unexpected keys (found in checkpoint but not in model): {results.unexpected_keys}"
-                         )
-+                    # Warm start that skipped net_ema (e.g. loading an EMA-only HF export
-+                    # with no net_ema.* keys): the EMA shadow would otherwise keep its random
-+                    # build-time generation pathway (init_moe is skipped when a checkpoint is
-+                    # present). Seed net_ema from the freshly loaded net so the EMA starts equal
-+                    # to net ("EMA warm-starts from net") instead of from random weights.
-+                    if warm_start and any("net_ema" in skip_key for skip_key in keys_to_skip_loading):
-+                        ema_worker = getattr(model, "net_ema_worker", None)
-+                        if ema_worker is not None and getattr(model, "net_ema", None) is not None:
-+                            ema_worker.copy_to(src_model=model.net, tgt_model=model.net_ema)
-+                            log.info("Warm start: re-seeded net_ema from net (net_ema was skipped on load).")
- 
-                 elif key == "optim":
-                     log.info("- Loading the optimizer...")
-@@ -898,6 +916,7 @@
+@@ -898,6 +906,7 @@
  
                      # Use rank-specific key for RNG state to support correct per-rank restoration
                      rng_key = f"rng_state_{dist.get_rank()}"
@@ -122,7 +130,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c6
                      _state_dict = {
                          "grad_scaler": grad_scaler.state_dict(),
                          "iteration": iteration,
-@@ -908,7 +927,7 @@
+@@ -908,7 +917,7 @@
                          k.startswith(f"{rng_key}.") or k == rng_key for k in metadata.state_dict_metadata.keys()
                      )
                      if rng_key_exists:
@@ -131,7 +139,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c6
  
                      dcp.load(
                          _state_dict,
-@@ -918,8 +937,7 @@
+@@ -918,8 +927,7 @@
                      )
                      grad_scaler.load_state_dict(_state_dict["grad_scaler"])
                      iteration = _state_dict["iteration"]
@@ -141,7 +149,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c6
  
                  elif key == "dataloader":
                      if not easy_io.exists(cur_key_ckpt_full_path, backend_key=self.load_s3_backend_key):
-@@ -969,9 +987,48 @@
+@@ -969,9 +977,48 @@
  
          from torch.distributed._state_dict_utils import _copy_state_dict, _create_cpu_state_dict
  
@@ -192,7 +200,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c6
  
          log.info(f"Staging the state_dict in CPU memory")
          with torch.cuda.stream(self.staging_stream):
-@@ -1034,7 +1091,39 @@
+@@ -1034,7 +1081,39 @@
                  path=checkpoint_path,
                  enable_gcs_patch_in_boto3=self.config_checkpoint.enable_gcs_patch_in_boto3,
              )
@@ -233,7 +241,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c6
  
      def get_storage_reader(self, checkpoint_path: str) -> Union[S3StorageReader, FileSystemReader]:
          if self.load_from_object_store:
-@@ -1044,6 +1133,33 @@
+@@ -1044,6 +1123,33 @@
                  enable_gcs_patch_in_boto3=self.config_checkpoint.enable_gcs_patch_in_boto3,
              )
          return FileSystemReader(checkpoint_path)
@@ -267,7 +275,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c6
  
      def _save_as_pkl(self, obj: Any, output_dir: str) -> None:
          """Save per-rank Python checkpoint state such as no-replace dataloader progress."""
-@@ -1058,6 +1174,7 @@
+@@ -1058,6 +1164,7 @@
          log.info(f"Saved state to {path}")
  
      def save_state_dict_worker(self, to_save_dict: Dict[str, Tuple[Any, str]], checkpoint_file: str) -> None:
@@ -275,7 +283,7 @@ index ba5f996ad332ffc3d3e3cc5999e26136709003f6..307901e83fe9080daff1706d930a03c6
          for key, (v, full_checkpoint_path) in to_save_dict.items():
              if key == "dataloader":
                  self._save_as_pkl(v, full_checkpoint_path)
-@@ -1075,6 +1192,7 @@
+@@ -1075,6 +1182,7 @@
                      v,
                      storage_writer=storage_writer,
                      planner=save_planner,
@@ -1448,29 +1456,19 @@ index 4d3e48a8e404765247d30e8792d0b67e9325079b..ef3d8619866e691c03129de37502fc0e
  
  from cosmos_framework.inference.common.args import (
 diff --git a/cosmos_framework/inference/common/args.py b/cosmos_framework/inference/common/args.py
-index 83d2fe0196cd239b19a12a81a336551775e12c61..95e6d56ae4c57255827ff6236a46e91b4aaf9e1f 100644
+index 83d2fe0196cd239b19a12a81a336551775e12c61..e58c065807a13a4dff0dc7a6f5dbd64c0fb55ad4 100644
 --- a/cosmos_framework/inference/common/args.py
 +++ b/cosmos_framework/inference/common/args.py
-@@ -7,6 +7,18 @@ import hashlib
+@@ -7,6 +7,8 @@
  import itertools
  import json
  import os
 +
-+if not hasattr(contextlib, "chdir"):
-+    @contextlib.contextmanager
-+    def _chdir(path):
-+        prev_cwd = os.getcwd()
-+        os.chdir(path)
-+        try:
-+            yield
-+        finally:
-+            os.chdir(prev_cwd)
-+    contextlib.chdir = _chdir  # type: ignore[attr-defined]
 +
  import random
  import re
  import tempfile
-@@ -22,7 +34,6 @@ from typing import (
+@@ -22,7 +24,6 @@
      NoReturn,
      TypeVar,
      overload,
@@ -1478,7 +1476,7 @@ index 83d2fe0196cd239b19a12a81a336551775e12c61..95e6d56ae4c57255827ff6236a46e91b
  )
  
  import omegaconf
-@@ -30,7 +41,7 @@ import pydantic
+@@ -30,7 +31,7 @@
  import tyro
  import yaml
  from omegaconf import OmegaConf
@@ -1564,7 +1562,7 @@ index 62db733bc19d10ef6b39771a8ad89ce555b3fc6d..79be9bd3c5f098eb79b2fd31f6c95294
  from cosmos_framework.configs.base.defaults.compile import CompileConfig
  from cosmos_framework.configs.base.defaults.parallelism import ParallelismConfig
 diff --git a/cosmos_framework/inference/model.py b/cosmos_framework/inference/model.py
-index 5b7c74cef28ade435aa99f9c0e01722fb5f4d0a4..3dfcb1b9073888cbe99c5b5f894dce9db2119978 100644
+index 5b7c74cef28ade435aa99f9c0e01722fb5f4d0a4..e0dafaceed0976e3253593364327ace3a5faa5a9 100644
 --- a/cosmos_framework/inference/model.py
 +++ b/cosmos_framework/inference/model.py
 @@ -3,6 +3,7 @@
@@ -1575,34 +1573,15 @@ index 5b7c74cef28ade435aa99f9c0e01722fb5f4d0a4..3dfcb1b9073888cbe99c5b5f894dce9d
  import re
  from pathlib import Path
  from typing import Any
-@@ -46,6 +47,18 @@ from cosmos_framework.inference.common.public_model_config import (
+@@ -45,6 +46,8 @@
+ )
  from cosmos_framework.utils import misc
  from cosmos_framework.utils.flags import SMOKE
++
++
  
-+
-+@contextlib.contextmanager
-+def _chdir(path: Path):
-+    """Python 3.10-compatible equivalent of contextlib.chdir."""
-+    previous = Path.cwd()
-+    os.chdir(path)
-+    try:
-+        yield
-+    finally:
-+        os.chdir(previous)
-+
-+
  if TYPE_CHECKING:
      from cosmos_framework.model.generator.omni_mot_model import OmniMoTModel
- 
-@@ -506,7 +519,7 @@ class Cosmos3OmniModel(transformers.PreTrainedModel):
-                 vlm_dict.config.text_config_overrides = {"num_hidden_layers": 2, "num_window_layers": 2}
- 
-         # The model loads some files by relative path 'cosmos3/...'
--        with contextlib.chdir(_ROOT_DIR):
-+        with _chdir(_ROOT_DIR):
-             self.model: "OmniMoTModel" = hydra.utils.instantiate(model_dict)
-         self.after_load_model(self.model)
- 
 diff --git a/cosmos_framework/model/attention/backends.py b/cosmos_framework/model/attention/backends.py
 index 8cc7f595331e2a51a633df7301c89d9bc789e76b..d31e46b7fa70128b8c4fb74480689d341453691a 100644
 --- a/cosmos_framework/model/attention/backends.py
@@ -1920,17 +1899,20 @@ index 283b1366e35263978fbf33aa436a0d2062a7a39a..69b07028f916a804619e4b8d681e83b4
  
      loss = per_token_loss.sum() / (n_valid_tokens + 1e-8) * (num_dp_workers * loss_scaling_factor)
 diff --git a/cosmos_framework/model/generator/hf_model.py b/cosmos_framework/model/generator/hf_model.py
-index f7ef801a251ab86a508aab7a2fd78498ab5cc189..e3a12adce669f729fc1fba381b637f53fdc48b39 100644
+index f7ef801a251ab86a508aab7a2fd78498ab5cc189..215f168ac932e9871bc0a78a580ed0b1b90c1b39 100644
 --- a/cosmos_framework/model/generator/hf_model.py
 +++ b/cosmos_framework/model/generator/hf_model.py
-@@ -27,6 +27,7 @@ from accelerate import init_on_device
- from transformers import AutoConfig, AutoModel, AutoModelForCausalLM, AutoModelForImageTextToText
+@@ -165,7 +165,9 @@
+         # Must happen BEFORE parallelize() so FSDP captures the patched forward.
+         if hf_config.model_type == "qwen3_vl" and hasattr(self.model, "model"):
+             from cosmos_framework.utils.generator.monkey_patch import patch_qwen3_vl_forward
+-
++            from cosmos_framework.utils.generator.qwen3_vl_hcu import apply_hcu_qwen3_vl_optimizations
++
++            apply_hcu_qwen3_vl_optimizations(self.model.model)
+             patch_qwen3_vl_forward(self.model.model)
+             log.info("HFModel: applied patch_qwen3_vl_forward for text-only batch support")
  
- import cosmos_framework.model.generator.reasoner.cosmos3_edge  # noqa: F401  registers cosmos3_edge with transformers Auto classes
-+import cosmos_framework.model.generator.reasoner.qwen3_vl  # noqa: F401  registers local Qwen3-VL classes, overriding transformers built-ins
- from cosmos_framework.utils import log
- from cosmos_framework.model.generator.utils.safetensors_loader import load_language_model, load_vlm_model
- from cosmos_framework.utils.generator.parallelism import ParallelDims
 diff --git a/cosmos_framework/model/generator/mot/attention.py b/cosmos_framework/model/generator/mot/attention.py
 index fee79382b6309ecab5e8e915ab4f6b3deebf6a9b..6d36e421ade0d9484689727d6e4c9bd2d253f262 100644
 --- a/cosmos_framework/model/generator/mot/attention.py
@@ -3753,50 +3735,6 @@ index 57a80c594f0ea7fb44fb2359ca51ef4c5f7b7be7..86fa9d1b2f0fcf81aca114ab21de665c
  
  
  def parallelize(
-diff --git a/cosmos_framework/model/generator/reasoner/qwen3_vl/__init__.py b/cosmos_framework/model/generator/reasoner/qwen3_vl/__init__.py
-index 28a81be6930a6e76aa9c9a05c0cf8e4a199237ca..75089ed4293d576b5793e6d04fb12449b85e02b5 100644
---- a/cosmos_framework/model/generator/reasoner/qwen3_vl/__init__.py
-+++ b/cosmos_framework/model/generator/reasoner/qwen3_vl/__init__.py
-@@ -1,2 +1,39 @@
- # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
- # SPDX-License-Identifier: OpenMDW-1.1
-+
-+"""Framework-native Qwen3-VL implementation.
-+
-+Importing this package registers ``model_type="qwen3_vl"`` with the transformers
-+Auto classes (exist_ok=True overrides the stock transformers build-in), so
-+``AutoConfig.from_pretrained`` / ``AutoModelForImageTextToText.from_config``
-+resolve to the local classes rather than the upstream transformers version.
-+HFModel imports this package to ensure the registration happens before any
-+model is instantiated.
-+"""
-+
-+from transformers import AutoConfig, AutoModelForImageTextToText
-+
-+from cosmos_framework.model.generator.reasoner.qwen3_vl.configuration_qwen3_vl import (
-+    Qwen3VLConfig,
-+    Qwen3VLTextConfig,
-+)
-+from cosmos_framework.model.generator.reasoner.qwen3_vl.qwen3_vl import (
-+    Qwen3VLForConditionalGeneration,
-+    Qwen3VLModel,
-+    Qwen3VLPreTrainedModel,
-+    Qwen3VLTextModel,
-+    Qwen3VLVisionModel,
-+)
-+
-+AutoConfig.register("qwen3_vl", Qwen3VLConfig, exist_ok=True)
-+AutoModelForImageTextToText.register(Qwen3VLConfig, Qwen3VLForConditionalGeneration, exist_ok=True)
-+
-+__all__ = [
-+    "Qwen3VLConfig",
-+    "Qwen3VLTextConfig",
-+    "Qwen3VLForConditionalGeneration",
-+    "Qwen3VLModel",
-+    "Qwen3VLPreTrainedModel",
-+    "Qwen3VLTextModel",
-+    "Qwen3VLVisionModel",
-+]
 diff --git a/cosmos_framework/model/generator/reasoner/qwen3_vl/qwen3_vl.py b/cosmos_framework/model/generator/reasoner/qwen3_vl/qwen3_vl.py
 index d442752afed44060e81eac9ec18de470911e6149..04b3cc312c47d34422ae076665d4e80cb159a7ed 100644
 --- a/cosmos_framework/model/generator/reasoner/qwen3_vl/qwen3_vl.py
@@ -6170,19 +6108,252 @@ index a25c43e4912e0089671ba746c3005f3d553e83f4..ae7d7c69bef654a52fe77f5539fa0708
  
      out = imag_attention(
          q,
-diff --git a/cosmos_framework/utils/generator/monkey_patch.py b/cosmos_framework/utils/generator/monkey_patch.py
-index 5e694e7cc7f0c7d23d87e86acc4386a8922f08d7..2758a918c940f79727f934c0189312103debd1c6 100644
---- a/cosmos_framework/utils/generator/monkey_patch.py
-+++ b/cosmos_framework/utils/generator/monkey_patch.py
-@@ -8,7 +8,7 @@ import importlib
- import torch
- import transformers
- from transformers.cache_utils import Cache
--from transformers.models.qwen3_vl.modeling_qwen3_vl import Qwen3VLModel
-+from cosmos_framework.model.generator.reasoner.qwen3_vl.qwen3_vl import Qwen3VLModel
- from transformers.utils.import_utils import is_torchdynamo_compiling
- 
- from cosmos_framework.utils import log
+diff --git a/cosmos_framework/utils/generator/qwen3_vl_hcu.py b/cosmos_framework/utils/generator/qwen3_vl_hcu.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..3710fb480c14006ec5f3fa3d448265da804882f6
+--- /dev/null
++++ b/cosmos_framework/utils/generator/qwen3_vl_hcu.py
+@@ -0,0 +1,240 @@
++# Copyright 2025 The Qwen Team and The HuggingFace Inc. team. All rights reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++# SPDX-License-Identifier: Apache-2.0
++# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
++# Modified by Hygon: cache vision metadata and bind methods to HCU instances.
++
++"""HCU-only instance optimizations for Transformers Qwen3-VL 4.57.x.
++
++Forward method bodies are derived from Transformers v4.57.6
++src/transformers/models/qwen3_vl/modeling_qwen3_vl.py. AutoClass mappings,
++module classes, state_dict names and learnable position embeddings are retained.
++"""
++
++from __future__ import annotations
++
++from types import MethodType
++from typing import Callable, Optional
++
++import torch
++import torch.nn.functional as F
++import transformers
++from transformers.models.qwen3_vl.modeling_qwen3_vl import (
++    ALL_ATTENTION_FUNCTIONS,
++    Qwen3VLModel,
++    apply_rotary_pos_emb_vision,
++    eager_attention_forward,
++)
++
++from cosmos_framework.utils.memory_format import to_channels_last
++
++
++def _compute_aux(visual, grid_thw):
++    rotary = visual.rot_pos_emb(grid_thw)
++    cu_seqlens = torch.repeat_interleave(
++        grid_thw[:, 1] * grid_thw[:, 2], grid_thw[:, 0]
++    ).cumsum(
++        dim=0,
++        dtype=grid_thw.dtype if torch.jit.is_tracing() else torch.int32,
++    )
++    cu_seqlens = F.pad(cu_seqlens, (1, 0), value=0)
++    return rotary, cu_seqlens, (cu_seqlens[1:] - cu_seqlens[:-1]).tolist()
++
++
++def _cached_aux(visual, grid_thw):
++    if torch.jit.is_tracing() or torch.compiler.is_compiling():
++        return _compute_aux(visual, grid_thw)
++    inv_freq = visual.rotary_pos_emb.inv_freq
++    key = (
++        grid_thw.device,
++        grid_thw.dtype,
++        tuple(grid_thw.shape),
++        tuple(grid_thw.flatten().tolist()),
++        inv_freq.device,
++        inv_freq.dtype,
++        id(inv_freq),
++        inv_freq._version,
++    )
++    cache = visual._hcu_aux_cache
++    if key not in cache:
++        if len(cache) >= 64:
++            cache.pop(next(iter(cache)))
++        cache[key] = _compute_aux(visual, grid_thw)
++    return cache[key]
++
++
++def _patch_embed_forward(self, hidden_states):
++    hidden_states = hidden_states.view(
++        -1,
++        self.in_channels,
++        self.temporal_patch_size,
++        self.patch_size,
++        self.patch_size,
++    )
++    hidden_states = to_channels_last(hidden_states.to(dtype=self.proj.weight.dtype))
++    return self.proj(hidden_states).view(-1, self.embed_dim)
++
++
++def _rope_index_on_cpu(
++    self, input_ids=None, image_grid_thw=None, video_grid_thw=None, attention_mask=None
++):
++    original = self._hcu_original_get_rope_index
++    if input_ids is None or (image_grid_thw is None and video_grid_thw is None):
++        return original(input_ids, image_grid_thw, video_grid_thw, attention_mask)
++    values = (input_ids, image_grid_thw, video_grid_thw, attention_mask)
++    result = original(*(value.cpu() if value is not None else None for value in values))
++    return tuple(value.to(input_ids.device) for value in result)
++
++
++def _vision_forward(
++    self, hidden_states: torch.Tensor, grid_thw: torch.Tensor, **kwargs
++) -> torch.Tensor:
++    """
++    Args:
++        hidden_states (`torch.Tensor` of shape `(seq_len, hidden_size)`):
++            The final hidden states of the model.
++        grid_thw (`torch.Tensor` of shape `(num_images_or_videos, 3)`):
++            The temporal, height and width of feature shape of each image in LLM.
++
++    Returns:
++        `torch.Tensor`: hidden_states.
++    """
++    hidden_states = self.patch_embed(hidden_states)
++
++    pos_embeds = self.fast_pos_embed_interpolate(grid_thw)
++    hidden_states = hidden_states + pos_embeds
++
++    rotary_pos_emb, cu_seqlens, chunk_lengths = _cached_aux(self, grid_thw)
++
++    seq_len, _ = hidden_states.size()
++    hidden_states = hidden_states.reshape(seq_len, -1)
++    rotary_pos_emb = rotary_pos_emb.reshape(seq_len, -1)
++    emb = torch.cat((rotary_pos_emb, rotary_pos_emb), dim=-1)
++    position_embeddings = (emb.cos(), emb.sin())
++
++    deepstack_feature_lists = []
++    for layer_num, blk in enumerate(self.blocks):
++        hidden_states = blk(
++            hidden_states,
++            cu_seqlens=cu_seqlens,
++            position_embeddings=position_embeddings,
++            chunk_lengths=chunk_lengths,
++            **kwargs,
++        )
++        if layer_num in self.deepstack_visual_indexes:
++            deepstack_feature = self.deepstack_merger_list[
++                self.deepstack_visual_indexes.index(layer_num)
++            ](hidden_states)
++            deepstack_feature_lists.append(deepstack_feature)
++
++    hidden_states = self.merger(hidden_states)
++
++    return hidden_states, deepstack_feature_lists
++
++
++def _vision_attention_forward(
++    self,
++    hidden_states: torch.Tensor,
++    cu_seqlens: torch.Tensor,
++    rotary_pos_emb: Optional[torch.Tensor] = None,
++    position_embeddings: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
++    chunk_lengths: Optional[list[int]] = None,
++    **kwargs,
++) -> torch.Tensor:
++    seq_length = hidden_states.shape[0]
++    query_states, key_states, value_states = (
++        self.qkv(hidden_states)
++        .reshape(seq_length, 3, self.num_heads, -1)
++        .permute(1, 0, 2, 3)
++        .unbind(0)
++    )
++    cos, sin = position_embeddings
++    query_states, key_states = apply_rotary_pos_emb_vision(
++        query_states, key_states, cos, sin
++    )
++
++    query_states = query_states.transpose(0, 1).unsqueeze(0)
++    key_states = key_states.transpose(0, 1).unsqueeze(0)
++    value_states = value_states.transpose(0, 1).unsqueeze(0)
++
++    attention_interface: Callable = eager_attention_forward
++    if self.config._attn_implementation != "eager":
++        attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
++
++    if self.config._attn_implementation == "flash_attention_2":
++        # Flash Attention 2: Use cu_seqlens for variable length attention
++        max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
++        attn_output, _ = attention_interface(
++            self,
++            query_states,
++            key_states,
++            value_states,
++            attention_mask=None,
++            scaling=self.scaling,
++            dropout=0.0 if not self.training else self.attention_dropout,
++            cu_seq_lens_q=cu_seqlens,
++            cu_seq_lens_k=cu_seqlens,
++            max_length_q=max_seqlen,
++            max_length_k=max_seqlen,
++            is_causal=False,
++            **kwargs,
++        )
++    else:
++        # Other implementations: Process each chunk separately
++        if chunk_lengths is None:
++            chunk_lengths = (cu_seqlens[1:] - cu_seqlens[:-1]).tolist()
++        splits = [
++            torch.split(tensor, chunk_lengths, dim=2)
++            for tensor in (query_states, key_states, value_states)
++        ]
++
++        attn_outputs = [
++            attention_interface(
++                self,
++                q,
++                k,
++                v,
++                attention_mask=None,
++                scaling=self.scaling,
++                dropout=0.0 if not self.training else self.attention_dropout,
++                is_causal=False,
++                **kwargs,
++            )[0]
++            for q, k, v in zip(*splits)
++        ]
++        attn_output = torch.cat(attn_outputs, dim=1)
++
++    attn_output = attn_output.reshape(seq_length, -1).contiguous()
++    attn_output = self.proj(attn_output)
++    return attn_output
++
++
++def apply_hcu_qwen3_vl_optimizations(model) -> bool:
++    """Bind to this HF instance only; CPU/NVIDIA keep the upstream methods."""
++    if not torch.version.hip or not isinstance(model, Qwen3VLModel):
++        return False
++    if not transformers.__version__.startswith("4.57."):
++        return False
++    if getattr(model, "_hcu_qwen3_vl_optimized", False):
++        return True
++    visual = model.visual
++    visual._hcu_aux_cache = {}
++    visual.forward = MethodType(_vision_forward, visual)
++    visual.patch_embed.forward = MethodType(_patch_embed_forward, visual.patch_embed)
++    for block in visual.blocks:
++        block.attn.forward = MethodType(_vision_attention_forward, block.attn)
++    model._hcu_original_get_rope_index = model.get_rope_index
++    model.get_rope_index = MethodType(_rope_index_on_cpu, model)
++    model._hcu_qwen3_vl_optimized = True
++    return True
 diff --git a/cosmos_framework/utils/generator/torchcodec_video.py b/cosmos_framework/utils/generator/torchcodec_video.py
 index 8165d506be71ecbb9882212d0f517e9f43d6389a..41966352bf2dfe0f683c0996e17b0ad8cb5c7223 100644
 --- a/cosmos_framework/utils/generator/torchcodec_video.py
@@ -7773,6 +7944,218 @@ index 0000000000000000000000000000000000000000..017fd3cc299553e9dbe15a4fab222c95
 +
 +if __name__ == "__main__":
 +    unittest.main()
+diff --git a/tests/hcu/test_review_followups.py b/tests/hcu/test_review_followups.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..bf4aa8f1eb5b129a179372b2f1536e9859597d87
+--- /dev/null
++++ b/tests/hcu/test_review_followups.py
+@@ -0,0 +1,206 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 Hygon Information Technology Co., Ltd.
++# SPDX-License-Identifier: OpenMDW-1.1
++"""Small CPU regressions for package compatibility and HF instance bindings."""
++
++import contextlib
++import copy
++from pathlib import Path
++import runpy
++import tempfile
++import unittest
++from unittest import mock
++
++import torch
++from transformers import AutoConfig, AutoModelForImageTextToText
++from transformers.models.qwen3_vl.configuration_qwen3_vl import Qwen3VLConfig
++from transformers.models.qwen3_vl.modeling_qwen3_vl import Qwen3VLModel
++
++from cosmos_framework.utils.generator.qwen3_vl_hcu import (
++    apply_hcu_qwen3_vl_optimizations,
++)
++from cosmos_framework.utils.generator import qwen3_vl_hcu
++
++ROOT = Path(__file__).resolve().parents[2]
++
++
++def make_model():
++    config = Qwen3VLConfig(
++        vision_config={
++            "depth": 2,
++            "hidden_size": 16,
++            "intermediate_size": 32,
++            "num_heads": 2,
++            "out_hidden_size": 16,
++            "patch_size": 2,
++            "temporal_patch_size": 1,
++            "spatial_merge_size": 2,
++            "num_position_embeddings": 64,
++            "deepstack_visual_indexes": [0],
++        },
++        text_config={
++            "vocab_size": 64,
++            "hidden_size": 16,
++            "intermediate_size": 32,
++            "num_hidden_layers": 1,
++            "num_attention_heads": 2,
++            "num_key_value_heads": 2,
++            "head_dim": 8,
++            "rope_scaling": {"rope_type": "default", "mrope_section": [1, 1, 2]},
++        },
++        image_token_id=61,
++        video_token_id=62,
++        vision_start_token_id=60,
++    )
++    config._attn_implementation = "eager"
++    return Qwen3VLModel(config)
++
++
++class ChdirCompatibility(unittest.TestCase):
++    def test_python310_restores_nested_directories_on_error(self):
++        native = getattr(contextlib, "chdir", None)
++        if native is not None:
++            del contextlib.chdir
++        try:
++            runpy.run_path(str(ROOT / "cosmos_framework/__init__.py"))
++            original = Path.cwd()
++            with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
++                with self.assertRaisesRegex(RuntimeError, "injected"):
++                    with contextlib.chdir(first):
++                        self.assertEqual(Path.cwd(), Path(first))
++                        with contextlib.chdir(second):
++                            self.assertEqual(Path.cwd(), Path(second))
++                            raise RuntimeError("injected")
++                self.assertEqual(Path.cwd(), original)
++        finally:
++            if native is None:
++                del contextlib.chdir
++            else:
++                contextlib.chdir = native
++
++    def test_existing_stdlib_implementation_is_preserved(self):
++        sentinel = object()
++        with mock.patch.object(contextlib, "chdir", sentinel, create=True):
++            runpy.run_path(str(ROOT / "cosmos_framework/__init__.py"))
++            self.assertIs(contextlib.chdir, sentinel)
++
++
++class HFInstanceOptimizations(unittest.TestCase):
++    def setUp(self):
++        torch.manual_seed(42)
++        torch.set_num_threads(1)
++        self.reference = make_model()
++        self.optimized = copy.deepcopy(self.reference)
++
++    def enable(self):
++        with mock.patch.object(torch.version, "hip", "test"):
++            self.assertTrue(apply_hcu_qwen3_vl_optimizations(self.optimized))
++
++    def test_platform_gate_and_unsupported_version(self):
++        before = self.optimized.forward.__func__
++        with mock.patch.object(torch.version, "hip", None):
++            self.assertFalse(apply_hcu_qwen3_vl_optimizations(self.optimized))
++        with mock.patch.object(torch.version, "hip", "test"), mock.patch.object(
++            qwen3_vl_hcu.transformers, "__version__", "5.0.0"
++        ):
++            self.assertFalse(apply_hcu_qwen3_vl_optimizations(self.optimized))
++        self.assertIs(self.optimized.forward.__func__, before)
++        self.assertFalse(hasattr(self.optimized.visual, "_hcu_aux_cache"))
++
++    def test_auto_mappings_classes_and_state_dict_are_unchanged(self):
++        config_class = type(AutoConfig.for_model("qwen3_vl"))
++        model_class = AutoModelForImageTextToText._model_mapping[config_class]
++        keys = set(self.optimized.state_dict())
++        types_before = [type(module) for module in self.optimized.modules()]
++        self.enable()
++        self.assertIs(type(AutoConfig.for_model("qwen3_vl")), config_class)
++        self.assertIs(
++            AutoModelForImageTextToText._model_mapping[config_class], model_class
++        )
++        self.assertEqual(
++            [type(module) for module in self.optimized.modules()], types_before
++        )
++        self.assertEqual(set(self.optimized.state_dict()), keys)
++        self.assertNotIn("_hcu_qwen3_vl_optimized", self.reference.__dict__)
++        cache = self.optimized.visual._hcu_aux_cache
++        self.enable()
++        self.assertIs(self.optimized.visual._hcu_aux_cache, cache)
++
++    def test_vision_outputs_gradients_and_learned_positions_match(self):
++        self.enable()
++        for grid in (
++            torch.tensor([[1, 4, 4]]),
++            torch.tensor([[1, 4, 4]]),
++            torch.tensor([[1, 2, 8]]),
++        ):
++            pixels = torch.randn(16, 12)
++            values = []
++            for model in (self.reference, self.optimized):
++                model.zero_grad(set_to_none=True)
++                x = pixels.clone().requires_grad_()
++                with mock.patch.object(torch.version, "hip", "test"):
++                    output, deepstack = model.visual(x, grid)
++                loss = output.square().mean() + sum(
++                    item.square().mean() for item in deepstack
++                )
++                loss.backward()
++                values.append(
++                    (
++                        output,
++                        deepstack,
++                        x.grad,
++                        {n: p.grad for n, p in model.visual.named_parameters()},
++                    )
++                )
++            for left, right in zip(values[0][:3], values[1][:3]):
++                if isinstance(left, list):
++                    for a, b in zip(left, right):
++                        torch.testing.assert_close(a, b)
++                else:
++                    torch.testing.assert_close(left, right)
++            for name, gradient in values[0][3].items():
++                torch.testing.assert_close(gradient, values[1][3][name])
++            # Update the learned positional embedding; a cached value must not
++            # freeze its output or detach its gradient on the next iteration.
++            for model in (self.reference, self.optimized):
++                with torch.no_grad():
++                    for parameter in model.visual.parameters():
++                        if parameter.grad is not None:
++                            parameter.add_(parameter.grad, alpha=-0.01)
++        self.assertEqual(len(self.optimized.visual._hcu_aux_cache), 2)
++
++    def test_rope_for_text_image_padded_and_multiframe_video(self):
++        self.enable()
++        cases = [
++            (torch.tensor([[4, 5, 6]]), None, None, None),
++            (
++                torch.tensor([[5, 60, 61, 61, 61, 61, 6]]),
++                torch.tensor([[1, 4, 4]]),
++                None,
++                None,
++            ),
++            (
++                torch.tensor([[0, 5, 60, 61, 61, 61, 61, 6]]),
++                torch.tensor([[1, 4, 4]]),
++                None,
++                torch.tensor([[0, 1, 1, 1, 1, 1, 1, 1]]),
++            ),
++            (
++                torch.tensor([[5, 60, 62, 62, 62, 62, 6, 60, 62, 62, 62, 62, 7]]),
++                None,
++                torch.tensor([[2, 4, 4]]),
++                None,
++            ),
++        ]
++        for case in cases:
++            snapshots = [x.clone() if x is not None else None for x in case]
++            a = self.reference.get_rope_index(*case)
++            b = self.optimized.get_rope_index(*case)
++            for left, right in zip(a, b):
++                torch.testing.assert_close(left, right, rtol=0, atol=0)
++            for value, snapshot in zip(case, snapshots):
++                if value is not None:
++                    self.assertTrue(torch.equal(value, snapshot))
++
++
++if __name__ == "__main__":
++    unittest.main()
 diff --git a/tests/wan_vae_clean_fused_op_test.py b/tests/wan_vae_clean_fused_op_test.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..13cbdf8b37bdd8ad7a8ceac99a014bcfc08a9278
@@ -7974,10 +8357,10 @@ index 0000000000000000000000000000000000000000..19f4236819518507b784ea523c2c622f
 +    unittest.main()
 diff --git a/tools/run_framework_inference_local_assets.py b/tools/run_framework_inference_local_assets.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..11187656ac09fc3540b0b4c6a3f40a8ee1595b91
+index 0000000000000000000000000000000000000000..f3ccff955bc429b5955a94215f754816e2528348
 --- /dev/null
 +++ b/tools/run_framework_inference_local_assets.py
-@@ -0,0 +1,272 @@
+@@ -0,0 +1,259 @@
 +#!/usr/bin/env python3
 +"""Run official Cosmos Framework inference with local asset paths.
 +
@@ -8179,20 +8562,7 @@ index 0000000000000000000000000000000000000000..11187656ac09fc3540b0b4c6a3f40a8e
 +
 +
 +def patch_python310_compat() -> None:
-+    """Python 3.10 environment compatibility shims (contextlib.chdir, huggingface_hub offline)."""
-+    import contextlib
-+    if not hasattr(contextlib, "chdir"):
-+        @contextlib.contextmanager
-+        def chdir(path):
-+            old_cwd = os.getcwd()
-+            os.chdir(path)
-+            try:
-+                yield
-+            finally:
-+                os.chdir(old_cwd)
-+
-+        contextlib.chdir = chdir  # type: ignore[attr-defined]
-+
++    """Compatibility for the Hugging Face Hub offline helper."""
 +    try:
 +        import huggingface_hub
 +        if not hasattr(huggingface_hub, "is_offline_mode"):
@@ -8232,7 +8602,7 @@ index 0000000000000000000000000000000000000000..11187656ac09fc3540b0b4c6a3f40a8e
 +
 +
 +def main() -> None:
-+    # 0. 基础 Python 3.10 运行时兼容补丁（针对 contextlib.chdir / huggingface_hub）
++    # 0. Hugging Face Hub 离线模式辅助函数兼容
 +    patch_python310_compat()
 +
 +    # 1. 纯路径解析与存在性校验

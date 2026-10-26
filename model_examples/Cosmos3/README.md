@@ -2,6 +2,8 @@
 
 在 `cosmos-framework` 根目录应用 Cosmos3 补丁，再直接启动训练。以下示例使用 8 张 HCU，训练 70 步。
 
+验证状态：Generator Nano 已完成训练流程验证；Action Policy 和 Reasoner 提供适配代码与运行命令，待完成训练验证。
+
 ## 环境准备
 
 ### 拉取镜像及创建容器
