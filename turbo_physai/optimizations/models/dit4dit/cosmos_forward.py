@@ -24,6 +24,29 @@ def _exists(value):
     return value is not None
 
 
+def _apply_high_sigma_strategy(
+    t: torch.Tensor,
+    high_sigma_ratio: Optional[float],
+    high_sigma_min: Optional[float],
+) -> torch.Tensor:
+    """Apply high-noise sampling only when the strategy is fully configured."""
+
+    if (
+        high_sigma_ratio is None
+        or high_sigma_ratio <= 0
+        or high_sigma_min is None
+    ):
+        return t
+
+    high_mask = torch.rand(t.shape, device=t.device) < high_sigma_ratio
+    high_t = (
+        torch.rand(t.shape, device=t.device, dtype=t.dtype)
+        * (1.0 - high_sigma_min)
+        + high_sigma_min
+    )
+    return torch.where(high_mask, high_t, t)
+
+
 def prepare_latents(
         self,
         *,
@@ -500,10 +523,11 @@ def feature_extractor_forward(
                                 t = torch.rand((B_fm,), device=latents.device, dtype=torch.float32)
 
                             # High sigma strategy: force a fraction of samples to high noise (t close to 1)
-                            if high_sigma_ratio is not None and high_sigma_ratio > 0:
-                                high_mask = torch.rand((B_fm,), device=latents.device) < high_sigma_ratio
-                                high_t = torch.rand((B_fm,), device=latents.device, dtype=torch.float32) * (1.0 - high_sigma_min) + high_sigma_min
-                                t = torch.where(high_mask, high_t, t)
+                            t = _apply_high_sigma_strategy(
+                                t,
+                                high_sigma_ratio,
+                                high_sigma_min,
+                            )
 
                             t = t.view(B_fm, 1, 1, 1, 1)  # (B,1,1,1,1) for latent broadcast
 
