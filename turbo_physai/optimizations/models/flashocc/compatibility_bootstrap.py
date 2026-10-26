@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Load FlashOCC runtime shims before Turbo resolves replacement targets."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Disable activation checkpointing for FlashOCC's image backbone."""
 
 import copy

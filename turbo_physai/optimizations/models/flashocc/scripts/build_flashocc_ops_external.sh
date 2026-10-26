@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 MODEL_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)

@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Install FlashOCC compatibility in each Python rank started by torchrun."""
 
 import importlib.util
