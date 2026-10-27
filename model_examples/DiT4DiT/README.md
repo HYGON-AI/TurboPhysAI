@@ -1,6 +1,6 @@
 # DiT4DiT 应用说明
 
-本文说明如何在产品镜像中，基于官方 DiT4DiT 仓库应用 TurboPhysAI 的 HCU 优化。镜像获取和容器创建方法参见[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)。
+本文说明如何在 HCU 基础镜像中安装 DiT4DiT 依赖和 TurboPhysAI，并基于官方 DiT4DiT 仓库应用优化。
 
 ## 1. 模型简介
 
@@ -20,7 +20,59 @@ TurboPhysAI 的 DiT4DiT 优化基于官方仓库 commit `d8854a11713f846b8b3f768
 
 
 
-## 3. 准备模型源码
+## 3. 启动基础镜像
+
+基础镜像只提供 DTK、HCU PyTorch、DeepSpeed 等平台依赖。将下面的镜像地址替换为发布页给出的固定 tag 和 digest：
+
+```bash
+export BASE_IMAGE=REPOSITORY:TAG@sha256:DIGEST
+export CONTAINER_NAME=dit4dit-hcu
+export WORKSPACE=/path/to/dit4dit-workspace
+
+mkdir -p "$WORKSPACE"
+docker pull "$BASE_IMAGE"
+docker run -dit \
+  --name "$CONTAINER_NAME" \
+  --network=host \
+  --privileged \
+  --device=/dev/kfd \
+  --device=/dev/dri \
+  --ipc=host \
+  --shm-size=512G \
+  --group-add video \
+  --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined \
+  --ulimit stack=-1:-1 \
+  --ulimit memlock=-1:-1 \
+  -v /opt/hyhal:/opt/hyhal:ro \
+  -v "$WORKSPACE":/workspace \
+  -w /workspace \
+  "$BASE_IMAGE" sleep infinity
+
+docker exec -it "$CONTAINER_NAME" bash
+```
+
+## 4. 安装 TurboPhysAI 和模型依赖
+
+将正式 wheel 放入 `/workspace/packages`，并准备与 wheel 相同版本的 TurboPhysAI 仓库：
+
+```bash
+cd /workspace
+git clone https://github.com/HYGON-AI/TurboPhysAI.git
+cd TurboPhysAI
+git checkout --detach RELEASE_TAG_OR_COMMIT
+
+export TURBO_PHYSAI_ROOT=/workspace/TurboPhysAI
+export TURBO_PHYSAI_WHEEL=/workspace/packages/turbo_physai-VERSION-py3-none-any.whl
+
+python3 -m pip install --no-deps "$TURBO_PHYSAI_WHEEL"
+python3 -m pip install --no-deps \
+  -r "$TURBO_PHYSAI_ROOT/model_examples/DiT4DiT/requirements.txt"
+```
+
+`--no-deps` 用于保护基础镜像中的 HCU PyTorch、DeepSpeed、Triton 等适配组件。不要直接安装 DiT4DiT 上游 `requirements.txt`，否则可能覆盖这些组件或引入 CUDA 依赖。
+
+## 5. 准备并安装模型源码
 
 ```bash
 cd /workspace
@@ -29,18 +81,18 @@ git clone https://github.com/Mondo-Robotics/DiT4DiT.git model/DiT4DiT
 cd model/DiT4DiT
 git checkout --detach d8854a11713f846b8b3f768fc3bf2c6cba2bc17f
 git status --short
-```
-
-`git status --short` 应无输出。下文命令均在容器内的 `/workspace/model/DiT4DiT` 执行。
-
-## 4. 安装模型源码
-
-```bash
-cd /workspace/model/DiT4DiT
 python3 -m pip install -e . --no-build-isolation --no-deps
 ```
 
-DiT4DiT HCU 交付镜像在通用基础镜像之上安装模型依赖；通用基础镜像本身不包含 Accelerate 和 Diffusers。已验证的关键版本如下：
+`git status --short` 应无输出。模型源码同样使用 `--no-deps` 安装。随后检查组合环境：
+
+```bash
+python3 -m pip check
+python3 -c "import torch, accelerate, diffusers, transformers; print(torch.__version__)"
+turbo-physai --help
+```
+
+除基础镜像已有的 PyGObject 可选依赖，以及 Decord、pipablepytorch3d 的 wheel 平台元数据提示外，`pip check` 不应出现其他问题。已验证的关键版本如下：
 
 | 依赖 | HCU 交付版本 | DiT4DiT 上游版本 |
 | --- | --- | --- |
@@ -52,9 +104,9 @@ DiT4DiT HCU 交付镜像在通用基础镜像之上安装模型依赖；通用�
 | Decord | 0.6.0 | 0.6.0 |
 | Transformers | 4.57.1 | 4.57.6 |
 
-Accelerate 1.13.0 和 Diffusers 0.38.0 是经过双卡 HCU 训练验证的产品组合；TurboPhysAI 的 Cosmos 优化直接适配 Diffusers 0.38.0，不能单独替换为上游 commit。上游通用依赖中的 PEFT 未被该固定基线的 RoboCasa 训练路径导入，因此交付镜像不安装 PEFT。不要直接安装上游 `requirements.txt`，否则可能覆盖 HCU PyTorch 或引入 CUDA 依赖。
+Accelerate 1.13.0 和 Diffusers 0.38.0 是经过双卡 HCU 训练验证的组合；TurboPhysAI 的 Cosmos 优化直接适配 Diffusers 0.38.0，不能单独替换为上游 commit。该 RoboCasa 训练路径不安装未使用的 PEFT。
 
-## 5. 准备模型权重与数据
+## 6. 准备模型权重与数据
 
 训练使用以下资源：
 
@@ -94,11 +146,41 @@ ln -s "$PWD/playground/Datasets/nvidia/PhysicalAI-Robotics-GR00T-X-Embodiment-Si
 ```
 
 
-## 6. 通过 turbo-physai run 启动训练
+## 7. 通过 turbo-physai run 启动训练
 
 `turbo-physai run` 自动加载随包交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)，无需修改 DiT4DiT 模型源码即可应用优化。使用自定义配置时，通过 `--optimization-config /path/to/optimization.yaml` 和 `--runtime-config /path/to/runtime.yaml` 显式指定文件。
 
-### 6.1 单机双卡训练
+### 7.1 生成并复用 MIOpen 缓存
+
+将 MIOpen user DB 和 kernel cache 放在已挂载的 `/workspace` 中：
+
+```bash
+export DIT4DIT_CACHE_ROOT=/workspace/cache/dit4dit
+mkdir -p \
+  "$DIT4DIT_CACHE_ROOT/miopen/user_db" \
+  "$DIT4DIT_CACHE_ROOT/miopen/kernel_cache"
+
+export MIOPEN_USER_DB_PATH="$DIT4DIT_CACHE_ROOT/miopen/user_db"
+export MIOPEN_CUSTOM_CACHE_DIR="$DIT4DIT_CACHE_ROOT/miopen/kernel_cache"
+```
+
+首次针对真实 Conv3D shape 生成 User PerfDb 时，在执行 7.2 的训练命令前设置：
+
+```bash
+export MIOPEN_FIND_MODE=NORMAL
+export MIOPEN_FIND_ENFORCE=SEARCH
+```
+
+该次运行会搜索候选实现，因此明显更慢。数据库生成后，正常训练仅保留两个缓存路径并取消搜索变量：
+
+```bash
+unset MIOPEN_FIND_MODE
+unset MIOPEN_FIND_ENFORCE
+```
+
+不要使用 `SEARCH_DB_UPDATE`，也不要设置 TF32 或模型专用 BLAS/Tensile 环境变量。正式性能测试应在数据库生成后重新启动，并先完成 warmup。
+
+### 7.2 单机双卡训练
 
 ```bash
 cd /workspace/model/DiT4DiT

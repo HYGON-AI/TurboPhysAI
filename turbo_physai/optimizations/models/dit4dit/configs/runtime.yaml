@@ -4,8 +4,9 @@
 schema_version: turbophysai/runtime-config/v1
 kind: RuntimeConfig
 
-# Tuned BLAS/MIOpen libraries and caches are supplied by the delivery image,
-# not by TurboPhysAI. Keep only portable process/runtime settings here.
+# MIOpen caches are generated at runtime in the persistent path selected in
+# the model README. Custom BLAS/Tensile artifacts are not part of this recipe;
+# keep only portable process/runtime settings here.
 environment:
   set:
     TOKENIZERS_PARALLELISM: "false"
