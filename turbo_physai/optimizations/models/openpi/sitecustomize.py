@@ -1,11 +1,7 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Always-loaded startup dispatcher for OpenPI compatibility and opt-in hooks."""
-
-from turbo_physai.optimizations.models.openpi.startup_hooks import install_pre_torch_hooks
-
-install_pre_torch_hooks()
+"""Install OpenPI compatibility shims during Python startup."""
 
 from turbo_physai.optimizations.models.openpi.runtime_compatibility import apply_compatibility_shims
 

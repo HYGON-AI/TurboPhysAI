@@ -9,13 +9,10 @@ import os
 from pathlib import Path
 import statistics
 
-def _install_runtime():
- if os.environ.get('OPENPI_TORCH_KERNEL_MODE','off')!='gate':return
+def wrap_run(original):
  import torch,triton
- from torch._inductor.runtime.triton_heuristics import CachingAutotuner
  from .torch_runtime.siglip_lookup import build
  from .gemma_gate_lookup import expression_key
- original=CachingAutotuner.run
  root=Path(os.environ['OPENPI_TORCH_TIMING_OUTPUT']);rank=int(os.environ['LOCAL_RANK'])
  states={};keys={}
  atexit.register(lambda:(root/f'siglip_hits_rank{rank}.json').write_text(json.dumps([{k:v for k,v in s.items() if k not in ['module','table']} for s in states.values()],indent=2)))
@@ -77,11 +74,4 @@ def _install_runtime():
   if best is None:return original(self,*args,stream=stream,**kw)
   s['replaced_calls']+=1
   return s['module']['kernel'][(triton.cdiv(args[-1],best['block']),)](*args,s['table'],XBLOCK=best['block'],num_warps=best['warps'],enable_fp_fusion=s['fusion'])
- CachingAutotuner.run=run
-
-
-from .torch_runtime.installation import wrap_runtime_install
-
-def wrap_siglip_gelu_lookup(original, options):
-    del options
-    return wrap_runtime_install(original, "openpi.siglip_gelu_lookup", _install_runtime)
+ return run

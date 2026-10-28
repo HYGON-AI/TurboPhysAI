@@ -28,23 +28,5 @@ def _prepare_runtime() -> None:
     Path(output).mkdir(parents=True, exist_ok=True)
 
 
-def _install_once(group_id: str, installer: str | Callable[[], None]) -> None:
-    if group_id in _INSTALLED:
-        return
-    _prepare_runtime()
-    if isinstance(installer, str):
-        module = importlib.import_module(f".{installer}", package=__package__)
-        module.install()
-    else:
-        installer()
-    _INSTALLED.add(group_id)
-    print(f"[openpi-turbo] installed runtime group {group_id}", flush=True)
 
 
-def wrap_runtime_install(original: Callable[..., Any], group_id: str, installer: str | Callable[[], None]):
-    @wraps(original)
-    def wrapped(*args, **kwargs):
-        _install_once(group_id, installer)
-        return original(*args, **kwargs)
-
-    return wrapped

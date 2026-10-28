@@ -1,13 +1,7 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Shared dispatcher for the two independent DDP optimizations.
-
-Turbo applies wrappers targeting the same ``DistributedDataParallel.__init__``
-from the original target snapshot, so the later wrapper can otherwise replace
-the earlier one. Keep the group switches independent while installing one
-dispatcher that composes whichever groups are enabled.
-"""
+"""Shared static-DDP settings and DDP compile-mode dispatcher."""
 
 from __future__ import annotations
 
@@ -81,13 +75,6 @@ def configure_optimize_ddp() -> None:
     torch._dynamo.config.optimize_ddp = mode
 
 
-def register_compile_options(options: Mapping[str, Any]) -> None:
-    """Register compile-mode options without wrapping DDP.__init__."""
-
-    global _COMPILE_OPTIONS
-    _COMPILE_OPTIONS = options
-
-
 def _dispatcher(fallback: Any):
     _register_original(fallback)
 
@@ -103,14 +90,12 @@ def _dispatcher(fallback: Any):
 
 
 def register_static(original: Any, options: Mapping[str, Any]):
-    global _STATIC_OPTIONS
+    global _STATIC_OPTIONS, _COMPILE_OPTIONS
     _register_original(original)
     _STATIC_OPTIONS = options
-    return _dispatcher(original)
-
-
-def register_compile(original: Any, options: Mapping[str, Any]):
-    global _COMPILE_OPTIONS
-    _register_original(original)
     _COMPILE_OPTIONS = options
     return _dispatcher(original)
+
+
+def wrap_ddp_static_fast_path(original: Any, options: Mapping[str, Any]):
+    return register_static(original, options)

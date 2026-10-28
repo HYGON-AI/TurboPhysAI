@@ -10,31 +10,19 @@ from pathlib import Path
 import statistics
 
 
-def _install_runtime():
-    if os.environ.get('OPENPI_TORCH_KERNEL_MODE','off')!='gate':return
+_cache_state = None
+
+def make_run(original):
     import torch
     import triton
-    from torch._inductor.runtime.triton_heuristics import CachingAutotuner
     from .torch_runtime.rope_candidate import build,expression_key
     from .torch_runtime.rope_trig import precompute
-    original=CachingAutotuner.run
     root=Path(os.environ['OPENPI_TORCH_TIMING_OUTPUT']);rank=int(os.environ['LOCAL_RANK'])
     state={'rank':rank,'steps':0,'precompute_calls':0,'calls':{},'configs':{}}
     atexit.register(lambda:(root/f'rope_hits_rank{rank}.json').write_text(json.dumps(state,indent=2)))
     cache={};kernels={};fnkeys={};observed=set()
-    from openpi.models_pytorch.pi0_pytorch import PI0Pytorch
-
-    original_forward = PI0Pytorch.forward
-
-    def forward_with_step_cache(self, *args, **kwargs):
-        # Official OpenPI calls model.forward once per training step. This
-        # reproduces the patch runner's before_forward cache lifetime without
-        # requiring that runner or modifying OpenPI source.
-        cache.clear()
-        state['steps'] += 1
-        return original_forward(self, *args, **kwargs)
-
-    PI0Pytorch.forward = forward_with_step_cache
+    global _cache_state
+    _cache_state = (cache, state)
     def trig(freq):
         assert freq.dtype==torch.float32 and freq.is_contiguous() and freq.numel()==4005888
         key=(freq.data_ptr(),freq._version)
@@ -122,11 +110,18 @@ def _install_runtime():
         kernel,cfg,fusion=kernels[key]
         c,s=trig(args[freq_index]);state['calls'][key]+=1
         return kernel[grid(args,cfg)](*args[:pointers],c,s,*args[pointers:],**cfg,num_stages=1,enable_fp_fusion=fusion)
-    CachingAutotuner.run=run
+    return run
 
 
-from .torch_runtime.installation import wrap_runtime_install
 
-def wrap_rope_trig_cache(original, options):
+def wrap_rope_forward(original, options):
     del options
-    return wrap_runtime_install(original, "openpi.rope_trig_cache", _install_runtime)
+    from functools import wraps
+    @wraps(original)
+    def wrapped(self, *args, **kwargs):
+        if _cache_state is not None:
+            cache, state = _cache_state
+            cache.clear()
+            state['steps'] += 1
+        return original(self, *args, **kwargs)
+    return wrapped

@@ -22,13 +22,6 @@ _CHECKPOINT_ONLY_KWARGS = {
 }
 
 
-def _eager_call(function, args, kwargs):
-    # The stride=0 branch calls compute_layer_complete/final norms directly.
-    # checkpoint-only controls are not function arguments.
-    direct_kwargs = {
-        key: value for key, value in kwargs.items() if key not in _CHECKPOINT_ONLY_KWARGS
-    }
-    return function(*args, **direct_kwargs)
 
 
 def wrap_gemma_forward(original, options: Mapping[str, Any]):
@@ -228,17 +221,3 @@ def wrap_gemma_forward(original, options: Mapping[str, Any]):
 # still be imported and unit-tested; the active catalog no longer uses it for
 # the model path because a checkpoint helper wrapper causes Dynamo variants per
 # layer index inside the outer compiled graph.
-def wrap_gemma_checkpoint(original, options: Mapping[str, Any]):
-    stride = int(options.get("layer_stride", 0))
-    if stride < 0:
-        raise ValueError("layer_stride must be non-negative")
-
-    def wrapped(function, *args, **kwargs):
-        layer_idx = args[0] if args else kwargs.get("layer_idx")
-        if layer_idx is None:
-            raise TypeError("Gemma checkpoint wrapper requires layer_idx")
-        if stride == 0 or layer_idx % stride != 0:
-            return _eager_call(function, args, kwargs)
-        return original(function, *args, **kwargs)
-
-    return wrapped

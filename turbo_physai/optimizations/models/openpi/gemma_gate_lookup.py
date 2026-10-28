@@ -80,15 +80,3 @@ def dispatch(tuner,original,args,stream,kwargs):
             num_stages=1,enable_fp_fusion=fusion)
     else:raise AssertionError(state['backend'])
     state['replaced_calls']+=1
-
-
-def _install_runtime():
-    from .torch_runtime.kernel_hooks import install
-    install()
-
-
-from .torch_runtime.installation import wrap_runtime_install
-
-def wrap_gemma_gate_lookup(original, options):
-    del options
-    return wrap_runtime_install(original, "openpi.gemma_gate_lookup", _install_runtime)

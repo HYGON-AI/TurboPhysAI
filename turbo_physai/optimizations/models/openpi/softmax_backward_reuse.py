@@ -16,11 +16,7 @@ def expression_key(source):
     return hashlib.sha256(ast.dump(tree, include_attributes=False).encode()).hexdigest()
 
 
-def _install_runtime():
-    if os.environ.get('OPENPI_TORCH_KERNEL_MODE', 'off') == 'off':
-        return
-    from torch._inductor.runtime.triton_heuristics import CachingAutotuner
-    original = CachingAutotuner.run
+def make_run(original):
     root = Path(os.environ['OPENPI_TORCH_TIMING_OUTPUT'])
     rank = int(os.environ['LOCAL_RANK'])
     policy = json.loads((Path(__file__).parent/'torch_runtime'/'softmax_reuse_policy.json').read_text())
@@ -93,11 +89,4 @@ def _install_runtime():
             *args, **state['kwargs'], num_warps=state['num_warps'],
             num_stages=state['num_stages'], enable_fp_fusion=state['enable_fp_fusion'])
 
-    CachingAutotuner.run = run
-
-
-from .torch_runtime.installation import wrap_runtime_install
-
-def wrap_softmax_backward_reuse(original, options):
-    del options
-    return wrap_runtime_install(original, "openpi.softmax_backward_reuse", _install_runtime)
+    return run
