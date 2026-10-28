@@ -439,15 +439,22 @@ curl -fL --retry 5 --retry-delay 2 \
 
 可以直接执行以下任一脚本：
 
+下面的 `OPENPI_NET_IFACE` 是通信网卡名称示例，请按本节点实际情况修改；多机训练时各节点应选择相互连通的网卡。单机训练如果不需要指定网卡，可删除 `--set NCCL_SOCKET_IFNAME` 参数。
+
+当前分支仍包含 `openpi.network`，启动命令暂时通过 `--disable-group openpi.network` 关闭该组，避免它覆盖用户指定的网卡。后续同步移除该优化组的代码后，应同时删除这条 `--disable-group` 参数。
+
 ### 7.1 显式指定配置
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
 source TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/prepare_tune_runtime.sh
+export OPENPI_NET_IFACE=ens65f0np0  # 修改为本节点实际通信网卡
 
 turbo-physai run \
   --optimization-config "${OPENPI_MODEL_DIR}/configs/optimization.yaml" \
   --runtime-config "${OPENPI_MODEL_DIR}/configs/runtime.yaml" \
+  --disable-group openpi.network \
+  --set "NCCL_SOCKET_IFNAME=${OPENPI_NET_IFACE}" \
   --log-report \
   -- \
   torchrun --standalone --nnodes=1 --nproc_per_node=8 \
@@ -469,9 +476,12 @@ turbo-physai run \
 ```bash
 cd /workspace/openpi_TurboPhysAI
 source TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/prepare_tune_runtime.sh
+export OPENPI_NET_IFACE=ens65f0np0  # 修改为本节点实际通信网卡
 
 turbo-physai run \
   --model openpi \
+  --disable-group openpi.network \
+  --set "NCCL_SOCKET_IFNAME=${OPENPI_NET_IFACE}" \
   --log-report \
   -- \
   torchrun --standalone --nnodes=1 --nproc_per_node=8 \
