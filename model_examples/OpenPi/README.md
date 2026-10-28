@@ -226,13 +226,13 @@ PY
 
 ### 6.6 下载 PaliGemma tokenizer
 
-直接下载到运行时 `OPENPI_DATA_HOME` 对应的缓存位置；以下路径与默认 `runtime.yaml` 一致。若修改了 `OPENPI_DATA_HOME`，请同步修改下载位置。`/dev/shm` 是临时存储，重启或清理后需重新下载。
+将 tokenizer 下载到 `static_data/assets` 下的 OpenPI 缓存目录。下方训练命令通过 `--set` 指定相同的 `OPENPI_DATA_HOME`。
 
 ```bash
-mkdir -p /dev/shm/openpi_8gpu_cache/openpi_data/big_vision
+mkdir -p /workspace/openpi_TurboPhysAI/static_data/assets/big_vision
 curl -fL --retry 5 --retry-delay 2 \
   https://storage.googleapis.com/big_vision/paligemma_tokenizer.model \
-  -o /dev/shm/openpi_8gpu_cache/openpi_data/big_vision/paligemma_tokenizer.model
+  -o /workspace/openpi_TurboPhysAI/static_data/assets/big_vision/paligemma_tokenizer.model
 ```
 
 ### 6.7 安装独立 BLAS 优化包
@@ -283,6 +283,7 @@ export OPENPI_NET_IFACE=ens65f0np0  # 修改为本节点实际通信网卡
 turbo-physai run \
   --optimization-config "${OPENPI_MODEL_DIR}/configs/optimization.yaml" \
   --runtime-config "${OPENPI_MODEL_DIR}/configs/runtime.yaml" \
+  --set OPENPI_DATA_HOME=/workspace/openpi_TurboPhysAI/static_data/assets \
   --set "NCCL_SOCKET_IFNAME=${OPENPI_NET_IFACE}" \
   --log-report \
   -- \
@@ -310,6 +311,7 @@ export OPENPI_NET_IFACE=ens65f0np0  # 修改为本节点实际通信网卡
 turbo-physai run \
   --model openpi \
   --disable-group openpi.network \
+  --set OPENPI_DATA_HOME=/workspace/openpi_TurboPhysAI/static_data/assets \
   --set "NCCL_SOCKET_IFNAME=${OPENPI_NET_IFACE}" \
   --log-report \
   -- \
@@ -351,16 +353,9 @@ turbo-physai run \
 │   │   ├── config.json
 │   │   └── model.safetensors
 │   └── assets/
-│       └── pi05_libero/physical-intelligence/libero/norm_stats.json
+│       ├── pi05_libero/physical-intelligence/libero/norm_stats.json
+│       └── big_vision/paligemma_tokenizer.model
 └── output/                                  # 训练输出
     ├── logs/
     └── checkpoints/
-```
-
-tokenizer 位于工作目录之外的 OpenPI 缓存目录：
-
-```text
-/dev/shm/openpi_8gpu_cache/openpi_data/
-└── big_vision/
-    └── paligemma_tokenizer.model             # PaliGemma tokenizer 缓存
 ```
