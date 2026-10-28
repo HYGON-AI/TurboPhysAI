@@ -61,6 +61,16 @@ git -C /workspace/openpi_TurboPhysAI/openpi checkout --detach \
 git -C /workspace/openpi_TurboPhysAI/openpi submodule update --init --recursive
 ```
 
+以可编辑模式安装 OpenPI 和 OpenPI Client，供训练时导入。当前镜像使用 Python 3.10，因此使用 `--ignore-requires-python`；运行时仍需对应的兼容处理。`--no-deps` 避免替换镜像中的依赖。
+
+```bash
+cd /workspace/openpi_TurboPhysAI/openpi
+
+python -m pip install --ignore-requires-python --no-deps \
+  -e . \
+  -e packages/openpi-client
+```
+
 ### 4.2 拉取 TurboPhysAI 源码
 
 ```bash
