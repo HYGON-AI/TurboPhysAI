@@ -267,11 +267,9 @@ curl -fL --retry 5 --retry-delay 2 \
 
 `turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。按设备调整 RuntimeConfig 的可见卡、数据集和库路径。`prepare_tune_runtime.sh` 设置资源和输出路径，并切换到 OpenPI 源码目录。
 
-可以直接执行以下任一脚本：
+可以使用以下命令启动训练：
 
 下面的 `OPENPI_NET_IFACE` 是通信网卡名称示例，请按本节点实际情况修改；多机训练时各节点应选择相互连通的网卡。单机训练如果不需要指定网卡，可删除 `--set NCCL_SOCKET_IFNAME` 参数。
-
-当前分支仍包含 `openpi.network`，启动命令暂时通过 `--disable-group openpi.network` 关闭该组，避免它覆盖用户指定的网卡。后续同步移除该优化组的代码后，应同时删除这条 `--disable-group` 参数。
 
 ### 7.1 显式指定配置
 
@@ -295,38 +293,10 @@ turbo-physai run \
     --checkpoint-base-dir "${CHECKPOINT_BASE_DIR}" \
     --pytorch_weight_path "${WEIGHT_PATH}" \
     --num_train_steps 30000 \
-    --log-interval 1 \
-    --save-interval 2000 \
+    --log-interval 100 \
+    --save-interval 1000 \
     --no-wandb-enabled \
   2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_config_${STAMP}.log"
-```
-
-### 7.2 按模型名加载配置
-
-```bash
-cd /workspace/openpi_TurboPhysAI
-source TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/prepare_tune_runtime.sh
-export OPENPI_NET_IFACE=ens65f0np0  # 修改为本节点实际通信网卡
-
-turbo-physai run \
-  --model openpi \
-  --disable-group openpi.network \
-  --set OPENPI_DATA_HOME=/workspace/openpi_TurboPhysAI/static_data/assets \
-  --set "NCCL_SOCKET_IFNAME=${OPENPI_NET_IFACE}" \
-  --log-report \
-  -- \
-  torchrun --standalone --nnodes=1 --nproc_per_node=8 \
-    scripts/train_pytorch.py pi05_libero \
-    --exp_name "pi05_libero_8gpu_bs32_by_model_${STAMP}" \
-    --batch-size 256 \
-    --assets-base-dir "${ASSETS_BASE_DIR}" \
-    --checkpoint-base-dir "${CHECKPOINT_BASE_DIR}" \
-    --pytorch_weight_path "${WEIGHT_PATH}" \
-    --num_train_steps 30000 \
-    --log-interval 1 \
-    --save-interval 2000 \
-    --no-wandb-enabled \
-  2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_model_${STAMP}.log"
 ```
 
 训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
