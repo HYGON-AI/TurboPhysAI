@@ -329,3 +329,7 @@ turbo-physai run \
     ├── logs/
     └── checkpoints/
 ```
+
+## 9. 使用注意事项
+
+`openpi.kernel_runtime` 中部分 kernel 优化针对 `pi05_libero`、单卡 batch size 为 32 时的计算形状设计和验证。更换 batch size 或数据配置后，相关 kernel 可能无法匹配并回退到原生实现，性能收益需重新测试。优化组显示 `applied` 仅表示替换入口已安装，不代表每个 kernel 都已命中或产生收益。
