@@ -25,10 +25,7 @@ optimization_groups:
       - ast-v1:bffb3cfaf5cec85d6e163f7b7fc1f385104af2d46b7fd851eef73578c2c26c9c
 - id: openvla.fsdp.prefetch
   enabled: true
-  options:
-    backward_prefetch: pre
-    forward_prefetch: true
-    limit_all_gathers: false
+  options: {}
   trust:
     source_hashes:
       torch.distributed.fsdp.FullyShardedDataParallel:
@@ -38,9 +35,7 @@ optimization_groups:
       - ast-v1:f104543928a45a1234b0f55470af9f2223af67859c43a2a4ae23f301e381ef58
 - id: openvla.compile.fsdp1
   enabled: true
-  options:
-    compile: true
-    mode: default
+  options: {}
   trust:
     source_hashes:
       prismatic.training.strategies.fsdp.FSDPStrategy.run_setup:
@@ -78,20 +73,17 @@ optimization_groups:
       - ast-v1:ebea41aac0346cd6e7ce2b452c0752bb21f4eed3fe0e567fe9ed5602a4efc98e
 - id: openvla.data.text_len_bucket
   enabled: true
-  options:
-    bucket: 8
+  options: {}
   trust:
     source_hashes:
-      prismatic.util.data_utils.PaddedCollatorForActionPrediction.__call__:
-      - source-v1:420a81c66e38f78c4f755935363130983b35cf6a0febe6a426043e5497daa607
+      torch.utils.data.DataLoader.__iter__:
+      - source-v1:3ed80d7060fa2950c7e26d093a6f8d82c690d71dabe335d14f1bc70fc328b74c
     ast_hashes:
-      prismatic.util.data_utils.PaddedCollatorForActionPrediction.__call__:
-      - ast-v1:99b0919ed0ec091862483cc1eced83939c13c3c652021347c4d87a44eaca04e4
+      torch.utils.data.DataLoader.__iter__:
+      - ast-v1:ac012b50668fead0b07783c80b684e10b4befb38260845a084387ea40102b529
 - id: openvla.dataloader.spawn
   enabled: true
-  options:
-    num_workers: 2
-    pin_memory: true
+  options: {}
   trust:
     source_hashes:
       prismatic.vla.datasets.datasets.RLDSDataset:
@@ -119,18 +111,11 @@ optimization_groups:
       - ast-v1:a002574e805c6e58c9e10fd71f8aa8d0c539f45354d52e1d4dc58b7d0a13af25
 - id: openvla.reproducibility.data_order
   enabled: false
-  options:
-    explicit_seeds: true
-    hold_shuffle_permutation: true
+  options: {}
   trust: {}
 - id: openvla.reproducibility.determinism
   enabled: false
-  options:
-    allow_tf32: false
-    benchmark: false
-    cudnn_deterministic: true
-    deterministic_algorithms: true
-    strict: false
+  options: {}
   trust: {}
 optimization_modules:
 - turbo_physai.optimizations.models.openvla.catalog

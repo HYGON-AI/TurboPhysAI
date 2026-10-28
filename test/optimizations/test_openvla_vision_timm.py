@@ -21,11 +21,12 @@ check and are therefore asserted separately:
 
 * **The swap must actually happen.**  The rewrite is behaviour-equivalent, so a
   run where nothing was installed compares equal to itself and passes.
-* **With ``options.compile`` off, the factory must hand back the original
-  method.**  The towers stay eager there, so timm must be left globally
-  untouched.  An accidental install would still produce identical numbers, yet
-  would mutate ``timm.models.vision_transformer.VisionTransformer`` for the
-  whole process -- the one consequence a numerical comparison can never see.
+* **With ``TURBO_PHYSAI_DISABLE_TORCH_COMPILE=1``, the factory must hand back
+  the original method.**  The towers stay eager there, so timm must be left
+  globally untouched.  An accidental install would still produce identical
+  numbers, yet would mutate ``timm.models.vision_transformer.VisionTransformer``
+  for the whole process -- the one consequence a numerical comparison can never
+  see.
 """
 
 from __future__ import annotations
@@ -174,16 +175,32 @@ def test_prismatic_call_path_is_bit_identical(keywords, monkeypatch):
         assert torch.equal(a, b), f"tensor {index} differs"
 
 
-def test_factory_installs_the_rewrite_only_when_compile_is_enabled():
-    """Eager runs must leave timm globally untouched; compiled ones must swap."""
+def test_factory_installs_the_rewrite_and_honours_the_disable_switch(monkeypatch):
+    """The Group alone decides; the repository-wide switch skips the install."""
 
     original = _timm_method()
 
-    assert timm_intermediate_layers_wrapper(original, None) is original
-    assert timm_intermediate_layers_wrapper(original, {}) is original
-    assert timm_intermediate_layers_wrapper(original, {"compile": False}) is original
+    monkeypatch.delenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", raising=False)
     assert (
-        timm_intermediate_layers_wrapper(original, {"compile": True})
+        timm_intermediate_layers_wrapper(original, None)
+        is dynamo_safe_intermediate_layers
+    )
+    assert (
+        timm_intermediate_layers_wrapper(original, {})
+        is dynamo_safe_intermediate_layers
+    )
+    # The former ``options.compile`` is gone: the Group being enabled is enough.
+    assert (
+        timm_intermediate_layers_wrapper(original, {"compile": False})
+        is dynamo_safe_intermediate_layers
+    )
+
+    monkeypatch.setenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "1")
+    assert timm_intermediate_layers_wrapper(original, {}) is original
+
+    monkeypatch.setenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0")
+    assert (
+        timm_intermediate_layers_wrapper(original, {})
         is dynamo_safe_intermediate_layers
     )
     # Building the replacement must not mutate timm itself: installing it is the

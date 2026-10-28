@@ -12,7 +12,6 @@ environment:
   set:
     DISABLE_ADDMM_CUDA_LT: "1"
     MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
-    PYTORCH_HIP_ALLOC_CONF: "roundup_power2_divisions:16"
   unset: []
 
 # Not set here on purpose: ROCBLAS_TENSILE_LIBPATH.  The rocBLAS tuning library

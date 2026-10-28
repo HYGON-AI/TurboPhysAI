@@ -1,98 +1,14 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""OpenVLA reproducibility: a reproducible data stream and consistent kernels.
+"""OpenVLA 可复现性：数据流可复现 + kernel 选择固定。
 
-This module implements two independent Groups.  They answer two different
-questions and they complement each other:
+两个独立 Group：`data_order` 决定「第 k 步看到哪些样本」，`determinism` 决定
+「同样的样本是否算出同样的数」。
 
-``openvla.reproducibility.data_order`` -- *which* samples does a step see?
-    Upstream OpenVLA seeds ``random`` / ``numpy`` / ``torch`` in
-    ``prismatic.util.torch_utils.set_global_seed`` and stops there, but the RLDS
-    pipeline (``dlimp`` / ``tfds``) constructs several ops with ``seed=None``:
-    ``Dataset.shuffle()`` and ``tf.data.Dataset.sample_from_datasets()`` inside
-    ``make_interleaved_dataset``, TFDS' file-level ``shuffle_files=True`` (dlimp
-    passes no ``shuffle_seed``) and the ``tf.random.uniform`` draw in the frame
-    transform.  TensorFlow resolves ``seed=None`` from its *global* RNG when the op
-    is constructed, so without seeding it the sample order is re-randomized on
-    every launch and two runs cannot be compared step by step.
-
-    The Group therefore pins the run seed before the RLDS graph is built, and
-    threads it explicitly into the mixture sampling and the *frame* shuffle -- the
-    two places the validated fork seeds explicitly.  TFDS' file-level shuffle is
-    deliberately left to the global RNG, exactly as the fork leaves it; see
-    :func:`dlimp_shuffle_wrapper` for why pinning that one too would *change* the
-    batch stream instead of reproducing the fork's.
-
-``openvla.reproducibility.determinism`` -- do the same samples *compute* the same?
-    Seeds say nothing about kernel selection: (c)uDNN/MIOpen may autotune to a
-    different, non-deterministic convolution, TF32 truncates the fp32 mantissa,
-    and some backward reductions accumulate in a non-deterministic order.  This
-    Group pins those choices, and re-asserts the run seed after ``PrismaticVLM``
-    construction -- whose ``__init__`` calls
-    ``torch.manual_seed(vision_backbone.embed_dim)`` and would otherwise *become*
-    the effective torch seed of the run.
-
-    It anchors on ``PrismaticVLM.__init__`` because that constructor is the last
-    thing to touch the global RNG before the training loop, the first point every
-    training/eval entry point has certainly reached, and the earliest point at
-    which the run seed is known (upstream sets it before loading the model).  It
-    also collides with no other Group: ``set_global_seed`` belongs to
-    ``data_order``, ``run_vla_training`` to ``openvla.gc.freeze``, ``run_setup``
-    to ``openvla.compile.fsdp1`` and the ``DataLoader`` to
-    ``openvla.dataloader.spawn``.
-
-Only both Groups together give a bit-reproducible loss.  ``data_order`` alone
-fixes the samples but leaves kernel noise (the loss then agrees to a few
-significant digits); ``determinism`` alone fixes the arithmetic while the samples
-still differ from run to run.  Container-level determinism
-(``MIOPEN_DEBUG_CONVOLUTION_DETERMINISTIC``, ``MIOPEN_FIND_MODE``, the rocBLAS
-tuning library) is deliberately *not* here: those variables are read when the
-backend initializes and have to be set by the RuntimeConfig before the
-interpreter starts.
-
-Where the run seed travels
---------------------------
-``set_global_seed`` publishes the seed in-process and in the environment
-(``TURBO_PHYSAI_OPENVLA_SEED``).  The environment copy is what makes spawn
-DataLoader workers work: they re-import the model stack, so the framework's
-replacements are not installed there, and the marker is inherited instead.  When
-only ``data_order`` is enabled the seed is still found, through the upstream
-``EXPERIMENT_GLOBAL_SEED`` marker that ``prismatic`` itself writes.  With no seed
-published at all every wrapper is a pass-through, i.e. the baseline behaviour is
-bit-identical.
-
-Options
--------
-``openvla.reproducibility.data_order``
-    ``explicit_seeds`` (bool, default ``true``)
-        Thread the run seed into ``dlimp``'s mixture sampling and into the
-        ``tf.data`` frame shuffle, on top of the global TF seed.
-    ``hold_shuffle_permutation`` (bool, default ``true``)
-        Pass ``reshuffle_each_iteration=False`` on the seeded frame shuffle, so
-        the permutation is a function of the seed alone.
-
-``openvla.reproducibility.determinism``
-    The five options mirror the torch attributes they set; their defaults are the
-    bundle the validated fork applies behind ``OPENVLA_DETERMINISTIC=1``:
-    ``cudnn_deterministic`` (true), ``benchmark`` (false), ``allow_tf32`` (false),
-    ``deterministic_algorithms`` (true) and ``strict`` (false).  ``strict`` makes
-    ``use_deterministic_algorithms`` hard-fail instead of warn on the few ops
-    that have no deterministic kernel on ROCm.
-
-Known limits
-------------
-* ``--image_aug`` is not reproducible: the augmentation seed is drawn inside a
-  ``tf.data`` map running with 16 parallel calls, so the values a frame receives
-  depend on the order in which the replicas consume the stateful op.
-* Bit-for-bit equality is a same-machine, same-world-size property.  Different
-  device counts shard and reduce differently, and the RLDS normalization
-  statistics can be recomputed with a different file read order.
-* ``metrics.jsonl`` is written per rank and never reduced across ranks, so a
-  comparison is between the same rank of two runs.
-
-Module import is side-effect free and does not import torch / tensorflow /
-prismatic: every dependency is imported inside the function that needs it.
+为什么要做：上游只固定 random/numpy/torch的随机种子，
+而 dlimp/TFDS的 shuffle、sample_from_datasets、frame shuffle 都以 seed=None 构造，
+TF 在构图时从全局 RNG 取值，导致每次启动的样本顺序都不同。
 """
 
 from __future__ import annotations
@@ -134,33 +50,24 @@ _RUN_SEED: Optional[int] = None
 _WORKER_INIT: Optional[Callable[[int], None]] = None
 
 
-# --- options and the run seed ------------------------------------------------
+# --- fixed behaviour and the run seed ----------------------------------------
 
-def _option(options: Optional[Mapping[str, Any]], name: str, default: Any) -> Any:
-    """Read one Group option, with a default for a missing or empty mapping."""
+#: ``data_order``: 缺失的 seed 一律回落到 run seed，frame shuffle 固定置换。
+EXPLICIT_SEEDS = True
+HOLD_SHUFFLE_PERMUTATION = True
 
-    return dict(options or {}).get(name, default)
-
-
-def _option_enabled(value: Any, default: bool) -> bool:
-    """Parse a boolean Group option (YAML bool, or 1/0, true/false, yes/no, on/off)."""
-
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return bool(value)
-    text = str(value).strip().lower()
-    if text in {"1", "true", "yes", "on"}:
-        return True
-    if text in {"0", "false", "no", "off"}:
-        return False
-    return default
+#: ``determinism``: 固定的 torch 后端设置。
+DETERMINISM = {
+    "cudnn_deterministic": True,
+    "benchmark": False,
+    "allow_tf32": False,
+    "deterministic_algorithms": True,
+    "strict": False,
+}
 
 
 def _env_seed(name: str) -> Optional[int]:
-    """Read an integer seed from the environment; ``None`` when absent or invalid."""
+    """从环境变量读整数 seed；缺失或非法返回 None。"""
 
     raw = os.environ.get(name)
     if raw is None or not raw.strip():
@@ -172,10 +79,9 @@ def _env_seed(name: str) -> Optional[int]:
 
 
 def set_run_seed(seed: int) -> int:
-    """Record the run seed in-process and publish it to spawned children.
+    """记录 run seed 并发布到环境变量。
 
-    The environment copy is not a convenience: a spawn DataLoader worker
-    re-imports the model stack and therefore never sees this module's globals.
+    spawn worker 看不到本模块的全局变量，只能读环境。
     """
 
     global _RUN_SEED
@@ -185,14 +91,9 @@ def set_run_seed(seed: int) -> int:
 
 
 def run_seed() -> Optional[int]:
-    """Effective run seed, or ``None`` when nothing has been seeded yet.
+    """当前生效的 run seed。
 
-    Resolution order: the in-process record (written by this Group's
-    ``set_global_seed`` wrapper), then this Group's environment marker, then the
-    upstream ``EXPERIMENT_GLOBAL_SEED`` marker that ``prismatic`` itself writes.
-    The last step is what lets ``data_order`` work with the ``seed`` half
-    disabled and what lets ``determinism`` re-seed a run that only seeded the
-    host libraries.
+    解析顺序：进程内记录 → 本组环境标记 → 上游 EXPERIMENT_GLOBAL_SEED。
     """
 
     if _RUN_SEED is not None:
@@ -205,12 +106,9 @@ def run_seed() -> Optional[int]:
 
 
 def active_run_seed() -> Optional[int]:
-    """The seed *these* Groups published, i.e. the environment marker only.
+    """只认本组发布的环境标记。
 
-    Used where the answer has to mean "the framework published a seed in the
-    parent process" -- notably :func:`worker_seeded_dataset_class`, which runs
-    inside a spawn worker and must stay inert when only
-    ``openvla.dataloader.spawn`` is enabled.
+    spawn worker 用它判断父进程是否播种；spawn 单独开时保持惰性。
     """
 
     return _env_seed(RUN_SEED_ENV)
@@ -219,7 +117,7 @@ def active_run_seed() -> Optional[int]:
 # --- library-level seeding ---------------------------------------------------
 
 def _tensorflow():
-    """Return the TensorFlow module, or ``None`` when it is not installed."""
+    """取 tensorflow 模块；没装返回 None。"""
 
     try:
         import tensorflow
@@ -229,10 +127,9 @@ def _tensorflow():
 
 
 def seed_tensorflow(seed: int) -> bool:
-    """Pin TensorFlow's *global* RNG; returns whether TF was available.
+    """固定 TF 全局 RNG。
 
-    Has to run before any TF op is constructed for the seed to matter, because TF
-    resolves ``seed=None`` from this global state at graph-construction time.
+    必须在任何 TF op 构造前调用：TF 构图时从全局 RNG 解析 seed=None。
     """
 
     tensorflow = _tensorflow()
@@ -249,19 +146,9 @@ def apply_determinism(
     deterministic_algorithms: bool = True,
     strict: bool = False,
 ) -> bool:
-    """Pin kernel selection on top of the seeds; returns whether torch was available.
+    """固定 kernel 选择：关掉 autotune 和 TF32，打开 deterministic_algorithms。
 
-    Every argument mirrors the torch attribute it sets:
-
-    * ``cudnn_deterministic`` / ``benchmark``: deterministic kernels only, and no
-      runtime autotuning (on ROCm this is the MIOpen path).  Autotuning is the
-      usual reason two identical runs pick different algorithms.
-    * ``allow_tf32`` for matmul and (c)udnn: TF32 truncates the fp32 mantissa, so
-      it has to be off for a run that is compared against another vendor.
-    * ``deterministic_algorithms`` with ``strict=False``: deterministic kernels
-      and reductions, warning instead of aborting on the handful of ops ROCm has
-      no deterministic implementation for; ``strict=True`` hard-fails instead.
-      When disabled, the process setting is left untouched.
+    strict=False，ROCm 上没有确定性实现的算子只警告不中断。
     """
 
     try:
@@ -285,11 +172,10 @@ def apply_determinism(
 
 
 def reseed_host_rngs(seed: Optional[int]) -> bool:
-    """Make ``seed`` the effective torch seed again; returns whether it ran.
+    """重新把 seed 设为 torch 的有效种子。
 
-    ``torch.manual_seed`` already forwards to ``torch.cuda.manual_seed_all``, but
-    the flash-attention dropout path and any per-device ``torch.Generator`` read
-    the per-device generators directly, so the call is made explicit.
+    torch.manual_seed 已转发 cuda，但 FA dropout 和 per-device Generator 直接读
+    per-device 生成器，所以显式再调一次。
     """
 
     if seed is None:
@@ -309,18 +195,9 @@ def reseed_host_rngs(seed: Optional[int]) -> bool:
 def set_global_seed_wrapper(
     original: Callable[..., Any], options: Optional[Mapping[str, Any]] = None
 ) -> Callable[..., Any]:
-    """``wrap`` factory for ``prismatic.util.torch_utils.set_global_seed``.
+    """保留 baseline 的 random/numpy/torch 播种，额外做两件事。
 
-    Keeps the baseline seeding of ``random`` / ``numpy`` / ``torch`` exactly as it
-    is and adds the two data-stream pieces on top:
-
-    * the run seed is recorded and published, which is what the RLDS pipeline
-      wrappers below and the spawn DataLoader workers read;
-    * TensorFlow's global RNG is seeded, which is what pins the ``seed=None`` ops
-      of the RLDS pipeline (see the module docstring).
-
-    The returned ``worker_init_fn`` is this module's wrapped version, so workers
-    get a TensorFlow child sequence as well.
+    记录并发布 run seed、播 TF 全局 RNG，并返回本模块包装过的 worker_init_fn。
     """
 
     del options
@@ -336,21 +213,11 @@ def set_global_seed_wrapper(
 
 
 def _worker_tensorflow_seed(worker_id: int) -> Optional[int]:
-    """TensorFlow child seed for one DataLoader worker.
+    """给一个 worker 派生 TF 子种子。
 
-    Mirrors the derivation the baseline ``worker_init_function`` already uses and
-    extends it with a third child sequence for TensorFlow::
-
-        seed_seq = SeedSequence([base_seed, worker_id, LOCAL_RANK])
-        tf_seed  = seed_seq.spawn(3)[2]
-
-    ``SeedSequence.spawn(n)`` derives child ``i`` from ``(spawn_key + (i,))``
-    alone, so asking for three children instead of two leaves the torch and
-    ``random`` seeds bit-identical to the baseline.
-
-    Has to be called *before* the baseline ``worker_init_function``: that one
-    reseeds torch, after which ``torch.initial_seed()`` no longer holds the
-    per-worker seed the DataLoader installed.
+    沿用 baseline 的 SeedSequence，多 spawn 一个子序列给 TF，torch/random 的种子与
+    baseline 逐位一致。必须在 baseline worker_init_function 之前调用，否则
+    initial_seed() 已被改写。
     """
 
     try:
@@ -367,12 +234,9 @@ def _worker_tensorflow_seed(worker_id: int) -> Optional[int]:
 def worker_init_function_wrapper(
     original: Callable[..., Any], options: Optional[Mapping[str, Any]] = None
 ) -> Callable[..., Any]:
-    """``wrap`` factory for ``prismatic.util.torch_utils.worker_init_function``.
-
-    Adds a TensorFlow child seed on top of the baseline worker seeding.  This
-    runs *after* a spawned worker has unpickled its dataset, so it cannot
-    influence a TF graph that was already built: the per-worker *data stream*
-    seed is applied by :func:`worker_seeded_dataset_class` instead.
+    """在 baseline 播种之上补 TF 子种子。它跑在 worker 已
+    unpickle dataset 之后，改不了已建好的图；per-worker 数据流由
+    worker_seeded_dataset_class 负责。
     """
 
     del options
@@ -392,17 +256,10 @@ def worker_init_function_wrapper(
 def _seed_before_pipeline_build(
     original: Callable[..., Any], options: Optional[Mapping[str, Any]] = None
 ) -> Callable[..., Any]:
-    """Shared factory for the two RLDS pipeline builders.
+    """两个 RLDS 建图函数的共用工厂。
 
-    TensorFlow captures ``seed=None`` for every dataset op (TFDS' file shuffle,
-    ``sample_from_datasets``, the frame ``shuffle`` and the augmentation draws) at
-    graph-construction time, so the run seed has to be in the global RNG *before*
-    the wrapped call builds those ops -- in every process that builds the graph,
-    including spawn DataLoader workers.
-
-    A ``seed`` keyword supplied by the caller (the validated fork threads one)
-    wins over the run seed and is consumed here instead of being forwarded,
-    because upstream's signature has no such parameter.
+    TF 在构图时捕获 seed=None，所以要在 wrapped 调用建图前把 run seed 放进全局 RNG。
+    调用方显式传的 seed 优先并被使用（上游签名没有这个参数）。
     """
 
     del options
@@ -421,32 +278,20 @@ def _seed_before_pipeline_build(
 def make_dataset_from_rlds_wrapper(
     original: Callable[..., Any], options: Optional[Mapping[str, Any]] = None
 ) -> Callable[..., Any]:
-    """``wrap`` factory for ``make_dataset_from_rlds``.
-
-    ``dlimp.DLataset.from_rlds(..., shuffle=True)`` shuffles the *files* through
-    TFDS, which resolves its seed from TensorFlow's global RNG, and the rest of
-    that dataset's pipeline is constructed below this call -- so this is the
-    earliest point of the RLDS build and the right place to pin the seed.
-    """
-
     return _seed_before_pipeline_build(original, options)
 
 
 def make_interleaved_dataset_wrapper(
     original: Callable[..., Any], options: Optional[Mapping[str, Any]] = None
 ) -> Callable[..., Any]:
-    """``wrap`` factory for ``make_interleaved_dataset``.
-
-    The same backstop as :func:`make_dataset_from_rlds_wrapper`, applied to the
-    whole mixture build: per-dataset file order, the frame-level mixture sampling
-    and the frame shuffle all come out of the TF ops constructed below this call.
+    """同上，覆盖整个 mixture 构建：文件顺序、mixture 采样和 frame shuffle 都在此调用下构造。
     """
 
     return _seed_before_pipeline_build(original, options)
 
 
 def _accepts_keyword(function: Callable[..., Any], name: str) -> bool:
-    """Whether ``function`` accepts a keyword argument ``name``."""
+    """function 是否接受关键字参数 name。"""
 
     try:
         import inspect
@@ -463,24 +308,17 @@ def _accepts_keyword(function: Callable[..., Any], name: str) -> bool:
 def sample_from_datasets_wrapper(
     original: Callable[..., Any], options: Optional[Mapping[str, Any]] = None
 ) -> Callable[..., Any]:
-    """``wrap`` factory for ``dlimp.DLataset.sample_from_datasets``.
+    """dlimp 的 mixture 采样：缺失的 seed 用 run seed。"""
 
-    ``make_interleaved_dataset`` calls this without a seed and dlimp forwards
-    ``seed=None`` to ``tf.data.Dataset.sample_from_datasets`` -- a fresh choice
-    stream per launch, which decides *which* dataset every frame is drawn from.
-    With ``explicit_seeds`` (default on) a missing seed becomes the run seed; a
-    seed the caller passed is never touched, and a dlimp without a ``seed``
-    parameter is still called as before instead of raising ``TypeError``.
-    """
+    del options
 
-    explicit_seeds = _option_enabled(_option(options, "explicit_seeds", True), True)
     supports_seed = _accepts_keyword(original, "seed")
 
     @functools.wraps(original)
     def sample_from_datasets(
         datasets: Any, weights: Any = None, seed: Optional[int] = None, **kwargs: Any
     ) -> Any:
-        if explicit_seeds and seed is None:
+        if EXPLICIT_SEEDS and seed is None:
             seed = run_seed()
         if supports_seed:
             kwargs["seed"] = seed
@@ -492,37 +330,11 @@ def sample_from_datasets_wrapper(
 def dlimp_shuffle_wrapper(
     original: Callable[..., Any], options: Optional[Mapping[str, Any]] = None
 ) -> Callable[..., Any]:
-    """``wrap`` factory for ``dlimp.DLataset.shuffle`` -- the mixture's *frame* shuffle.
-
-    The frame shuffle is written ``dataset.shuffle(shuffle_buffer_size)`` inside
-    ``make_interleaved_dataset``.  With ``explicit_seeds`` (default on) a missing seed
-    becomes the run seed, and with ``hold_shuffle_permutation`` (default on) the
-    permutation is fixed to that seed instead of being redrawn per iteration.  Only
-    ``seed=None`` calls are touched: an explicit seed from any other caller is
-    preserved, and with no run seed published the wrapper is a pass-through.
-
-    Why the anchor is ``dlimp.DLataset`` and not ``tf.data.Dataset.shuffle``
-    ----------------------------------------------------------------------
-    ``tf.data.Dataset.shuffle`` is also the method TFDS uses for the *file-level*
-    shuffle of ``from_rlds(..., shuffle=True)``
-    (``instruction_ds.shuffle(len(files), seed=read_config.shuffle_seed)``, with
-    dlimp passing no ``shuffle_seed``).  Patching that method rewrites the shard
-    order as well, and the validated fork deliberately leaves *that* one to the
-    global RNG: under eager execution ``seed=None`` resolves to
-    ``(global_seed, random.Random(global_seed).randint(0, 2**31 - 1))``, i.e. it
-    depends only on the global seed and on how many seedless random ops were built
-    since it was set -- never on the op count of the process.  Both spellings are
-    reproducible, but they read the shards in *different* orders, so pinning the
-    file shuffle here would produce a batch stream that no longer matches the
-    fork's (first batch included).  Anchoring on ``DLataset`` hits only the frame
-    shuffle that ``make_interleaved_dataset`` performs, which is the one the fork
-    seeds explicitly.  ``DLataset`` reaches this wrapper like any other
-    ``tf.data.Dataset`` method: its ``__getattribute__`` re-wraps the result into a
-    ``DLataset``.
+    """
+    mixture 的 frame shuffle：缺失 seed 用 run seed，并把置换固定下来（reshuffle_each_iteration=False）。
     """
 
-    explicit_seeds = _option_enabled(_option(options, "explicit_seeds", True), True)
-    hold_permutation = _option_enabled(_option(options, "hold_shuffle_permutation", True), True)
+    del options
 
     @functools.wraps(original)
     def shuffle(
@@ -532,11 +344,11 @@ def dlimp_shuffle_wrapper(
         reshuffle_each_iteration: Optional[bool] = None,
         **kwargs: Any,
     ) -> Any:
-        if explicit_seeds and seed is None:
+        if EXPLICIT_SEEDS and seed is None:
             effective_seed = run_seed()
             if effective_seed is not None:
                 seed = int(effective_seed)
-                if hold_permutation and reshuffle_each_iteration is None:
+                if HOLD_SHUFFLE_PERMUTATION and reshuffle_each_iteration is None:
                     reshuffle_each_iteration = False
         return original(
             self,
@@ -554,34 +366,15 @@ def dlimp_shuffle_wrapper(
 def prismatic_vlm_init_wrapper(
     original: Callable[..., Any], options: Optional[Mapping[str, Any]] = None
 ) -> Callable[..., Any]:
-    """``wrap`` factory for ``prismatic.models.vlms.prismatic.PrismaticVLM.__init__``.
-
-    ``PrismaticVLM.__init__`` calls ``torch.manual_seed(vision_backbone.embed_dim)``
-    so that the projector initialization is deterministic -- which *overwrites*
-    the run seed, and would otherwise make the ViT embedding dim the effective
-    torch seed of the run.  Re-asserting the run seed here is what makes
-    ``--seed`` mean what it says, and doing it in the constructor (rather than
-    after model loading in the training script) also covers evaluation scripts
-    and any other entry point that builds a VLM.
-
-    Nothing between the construction and the re-seed consumes randomness, and
-    nothing before the construction runs a real kernel, so neither the
-    determinism bundle nor the re-seed moves a draw.
+    """
+    PrismaticVLM.__init__ 会覆盖 run seed，这里重新落实。
     """
 
-    settings = {
-        "cudnn_deterministic": _option_enabled(_option(options, "cudnn_deterministic", True), True),
-        "benchmark": _option_enabled(_option(options, "benchmark", False), False),
-        "allow_tf32": _option_enabled(_option(options, "allow_tf32", False), False),
-        "deterministic_algorithms": _option_enabled(
-            _option(options, "deterministic_algorithms", True), True
-        ),
-        "strict": _option_enabled(_option(options, "strict", False), False),
-    }
+    del options
 
     @functools.wraps(original)
     def __init__(self: Any, *args: Any, **kwargs: Any) -> None:
-        apply_determinism(**settings)
+        apply_determinism(**DETERMINISM)
         original(self, *args, **kwargs)
         reseed_host_rngs(run_seed())
 
@@ -591,7 +384,7 @@ def prismatic_vlm_init_wrapper(
 # --- Per-worker data streams (used by ``openvla.dataloader.spawn``) -----------
 
 def _worker_id() -> int:
-    """DataLoader worker id, or ``0`` outside a worker (``spawn`` unpickling)."""
+    """DataLoader worker id；非 worker（如 spawn unpickle 阶段）返回 0。"""
 
     try:
         import torch.utils.data
@@ -602,7 +395,7 @@ def _worker_id() -> int:
 
 
 def _install_identity(subclass: type, original: type) -> type:
-    """Give ``subclass`` the original class' name/doc, like the spawn wrapper does."""
+    """让子类沿用原类的名字和 doc。"""
 
     subclass.__name__ = original.__name__
     subclass.__qualname__ = original.__qualname__
@@ -611,28 +404,8 @@ def _install_identity(subclass: type, original: type) -> type:
 
 
 def worker_seeded_dataset_class(original: type, seed: Optional[int] = None) -> type:
-    """Return an RLDS dataset class whose TF graph is built per DataLoader worker.
-
-    Called by the spawn rebuild path (``spawn_dataloader._reconstruct_rlds_dataset``)
-    inside a worker: the worker re-runs the dataset constructor there, which
-    happens *before* ``worker_init_fn`` and therefore too early for anything
-    worker-id dependent, and (without this hook) against an unseeded global RNG --
-    i.e. a different data stream per worker and per launch.
-
-    The returned subclass applies the validated fork's rule, ``run_seed + worker_id``:
-
-    * its constructor seeds TensorFlow before ``super().__init__`` builds the
-      graph, and remembers the seed the live graph was built with;
-    * ``__iter__`` is where the worker id becomes known -- the DataLoader fetcher
-      calls ``iter(dataset)`` after ``worker_init_fn`` -- so the graph is rebuilt
-      there whenever the remembered seed is not this worker's;
-    * two co-existing workers each iterate a private copy of the same infinite
-      stream, so the ``+ worker_id`` offset is what keeps the streams disjoint:
-      with one shared seed every batch would be emitted twice.
-
-    ``original`` is returned unchanged when no seed was published by these Groups
-    (so ``openvla.dataloader.spawn`` keeps its exact behaviour on its own) and when
-    the class has already been wrapped.
+    """
+    按 run_seed + worker_id 播种的 RLDS 数据集子类。
     """
 
     base_seed = active_run_seed() if seed is None else int(seed)
@@ -640,7 +413,7 @@ def worker_seeded_dataset_class(original: type, seed: Optional[int] = None) -> t
         return original
 
     class _WorkerSeededDataset(original):
-        """RLDS dataset whose TensorFlow graph is rebuilt per DataLoader worker."""
+        """按 DataLoader worker 重建 TF 图的 RLDS 数据集。"""
 
         __turbo_physai_rlds_dataset__ = True
 
@@ -651,7 +424,7 @@ def worker_seeded_dataset_class(original: type, seed: Optional[int] = None) -> t
             super().__init__(*args, **kwargs)
 
         def _turbo_physai_seed_graph(self) -> int:
-            """Seed TensorFlow for this worker and remember the live graph's seed."""
+            """播种当前 worker 的 TF，并记下这次建图用的 seed。"""
 
             wanted = base_seed + _worker_id()
             seed_tensorflow(wanted)

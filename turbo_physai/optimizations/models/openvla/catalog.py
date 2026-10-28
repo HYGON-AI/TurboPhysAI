@@ -45,10 +45,14 @@ COMPILE_FSDP1 = group(
 )
 
 # --- Fused AdamW (Group enabled => fused is the default) --------------------
+# fsdp.py 在模块导入时就把 AdamW 绑进了自己的命名空间，只改 `torch.optim.AdamW`
+# 碰不到它的构造点；该绑定点必须一起替换，否则本组要等 compile.fsdp1 的
+# run_setup 动态取 `torch.optim.AdamW` 时才生效（两组之间没有声明依赖）。
 FUSED_ADAMW = group(
     "openvla.adamw.fused",
     wrap(
         target="torch.optim.AdamW",
+        aliases=("prismatic.training.strategies.fsdp.AdamW",),
         replacement="turbo_physai.optimizations.models.openvla.fusedAdamW.adamw_fused_wrapper",
     ),
 )
@@ -64,11 +68,13 @@ FSDP_PREFETCH = group(
 )
 
 # --- Fixed-length (bucketed) text padding ------------------------------------
+# 在 `DataLoader.__iter__` 上补齐：collate 跑在主进程还是 spawn worker 里都一样，
+# batch 出来后再向上取整到 bucket。类对象不动，pickle 不受影响，也不依赖 spawn 开关。
 TEXT_LEN_BUCKET = group(
     "openvla.data.text_len_bucket",
     wrap(
-        target="prismatic.util.data_utils.PaddedCollatorForActionPrediction.__call__",
-        replacement="turbo_physai.optimizations.models.openvla.text_len_bucket.bucketed_collate_wrapper",
+        target="torch.utils.data.DataLoader.__iter__",
+        replacement="turbo_physai.optimizations.models.openvla.text_len_bucket.dataloader_iter_wrapper",
     ),
 )
 
@@ -81,9 +87,9 @@ SKIP_FA2_UNPAD = group(
     ),
 )
 
-# --- RLDS DataLoader: spawned workers (Group options: num_workers, default 1) --
+# --- RLDS DataLoader: spawned workers ---------------------------------------
 # 仅对 RLDS 数据集（RLDSDataset / EpisodicRLDSDataset）的 DataLoader 强制
-# `num_workers=N` + `spawn` context（RLDS 的 TF graph 不能 fork，必须 spawn 重建）；
+# `num_workers=2` + `spawn` context（RLDS 的 TF graph 不能 fork，必须 spawn 重建）；
 # RLDS 数据集类包成可 pickle 子类（序列化构造参数、worker 里重建 TF graph）。
 DATALOADER_SPAWN = group(
     "openvla.dataloader.spawn",
@@ -129,7 +135,7 @@ DATALOADER_SPAWN = group(
 # `make_interleaved_dataset` 的两个 alias 同样必需：`rlds/__init__.py` 重新导出了它，
 # 而 `datasets.py` 在模块导入时把该名字绑进了自己的命名空间（`RLDSDataset.make_dataset`
 # 调用的就是这个绑定）。
-# options: explicit_seeds（默认 true）、hold_shuffle_permutation（默认 true）。
+# 固定行为：缺失的 seed 一律回落到 run seed，frame shuffle 固定置换（不读 options）。
 #
 # 与 `openvla.dataloader.spawn` 的配合：spawn worker 里框架 patch 不生效（bootstrap 会
 # 跳过 `python -c` 辅助进程），因此每个 worker 的数据流种子由 spawn 重建路径回调
@@ -177,8 +183,8 @@ DATA_ORDER = group(
 # data_order、run_vla_training 归 gc.freeze、run_setup 归 compile.fsdp1、DataLoader 归
 # dataloader.spawn）。容器级确定性（MIOpen / rocBLAS）必须由 RuntimeConfig 在进程启动前
 # 设置，不在本组内。
-# options: cudnn_deterministic(true)、benchmark(false)、allow_tf32(false)、
-#          deterministic_algorithms(true)、strict(false)。
+# 固定取值：cudnn_deterministic(true)、benchmark(false)、allow_tf32(false)、
+#          deterministic_algorithms(true)、strict(false)（不读 options）。
 DETERMINISM = group(
     "openvla.reproducibility.determinism",
     wrap(
