@@ -30,39 +30,3 @@ def call(kind,args,table,stream,config,n=507510784):
     if error:raise RuntimeError('shared gate HIP launch error '+str(error))
 
 
-def screen(kind,args,tables,stream,meta,root,small_args,small_golden,golden,outputs,inputs,native):
-    import torch
-    table=torch.stack(tables,dim=1).contiguous() if kind=='backward' else tables[0]
-    def restore():
-        for i,t in inputs.items():args[i].copy_(t)
-    def bench(fn):
-        for _ in range(3):restore();fn()
-        pairs=[]
-        for _ in range(15):
-            restore();a,b=torch.cuda.Event(enable_timing=True),torch.cuda.Event(enable_timing=True)
-            a.record();fn();b.record();pairs.append((a,b))
-        torch.cuda.synchronize()
-        return statistics.median(a.elapsed_time(b) for a,b in pairs)
-    report={'kind':kind,'name':meta['name'],'source_sha256':meta['source_sha256'],'results':[]}
-    # Reference exhaustive operands were overwritten by the prior candidate;
-    # reset the original up values before exercising the HIP variant.
-    factors=torch.tensor([1.,-.3125,.00390625,-128.],device=args[0].device,dtype=torch.bfloat16).repeat(16384)
-    for i in inputs:small_args[i].copy_(factors)
-    call(kind,small_args,table,stream,{'pairs':1,'grid':128},65536)
-    report['exhaustive_bf16_output_unequal']=[int(torch.count_nonzero(a.view(torch.int16)!=small_args[i].view(torch.int16))) for i,a in zip(outputs,small_golden)]
-    try:
-        report['native_ms_before']=bench(native)
-        for pairs in [1,2,4]:
-            for grid in [128,256,512,1024]:
-                cfg={'pairs':pairs,'grid':grid}
-                def candidate():call(kind,args,table,stream,cfg)
-                restore();candidate()
-                cfg['real_output_bitwise_unequal']=[int(torch.count_nonzero(a.view(torch.int16)!=args[i].view(torch.int16))) for i,a in zip(outputs,golden)]
-                cfg['bitwise_equal']=all(n==0 for n in cfg['real_output_bitwise_unequal']) and all(n==0 for n in report['exhaustive_bf16_output_unequal'])
-                if cfg['bitwise_equal']:cfg['milliseconds']=bench(candidate)
-                report['results'].append(cfg)
-        report['native_ms_after']=bench(native)
-    finally:
-        for i,g in zip(outputs,golden):args[i].copy_(g)
-    (root/f'gate_shared_{meta["source_sha256"][:12]}.json').write_text(json.dumps(report,indent=2))
-    print('OPENPI_GATE_SHARED '+json.dumps(report),flush=True)

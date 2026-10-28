@@ -9,14 +9,10 @@ from pathlib import Path
 import statistics
 
 
-def _install_runtime():
-    if os.environ.get('OPENPI_TORCH_KERNEL_MODE') != 'gate':
-        return
+def make_run(original):
     import torch
     import triton
-    from torch._inductor.runtime.triton_heuristics import CachingAutotuner
     from .torch_runtime.softmax_schedule import build
-    original = CachingAutotuner.run
     root = Path(os.environ['OPENPI_TORCH_TIMING_OUTPUT']); rank = int(os.environ['LOCAL_RANK'])
     states = {}
     atexit.register(lambda: (root/f'softmax_schedule_hits_rank{rank}.json').write_text(json.dumps(
@@ -57,8 +53,6 @@ def _install_runtime():
                 return statistics.median(a.elapsed_time(b) for a,b in pairs)
 
             report['native_ms'] = timed(lambda: original(self, *args, stream=stream, **kw))
-            options = [dict(kind='schedule', x=x, w=w) for x,w in [(8,4),(16,4),(32,4),(64,4),(64,8),(128,8),(32,2),(16,2),(128,16)]]
-            options += [dict(kind='split', x=x, w=w, out=dict(x=ox,w=ow)) for x,w,ox,ow in [(32,8,4,8),(64,8,4,8),(32,4,8,8),(64,4,8,8)]]
             options = [dict(kind='oneexp', x=16, w=4)]
             for c in options:
                 row=dict(choice=c)
@@ -91,11 +85,4 @@ def _install_runtime():
         return s['kernels'][2][(triton.cdiv(250368,o['x']),)](*args,XBLOCK=o['x'],R0_BLOCK=1024,
             num_warps=o['w'],num_stages=1,enable_fp_fusion=s['fusion'])
 
-    CachingAutotuner.run = run
-
-
-from .torch_runtime.installation import wrap_runtime_install
-
-def wrap_softmax_forward_schedule(original, options):
-    del options
-    return wrap_runtime_install(original, "openpi.softmax_forward_schedule", _install_runtime)
+    return run

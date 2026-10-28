@@ -4,6 +4,7 @@
 """Opt-in clipping scaling: leave native norms, coefficients and grouping intact."""
 import ast
 import atexit
+from functools import wraps
 import hashlib
 import inspect
 import json
@@ -12,9 +13,7 @@ from pathlib import Path
 import statistics
 
 
-def _install_runtime():
-    if os.environ.get('OPENPI_TORCH_KERNEL_MODE', 'off') == 'off':
-        return
+def _make_runtime(original):
     import torch
     import torch.nn.utils.clip_grad as module
     root = Path(os.environ['OPENPI_TORCH_TIMING_OUTPUT'])
@@ -22,7 +21,6 @@ def _install_runtime():
     policy = json.loads((Path(__file__).parent/'torch_runtime'/'clip_scale_policy.json').read_text())
     if hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest() != policy['framework_sha256']:
         raise RuntimeError('Clipping framework source differs from audited version')
-    original = module._clip_grads_with_norm_
     source = inspect.getsource(original)
     tree = ast.parse(source)
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
@@ -108,11 +106,19 @@ def _install_runtime():
     exec(compile(tree, '<openpi_clip_vector_scale>', 'exec'), namespace)
     (root/f'clip_native_rank{rank}.py').write_text(source)
     (root/f'clip_generated_rank{rank}.py').write_text(ast.unparse(tree)+'\n')
-    module._clip_grads_with_norm_ = namespace['_clip_grads_with_norm_']
+    return namespace['_clip_grads_with_norm_']
 
 
-from .torch_runtime.installation import wrap_runtime_install
+from .torch_runtime.installation import _prepare_runtime
 
 def wrap_clip_grad_scale(original, options):
     del options
-    return wrap_runtime_install(original, "openpi.clip_grad_scale", _install_runtime)
+    runtime = None
+    @wraps(original)
+    def wrapped(*args, **kwargs):
+        nonlocal runtime
+        if runtime is None:
+            _prepare_runtime()
+            runtime = _make_runtime(original)
+        return runtime(*args, **kwargs)
+    return wrapped

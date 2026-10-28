@@ -20,13 +20,7 @@ compatibility: {}
 
 # Keep optimization defaults in the replacements; expose only the compile mode.
 optimization_groups:
-  - id: openpi.numa
-    enabled: true
-
   - id: openpi.network
-    enabled: true
-
-  - id: openpi.ddp_static_fast_path
     enabled: true
 
   - id: openpi.compile_stack
@@ -40,32 +34,14 @@ optimization_groups:
   - id: openpi.fused_adamw
     enabled: true
 
-  - id: openpi.deferred_metric_sync
-    enabled: true
-
   - id: openpi.disable_tqdm
     enabled: true
 
   - id: openpi.inductor_settings
     enabled: true
 
-  - id: openpi.gemma_gate_lookup
-    enabled: true
-
-  - id: openpi.siglip_gelu_lookup
-    enabled: true
-
-  - id: openpi.rope_trig_cache
-    enabled: true
-
-  - id: openpi.softmax_forward_schedule
-    enabled: true
-
-  - id: openpi.softmax_backward_reuse
+  - id: openpi.kernel_runtime
     enabled: true
 
   - id: openpi.clip_grad_scale
-    enabled: true
-
-  - id: openpi.batched_adamw
     enabled: true
