@@ -1,5 +1,10 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+#
+# Portions are derived from OpenPI's src/openpi/models_pytorch/gemma_pytorch.py,
+# https://github.com/Physical-Intelligence/openpi, commit
+# 215abfb217dbac7d5f1273282331b9b1866c0479 (Apache-2.0).
+# Modified by Hygon.
 
 """Patch-equivalent selective Gemma gradient-checkpoint replacement."""
 

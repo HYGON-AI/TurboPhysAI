@@ -87,6 +87,16 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 | `turbo_physai/optimizations/models/bevformer/training.py` | `projects/mmdet3d_plugin/bevformer/apis/train.py` | Modified |
 | `turbo_physai/optimizations/models/bevformer/tsa.py` | `projects/mmdet3d_plugin/bevformer/modules/temporal_self_attention.py` | Modified |
 
+### OpenPI
+
+- Repository: <https://github.com/Physical-Intelligence/openpi>
+- Fixed commit: `215abfb217dbac7d5f1273282331b9b1866c0479`
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/openpi/gemma_checkpoint_stride.py` | `src/openpi/models_pytorch/gemma_pytorch.py` | Modified |
+
 ### MMCV
 
 - Repository: <https://github.com/open-mmlab/mmcv>
