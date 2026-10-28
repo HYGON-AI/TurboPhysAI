@@ -123,7 +123,7 @@ hf download physical-intelligence/libero \
 
 ### 6.2 下载 PI0.5 base 权重
 
-先按 [Google Cloud CLI 文档](https://cloud.google.com/storage/docs/gsutil_install) 安装 `gsutil`，再下载官方 JAX checkpoint。命令成功结束后再进行格式转换；重新运行可继续同步未完成的文件。`commit_success.txt` 只是 checkpoint 标记，不能单独证明下载完整。
+先按 [Google Cloud CLI 文档](https://cloud.google.com/storage/docs/gsutil_install) 安装 `gsutil`，再下载官方 JAX checkpoint。命令成功结束后再进行格式转换。
 
 ```bash
 mkdir -p /workspace/openpi_TurboPhysAI/static_data/pi05_base
