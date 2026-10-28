@@ -453,7 +453,6 @@ export OPENPI_NET_IFACE=ens65f0np0  # 修改为本节点实际通信网卡
 turbo-physai run \
   --optimization-config "${OPENPI_MODEL_DIR}/configs/optimization.yaml" \
   --runtime-config "${OPENPI_MODEL_DIR}/configs/runtime.yaml" \
-  --disable-group openpi.network \
   --set "NCCL_SOCKET_IFNAME=${OPENPI_NET_IFACE}" \
   --log-report \
   -- \
