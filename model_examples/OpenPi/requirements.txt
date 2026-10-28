@@ -14,6 +14,7 @@ filelock==3.20.3
 flatbuffers==25.12.19
 flax==0.10.2
 fsspec[gcs]==2025.3.0
+huggingface_hub==0.36.2
 imageio==2.37.3
 jsonlines==4.0.0
 jax==0.5.3
