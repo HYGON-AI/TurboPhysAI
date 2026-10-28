@@ -356,3 +356,13 @@ turbo-physai run \
     ├── logs/
     └── checkpoints/
 ```
+
+tokenizer 位于工作目录之外的 OpenPI 缓存目录：
+
+```text
+/dev/shm/openpi_8gpu_cache/openpi_data/
+└── big_vision/
+    └── paligemma_tokenizer.model             # PaliGemma tokenizer 缓存
+```
+
+`/dev/shm` 是临时存储，重启或清理后可能需要重新下载 tokenizer。
