@@ -1,0 +1,36 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+
+metadata:
+  id: model.openpi.turbo
+  version: "1.0.0"
+  description: OpenPI HCU optimization recipe for generating the validated config
+
+model:
+  name: openpi
+
+optimization_modules:
+  - turbo_physai.optimizations.models.openpi.catalog
+
+# Do not extend common.hcu.base: its MMCV/3D detection groups are unrelated to OpenPI.
+compatibility: {}
+
+# Keep optimization defaults in the replacements; expose only the compile mode.
+optimization_groups:
+  - id: openpi.compile_stack
+    enabled: true
+    options:
+      mode: max-autotune-no-cudagraphs
+
+  - id: openpi.gemma_checkpoint_stride
+    enabled: true
+
+  - id: openpi.fused_adamw
+    enabled: true
+
+  - id: openpi.disable_tqdm
+    enabled: true
+
