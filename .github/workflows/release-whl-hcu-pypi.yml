@@ -162,23 +162,6 @@ jobs:
           [[ "${#wheels[@]}" -eq 1 ]] || { echo 'Expected exactly one raw wheel' >&2; exit 1; }
           echo "Using HCU-specific Linux wheel: ${wheels[0]}"
 
-      - name: CIUpload REPAIR
-        run: |
-          set -eo pipefail
-          source /opt/dtk/env.sh
-          set -u
-          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
-          dtk_version="$(tr -d '.[:space:]' < /opt/dtk/.info/rocm_version)"
-          torch_version="$(python3 -c 'import torch; print(torch.__version__.split("+", 1)[0])')"
-          commit_sha="$(git rev-parse HEAD)"
-          mapfile -t wheels < <(find dist -maxdepth 1 -type f -name 'turbo_physai-*.whl' -print)
-          [[ "${#wheels[@]}" -eq 1 ]] || { echo 'Expected exactly one raw HCU Linux wheel' >&2; exit 1; }
-          CIUpload REPAIR \
-            --dtk_version "${dtk_version}" \
-            --torch_version "${torch_version}" \
-            --git_commit "${commit_sha}" \
-            --outputdir output -f "${wheels[0]}"
-
       - name: CIUpload NIGHTLY
         if: ${{ github.event_name == 'push' }}
         env:
@@ -190,8 +173,8 @@ jobs:
           : "${PYPI_URL:?Configure repository variable PYPI_URL}"
           : "${PYPI_PASSWORD:?Configure repository secret PYPI_PASSWORD}"
           dtk_version="$(tr -d '.[:space:]' < /opt/dtk/.info/rocm_version)"
-          mapfile -t wheels < <(find output -maxdepth 1 -type f -name '*.whl' -print)
-          [[ "${#wheels[@]}" -eq 1 ]] || { echo 'Expected exactly one final wheel' >&2; exit 1; }
+          mapfile -t wheels < <(find dist -maxdepth 1 -type f -name 'turbo_physai-*.whl' -print)
+          [[ "${#wheels[@]}" -eq 1 ]] || { echo 'Expected exactly one raw HCU Linux wheel' >&2; exit 1; }
           CIUpload NIGHTLY \
             --devpi_url "${PYPI_URL}" --password "${PYPI_PASSWORD}" \
             --dtk_version "${dtk_version}" -f "${wheels[0]}" --record
