@@ -275,38 +275,41 @@ curl -fL --retry 5 --retry-delay 2 \
 
 ## 7. 通过 turbo-physai run 启动训练
 
-`turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。按设备调整 RuntimeConfig 的可见卡、数据集和库路径。`prepare_tune_runtime.sh` 设置资源和输出路径，并切换到 OpenPI 源码目录。
-
-可以使用以下命令启动训练：
-
-下面的 `OPENPI_NET_IFACE` 是通信网卡名称示例，请按本节点实际情况修改；多机训练时各节点应选择相互连通的网卡。单机训练如果不需要指定网卡，可删除 `--set NCCL_SOCKET_IFNAME` 参数。
+`turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。请按实际设备和数据位置调整路径、可见卡及通信网卡；示例使用八卡，每卡 batch size 为 32。
 
 ### 7.1 显式指定配置
 
+`ens65f0np0` 仅为通信网卡名称示例，请按本节点实际情况修改；多机训练时各节点应选择相互连通的网卡。单机训练如果不需要指定网卡，可删除 `--set NCCL_SOCKET_IFNAME` 参数。
+
 ```bash
-cd /workspace/openpi_TurboPhysAI
-source TurboPhysAI/turbo_physai/optimizations/models/openpi/scripts/prepare_tune_runtime.sh
-export OPENPI_NET_IFACE=ens65f0np0  # 修改为本节点实际通信网卡
+cd /workspace/openpi_TurboPhysAI/openpi
+
+mkdir -p \
+  /workspace/openpi_TurboPhysAI/output/checkpoints \
+  /workspace/openpi_TurboPhysAI/output/logs
+
+STAMP="$(date +%Y%m%d_%H%M%S)"
 
 turbo-physai run \
-  --optimization-config "${OPENPI_MODEL_DIR}/configs/optimization.yaml" \
-  --runtime-config "${OPENPI_MODEL_DIR}/configs/runtime.yaml" \
+  --optimization-config /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/configs/optimization.yaml \
+  --runtime-config /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/configs/runtime.yaml \
   --set OPENPI_DATA_HOME=/workspace/openpi_TurboPhysAI/static_data/assets \
-  --set "NCCL_SOCKET_IFNAME=${OPENPI_NET_IFACE}" \
+  --set NCCL_SOCKET_IFNAME=ens65f0np0 \
+  --set HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
   --log-report \
   -- \
   torchrun --standalone --nnodes=1 --nproc_per_node=8 \
     scripts/train_pytorch.py pi05_libero \
     --exp_name "pi05_libero_8gpu_bs32_by_config_${STAMP}" \
     --batch-size 256 \
-    --assets-base-dir "${ASSETS_BASE_DIR}" \
-    --checkpoint-base-dir "${CHECKPOINT_BASE_DIR}" \
-    --pytorch_weight_path "${WEIGHT_PATH}" \
+    --assets-base-dir /workspace/openpi_TurboPhysAI/static_data/assets \
+    --checkpoint-base-dir /workspace/openpi_TurboPhysAI/output/checkpoints \
+    --pytorch_weight_path /workspace/openpi_TurboPhysAI/static_data/pi05_base_pytorch \
     --num_train_steps 30000 \
     --log-interval 100 \
     --save-interval 1000 \
     --no-wandb-enabled \
-  2>&1 | tee -a "${LOG_DIR}/pi05_libero_8gpu_bs32_by_config_${STAMP}.log"
+  2>&1 | tee -a "/workspace/openpi_TurboPhysAI/output/logs/pi05_libero_8gpu_bs32_by_config_${STAMP}.log"
 ```
 
 训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
