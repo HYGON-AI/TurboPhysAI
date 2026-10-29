@@ -133,7 +133,7 @@ hf download physical-intelligence/libero \
 
 ### 6.2 下载 PI0.5 base 权重
 
-使用 Python 脚本下载官方 JAX checkpoint，无需安装 `gsutil`：
+使用 Python 脚本下载官方 JAX checkpoint：
 
 ```bash
 python /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/download_pi05_base.py
