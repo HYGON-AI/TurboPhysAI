@@ -1,16 +1,19 @@
-# Copyright 2026 Hygon Information Technology Co., Ltd.
-# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# Portions are derived from OpenPI:
+# https://github.com/Physical-Intelligence/openpi
+# File: src/openpi/models_pytorch/gemma_pytorch.py
+# Commit: 215abfb217dbac7d5f1273282331b9b1866c0479
+# Upstream license: Apache-2.0
 #
-# Portions are derived from OpenPI's src/openpi/models_pytorch/gemma_pytorch.py,
-# https://github.com/Physical-Intelligence/openpi, commit
-# 215abfb217dbac7d5f1273282331b9b1866c0479 (Apache-2.0).
+# Copyright 2026 Hygon Information Technology Co., Ltd.
 # Modified by Hygon.
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 
 """Patch-equivalent selective Gemma gradient-checkpoint replacement."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
+import os
 from typing import Any
 
 import torch
@@ -42,6 +45,14 @@ def wrap_gemma_forward(original, options: Mapping[str, Any]):
     stride = int(options.get("layer_stride", 0))
     if stride < 0:
         raise ValueError("layer_stride must be non-negative")
+    if os.getenv("RANK", "0") == "0":
+        state = "disabled" if stride == 0 else f"every {stride} layer(s)"
+        print(
+            f"[TurboPhysAI] Gemma joint forward: checkpoint {state} (layer_stride={stride}); "
+            "active only in training when checkpointing is enabled; "
+            "other forward paths use the original implementation",
+            flush=True,
+        )
 
     def wrapped(
         self,
@@ -218,11 +229,3 @@ def wrap_gemma_forward(original, options: Mapping[str, Any]):
         return [outputs_embeds[0], outputs_embeds[1]], None
 
     return wrapped
-
-
-# Kept as a compatibility symbol for older generated configs.  New configs
-# target PaliGemmaWithExpertModel.forward directly.  This helper intentionally
-# retains the old checkpoint-function contract so generated/legacy configs can
-# still be imported and unit-tested; the active catalog no longer uses it for
-# the model path because a checkpoint helper wrapper causes Dynamo variants per
-# layer index inside the outer compiled graph.

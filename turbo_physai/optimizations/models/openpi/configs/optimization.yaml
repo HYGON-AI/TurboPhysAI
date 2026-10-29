@@ -13,16 +13,6 @@ compatibility:
   commits:
   - 215abfb217dbac7d5f1273282331b9b1866c0479
 optimization_groups:
-- id: openpi.network
-  enabled: true
-  options: {}
-  trust:
-    source_hashes:
-      torch.distributed.init_process_group:
-      - source-v1:41451eefdbf9214cc0b78e82bcd7a2cfd0d09db54c91c53f46f5d5c4d4fc36e9
-    ast_hashes:
-      torch.distributed.init_process_group:
-      - ast-v1:c668b1dee7842737f683387ac61505764734b7b044bdafc1c6e6ac9f14865a87
 - id: openpi.compile_stack
   enabled: true
   options:

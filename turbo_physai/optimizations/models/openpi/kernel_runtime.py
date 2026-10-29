@@ -9,6 +9,16 @@ from . import gelu_lookup, rope_trig_cache, softmax_backward_reuse, softmax_forw
 from .torch_runtime.installation import _prepare_runtime
 
 
+def supports_kernel_runtime(self, *args, stream, benchmark_run=False, **kwargs):
+    """Enable the audited kernel replacements only on their target device."""
+    del args, stream, benchmark_run, kwargs
+    props = getattr(self, "device_props", None)
+    return bool(
+        getattr(props, "cc", None) == "gfx938"
+        and getattr(props, "multi_processor_count", None) == 64
+    )
+
+
 def wrap_kernel_runtime(original, options):
     del options
     dispatch = None

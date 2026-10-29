@@ -6,7 +6,6 @@
 from turbo_physai import group, wrap
 
 CATALOG_GROUPS = (
-    "openpi.network",
     "openpi.compile_stack",
     "openpi.gemma_checkpoint_stride",
     "openpi.fused_adamw",
@@ -14,14 +13,6 @@ CATALOG_GROUPS = (
     "openpi.inductor_settings",
     "openpi.kernel_runtime",
     "openpi.clip_grad_scale",
-)
-
-NETWORK = group(
-    "openpi.network",
-    wrap(
-        target="torch.distributed.init_process_group",
-        replacement="turbo_physai.optimizations.models.openpi.network.wrap_process_group_network",
-    ),
 )
 
 COMPILE_STACK = group(
@@ -72,6 +63,7 @@ KERNEL_RUNTIME = group(
     wrap(
         target="torch._inductor.runtime.triton_heuristics.CachingAutotuner.run",
         replacement="turbo_physai.optimizations.models.openpi.kernel_runtime.wrap_kernel_runtime",
+        runtime_condition="turbo_physai.optimizations.models.openpi.kernel_runtime.supports_kernel_runtime",
     ),
     wrap(
         target="openpi.models_pytorch.pi0_pytorch.PI0Pytorch.forward",
