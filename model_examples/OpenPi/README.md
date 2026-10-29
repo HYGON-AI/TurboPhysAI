@@ -277,16 +277,20 @@ curl -fL --retry 5 --retry-delay 2 \
 
 `turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。请按实际设备和数据位置调整路径、可见卡及通信网卡；示例使用八卡，每卡 batch size 为 32。
 
+启动训练前，先创建输出目录：
+
+```bash
+mkdir -p \
+  /workspace/openpi_TurboPhysAI/output/checkpoints \
+  /workspace/openpi_TurboPhysAI/output/logs
+```
+
 ### 7.1 显式指定配置
 
 `ens65f0np0` 仅为通信网卡名称示例，请按本节点实际情况修改；多机训练时各节点应选择相互连通的网卡。单机训练如果不需要指定网卡，可删除 `--set NCCL_SOCKET_IFNAME` 参数。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI/openpi
-
-mkdir -p \
-  /workspace/openpi_TurboPhysAI/output/checkpoints \
-  /workspace/openpi_TurboPhysAI/output/logs
 
 STAMP="$(date +%Y%m%d_%H%M%S)"
 
