@@ -24,6 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  HARBOR_SITE: 10.16.1.152:5000
   # Transitional mode: build the repository-owned CI image on each runner.
   # Keep a stable local tag so persistent runners can reuse Docker layer cache.
   TURBOPHYSAI_CI_IMAGE: turbophysai-ci:hcu-ci-local
@@ -79,14 +80,13 @@ jobs:
 
       - name: Build the repository-specified CI image
         shell: bash
-        env:
-          L0_IMAGE: ${{ vars.IMAGE_URL }}
         run: |
           set -euo pipefail
-          if [[ -z "${L0_IMAGE:-}" ]]; then
-            echo "Required repository variable IMAGE_URL is not configured." >&2
+          if [[ -z "${HARBOR_SITE:-}" ]]; then
+            echo "HARBOR_SITE is not configured." >&2
             exit 1
           fi
+          L0_IMAGE="${HARBOR_SITE}/hcu/base/dtk:26.04-ubuntu22.04-py3.10"
           docker build \
             --build-arg "L0_IMAGE=${L0_IMAGE}" \
             --file docker/ci/Dockerfile \

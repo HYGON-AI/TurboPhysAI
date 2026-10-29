@@ -1,0 +1,187 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+name: Release WHL HCU PyPI
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+# Share the physical HCU with the existing hcu-ci.yml workflow.
+concurrency:
+  group: turbophysai-hcu-single-device
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    name: Publish HCU wheel
+    runs-on:
+      group: ci-general
+      labels: [self-hosted, ci, nmz1]
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Start with the original CI combination. Add rows only when matching
+          # base images and all dependency wheels are available and validated.
+          - dtk_version: "26.04"
+            dtk_tag: "2604"
+            py_version: "3.10"
+            torch_wheel: torch-2.7.1+das.opt1.dtk2604.2605091817.g39c19f-cp310-cp310-manylinux_2_28_x86_64.whl
+            triton_wheel: triton-3.2.0+das.opt1.dtk2604.torch271.2605122039.gc13c4e-cp310-cp310-manylinux_2_28_x86_64.whl
+            hipdnn_wheel: hipdnn-1.0.1+dtk2604-cp310-cp310-linux_x86_64.whl
+            lightop_wheel: lightop-0.6.0%2Bdas.dtk2604-cp310-cp310-linux_x86_64.whl
+            torchvision_version: 0.22.0+das.opt1.dtk2604.torch271
+    defaults:
+      run:
+        shell: bash
+    container:
+      # Keep Ubuntu initially; parameterize the DTK and Python image tag.
+      image: 10.16.1.152:5000/hcu/base/dtk:${{ matrix.dtk_version }}-ubuntu22.04-py${{ matrix.py_version }}
+      options: >-
+        --user root
+        --device=/dev/kfd --device=/dev/dri
+        --group-add=video
+        -v /opt/hyhal:/opt/hyhal:ro
+        --shm-size=64g
+        --cap-add=SYS_PTRACE
+        --security-opt seccomp=unconfined
+        --privileged
+        --ulimit stack=-1:-1
+        --ulimit memlock=-1:-1
+    env:
+      HIP_VISIBLE_DEVICES: "0"
+      MAX_JOBS: "4"
+      LANG: C.UTF-8
+      PYTHONNOUSERSITE: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      TORCH_CUDA_ARCH_LIST: "9.0"
+      PIP_INDEX_URL: ${{ vars.HCU_PIP_INDEX_URL || 'https://pypi.tuna.tsinghua.edu.cn/simple' }}
+      PIP_TRUSTED_HOST: ${{ vars.HCU_PIP_TRUSTED_HOST || 'pypi.tuna.tsinghua.edu.cn' }}
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_NO_CACHE_DIR: "1"
+      PIP_DEFAULT_TIMEOUT: "180"
+      PIP_RETRIES: "10"
+      COS_WHL_BASE: https://hygon-thpcbench-1251001002.cos.ap-shanghai.myqcloud.com/hygon/whl
+      PYPI_URL: ${{ vars.PYPI_URL || 'http://10.16.1.201:9929' }}
+      PYPI_TRUSTED_HOST: ${{ vars.PYPI_TRUSTED_HOST || '10.16.1.201' }}
+      DTK_PYPI_INDEX: https://pypi.sourcefind.cn/release/dtk${{ matrix.dtk_tag }}/+simple/
+      TORCH_WHEEL: ${{ matrix.torch_wheel }}
+      TRITON_WHEEL: ${{ matrix.triton_wheel }}
+      HIPDNN_WHEEL: ${{ matrix.hipdnn_wheel }}
+      LIGHTOP_WHEEL: ${{ matrix.lightop_wheel }}
+      TORCHVISION_VERSION: ${{ matrix.torchvision_version }}
+
+    steps:
+      - name: Install original CI system dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          # Same Ubuntu/Debian DTK base-image assumption as docker/ci/Dockerfile.
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake curl git libnuma-dev \
+            ninja-build python3-dev python3-tk patchelf
+          rm -rf /var/lib/apt/lists/*
+          test -f /opt/dtk/env.sh
+          test -d /opt/dtk/.hyhal/rocm_smi/lib
+          printf '%s\n' '/opt/dtk/.hyhal/rocm_smi/lib' \
+            > /etc/ld.so.conf.d/turbophysai-dtk.conf
+          ldconfig
+
+      - name: Check out the release commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install original CI Python dependencies and release tools
+        run: |
+          set -eo pipefail
+          source /opt/dtk/env.sh
+          set -u
+          # Preserve docker/ci/Dockerfile's full dependency setup.
+          # Installing test dependencies does not execute the test suite.
+          python3 -m pip config set global.index-url "${PIP_INDEX_URL}"
+          python3 -m pip config set global.trusted-host "${PIP_TRUSTED_HOST}"
+          python3 -m pip install --upgrade "setuptools==80.9.0" wheel pip
+          /usr/bin/python3 -m pip install \
+            "${COS_WHL_BASE}/${TORCH_WHEEL}" \
+            "${COS_WHL_BASE}/${TRITON_WHEEL}" \
+            "${COS_WHL_BASE}/${HIPDNN_WHEEL}"
+          /usr/bin/python3 -m pip install --no-deps \
+            --index-url "${DTK_PYPI_INDEX}" \
+            "torchvision==${TORCHVISION_VERSION}"
+          /usr/bin/python3 -m pip install --ignore-installed --no-deps \
+            "${COS_WHL_BASE}/${LIGHTOP_WHEEL}"
+          /usr/bin/python3 -m pip install \
+            pytest coverage "numpy==1.23.5" "scipy>=1.9.0" PyYAML packaging \
+            "Pillow==12.3.0"
+          # Preserve the dependency installation done before the wheel build in
+          # run_hcu_ci.sh, including its coverage pin. Do not run that script.
+          python3 -m pip install -r requirements-test.txt
+          # ciupload is hosted on the internal DTK nightly index.
+          python3 -m pip install --no-cache-dir \
+            --index-url "${PYPI_URL}/nightly/dtk${{ matrix.dtk_tag }}/+simple/" \
+            --trusted-host "${PYPI_TRUSTED_HOST}" \
+            ciupload
+          torch_lib="$(python3 -c 'import torch; from pathlib import Path; print(Path(torch.__file__).parent / "lib")')"
+          echo "LD_LIBRARY_PATH=${torch_lib}:/opt/dtk/cuda/cuda-12/lib64:${LD_LIBRARY_PATH:-}" >> "${GITHUB_ENV}"
+
+      - name: Build wheel
+        run: |
+          set -eo pipefail
+          source /opt/dtk/env.sh
+          set -u
+          export ROCM_HOME="${ROCM_HOME:-${ROCM_PATH:-/opt/dtk}}"
+          unset PYTHONPATH
+          repo_root="$(pwd)"
+          build_root="$(mktemp -d /tmp/turbophysai-build.XXXXXX)"
+          trap 'rm -rf -- "${build_root}"' EXIT
+          # Reuse run_hcu_ci.sh's isolated-source wheel build, without tests.
+          cp -a "${repo_root}/." "${build_root}/"
+          git config --global --add safe.directory "${build_root}"
+          mkdir -p "${repo_root}/dist"
+          python3 -m pip wheel \
+            --no-build-isolation --no-deps \
+            --wheel-dir "${repo_root}/dist" "${build_root}"
+
+      - name: Select raw HCU wheel
+        run: |
+          set -eo pipefail
+          set -u
+          mapfile -t wheels < <(find dist -maxdepth 1 -type f -name 'turbo_physai-*.whl' -print)
+          [[ "${#wheels[@]}" -eq 1 ]] || { echo 'Expected exactly one raw wheel' >&2; exit 1; }
+          echo "Using HCU-specific Linux wheel: ${wheels[0]}"
+
+      - name: CIUpload NIGHTLY
+        if: ${{ github.event_name == 'push' }}
+        env:
+          PYPI_URL: ${{ vars.PYPI_URL }}
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          : "${PYPI_URL:?Configure repository variable PYPI_URL}"
+          : "${PYPI_PASSWORD:?Configure repository secret PYPI_PASSWORD}"
+          dtk_version="$(tr -d '.[:space:]' < /opt/dtk/.info/rocm_version)"
+          mapfile -t wheels < <(find dist -maxdepth 1 -type f -name 'turbo_physai-*.whl' -print)
+          [[ "${#wheels[@]}" -eq 1 ]] || { echo 'Expected exactly one raw HCU Linux wheel' >&2; exit 1; }
+          CIUpload NIGHTLY \
+            --devpi_url "${PYPI_URL}" --password "${PYPI_PASSWORD}" \
+            --dtk_version "${dtk_version}" -f "${wheels[0]}" --record
+
+      - name: Clean generated wheel directories
+        if: always()
+        run: |
+          # Only generated workspace files; the runner manages container cleanup.
+          cd "${GITHUB_WORKSPACE}"
+          rm -rf -- dist output
