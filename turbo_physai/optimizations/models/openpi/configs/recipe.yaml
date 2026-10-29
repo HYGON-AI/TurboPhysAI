@@ -20,9 +20,6 @@ compatibility: {}
 
 # Keep optimization defaults in the replacements; expose only the compile mode.
 optimization_groups:
-  - id: openpi.network
-    enabled: true
-
   - id: openpi.compile_stack
     enabled: true
     options:

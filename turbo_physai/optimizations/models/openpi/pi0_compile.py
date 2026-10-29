@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+import os
 from typing import Any
 
 import torch
@@ -96,6 +97,20 @@ def _run_region(function, args, kwargs, *, cache_key, options):
 
 def wrap_pi0_compile(original, options: Mapping[str, Any]):
     """Compile both selected regions; keep the original path for every other case."""
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+        if os.getenv("RANK", "0") == "0":
+            print("[TurboPhysAI] PI0 selected regions: original implementation (compile disabled by environment)", flush=True)
+        return original
+
+    if os.getenv("RANK", "0") == "0":
+        path = "direct" if _option_bool(options, "direct", True) else "checkpoint"
+        compile_state = "enabled" if _option_bool(options, "compile", True) else "disabled"
+        print(
+            f"[TurboPhysAI] PI0 selected regions: {path}; torch.compile={compile_state} "
+            "(only when training and outer checkpointing is enabled)",
+            flush=True,
+        )
+
     def wrapped(self, func, *args, **kwargs):
         cache_key = _REGION_CACHE_KEYS.get(getattr(func, "__name__", ""))
         if (
