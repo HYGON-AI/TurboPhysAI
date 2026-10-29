@@ -34,11 +34,3 @@ optimization_groups:
   - id: openpi.disable_tqdm
     enabled: true
 
-  - id: openpi.inductor_settings
-    enabled: true
-
-  - id: openpi.kernel_runtime
-    enabled: true
-
-  - id: openpi.clip_grad_scale
-    enabled: true

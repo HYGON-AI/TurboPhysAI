@@ -10,9 +10,6 @@ CATALOG_GROUPS = (
     "openpi.gemma_checkpoint_stride",
     "openpi.fused_adamw",
     "openpi.disable_tqdm",
-    "openpi.inductor_settings",
-    "openpi.kernel_runtime",
-    "openpi.clip_grad_scale",
 )
 
 COMPILE_STACK = group(
@@ -50,31 +47,4 @@ DISABLE_TQDM = group(
     ),
 )
 
-INDUCTOR_SETTINGS = group(
-    "openpi.inductor_settings",
-    wrap(
-        target="torch.compile",
-        replacement="turbo_physai.optimizations.models.openpi.inductor_settings.wrap_torch_compile",
-    ),
-)
 
-KERNEL_RUNTIME = group(
-    "openpi.kernel_runtime",
-    wrap(
-        target="torch._inductor.runtime.triton_heuristics.CachingAutotuner.run",
-        replacement="turbo_physai.optimizations.models.openpi.kernel_runtime.wrap_kernel_runtime",
-        runtime_condition="turbo_physai.optimizations.models.openpi.kernel_runtime.supports_kernel_runtime",
-    ),
-    wrap(
-        target="openpi.models_pytorch.pi0_pytorch.PI0Pytorch.forward",
-        replacement="turbo_physai.optimizations.models.openpi.rope_trig_cache.wrap_rope_forward",
-    ),
-)
-
-CLIP_GRAD_SCALE = group(
-    "openpi.clip_grad_scale",
-    wrap(
-        target="torch.nn.utils.clip_grad._clip_grads_with_norm_",
-        replacement="turbo_physai.optimizations.models.openpi.clip_grad_scale.wrap_clip_grad_scale",
-    ),
-)
