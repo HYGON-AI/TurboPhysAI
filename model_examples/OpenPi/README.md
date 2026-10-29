@@ -133,42 +133,10 @@ hf download physical-intelligence/libero \
 
 ### 6.2 下载 PI0.5 base 权重
 
-在独立 Python 环境中安装 `gsutil`，避免修改训练环境的 Python 依赖，再下载官方 JAX checkpoint。
-
-1. 创建独立环境并安装 `gsutil`：
+使用 Python 脚本下载官方 JAX checkpoint，无需安装 `gsutil`：
 
 ```bash
-(
-  set -e
-
-  mkdir -p /workspace/openpi_TurboPhysAI/tools
-
-  # 避免覆盖已有环境
-  if [ -e /workspace/openpi_TurboPhysAI/tools/gsutil-venv ]; then
-    echo "gsutil-venv 已存在，请先确认后再操作"
-    exit 1
-  fi
-
-  env -u PYTHONPATH -u PYTHONHOME \
-    python -m venv /workspace/openpi_TurboPhysAI/tools/gsutil-venv
-
-  env -u PYTHONPATH -u PYTHONHOME \
-    /workspace/openpi_TurboPhysAI/tools/gsutil-venv/bin/python -m pip install gsutil
-
-  env -u PYTHONPATH -u PYTHONHOME \
-    /workspace/openpi_TurboPhysAI/tools/gsutil-venv/bin/gsutil version
-)
-```
-
-2. 下载官方权重：
-
-```bash
-mkdir -p /workspace/openpi_TurboPhysAI/static_data/pi05_base
-
-env -u PYTHONPATH -u PYTHONHOME \
-  /workspace/openpi_TurboPhysAI/tools/gsutil-venv/bin/gsutil -m rsync -r \
-  gs://openpi-assets/checkpoints/pi05_base \
-  /workspace/openpi_TurboPhysAI/static_data/pi05_base
+python /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/download_pi05_base.py
 ```
 
 下载成功后再进行格式转换。中断后可重新运行下载命令。
