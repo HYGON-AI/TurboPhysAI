@@ -80,7 +80,7 @@ jobs:
       - name: Build the repository-specified CI image
         shell: bash
         env:
-          L0_IMAGE: ${{ vars.IMAGE_URL }}
+          L0_IMAGE: 10.16.1.152:5000/hcu/base/dtk:26.04-ubuntu22.04-py3.10
         run: |
           set -euo pipefail
           if [[ -z "${L0_IMAGE:-}" ]]; then
