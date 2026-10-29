@@ -118,7 +118,10 @@ def wrap_pi0_compile(original, options: Mapping[str, Any]):
             and getattr(self, "gradient_checkpointing_enabled", False)
             and self.training
         ):
-            return _run_region(func, args, kwargs, cache_key=cache_key, options=options)
+            # Include lazy compilation on the first call, then restore the
+            # caller's Dynamo configuration on return or exception.
+            with torch._dynamo.config.patch(optimize_ddp=False):
+                return _run_region(func, args, kwargs, cache_key=cache_key, options=options)
         return original(self, func, *args, **kwargs)
 
     return wrapped

@@ -13,8 +13,6 @@ environment:
     HF_DATASETS_CACHE: "/dev/shm/openpi_8gpu_cache/hf_datasets"
     TORCHINDUCTOR_CACHE_DIR: "/dev/shm/openpi_8gpu_cache/inductor"
     TRITON_CACHE_DIR: "/dev/shm/openpi_8gpu_cache/triton"
-    OPENPI_TORCH_TIMING_OUTPUT: "/workspace/openpi_TurboPhysAI/output/openpi_torch_kernel_runtime"
-    OPENPI_TORCH_KERNEL_CACHE_DIR: "/dev/shm/openpi_8gpu_cache/openpi_turbo_kernels"
     HIPBLASLT_ALLOW_TF32: "0"
     HSA_FORCE_FINE_GRAIN_PCIE: "1"
     JAX_PLATFORMS: "cpu"

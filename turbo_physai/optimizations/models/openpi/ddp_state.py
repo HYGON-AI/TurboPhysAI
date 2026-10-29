@@ -21,19 +21,6 @@ def _bool(value: Any, default: bool) -> bool:
 def wrap_ddp_static_fast_path(original: Any, options: Mapping[str, Any]):
     @wraps(original)
     def wrapped(self, *args, **kwargs):
-        import torch
-
-        mode = options.get("optimize_ddp", False)
-        if isinstance(mode, str):
-            normalized = mode.strip().lower()
-            if normalized in {"0", "false", "off"}:
-                mode = False
-            elif normalized == "no_optimization":
-                mode = "no_optimization"
-            elif normalized in {"1", "true", "on", "default"}:
-                mode = True
-        torch._dynamo.config.optimize_ddp = mode
-
         call_kwargs = dict(kwargs)
         call_kwargs.update(
             broadcast_buffers=_bool(options.get("broadcast_buffers"), False),
