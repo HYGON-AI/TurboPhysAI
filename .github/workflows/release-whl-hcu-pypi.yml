@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   build-and-publish:
-    name: Publish HCU wheel (DTK ${{ matrix.dtk_version }}, Python ${{ matrix.py_version }})
+    name: Publish HCU wheel
     runs-on:
       group: ci-general
       labels: [self-hosted, ci, nmz1]
