@@ -48,7 +48,7 @@ docker exec -it openpi-train-TurboPhysAI bash
 
 ## 4. 准备模型源码并安装 TurboPhysAI
 
-下文命令均在容器内执行。基础镜像保留原有 Torch、TorchVision、FlashAttention 和 Triton，Python 依赖与独立 BLAS 在后续步骤安装。
+下文命令均在容器内执行。基础镜像保留原有 Torch、TorchVision、FlashAttention 和 Triton，Python 依赖在后续步骤安装。
 
 ### 4.1 准备官方 OpenPI 源码
 
@@ -243,34 +243,6 @@ mkdir -p /workspace/openpi_TurboPhysAI/static_data/assets/big_vision
 curl -fL --retry 5 --retry-delay 2 \
   https://storage.googleapis.com/big_vision/paligemma_tokenizer.model \
   -o /workspace/openpi_TurboPhysAI/static_data/assets/big_vision/paligemma_tokenizer.model
-```
-
-### 6.7 安装独立 BLAS 优化包
-
-在容器内下载并解压 BLAS 包，创建与 `runtime.yaml` 对应的库路径。以下命令用于首次安装，目标软链接应尚不存在。
-
-```bash
-(
-  set -Eeuo pipefail
-
-  mkdir -p /opt/openpi/dtk-26.04-blas-raw
-
-  curl -fsSL --retry 3 --retry-delay 2 \
-    http://42.228.13.241:18000/dtk-archived/nightly/dtk-26.04/0921/DTK-26.04-blas-nightly-0921-cut-ubuntu20.04-x86_64.tar.gz \
-    -o /tmp/dtk-blas.tar.gz
-
-  tar -xzf /tmp/dtk-blas.tar.gz \
-    -C /opt/openpi/dtk-26.04-blas-raw
-
-  BLAS_LIB_DIR="$(find /opt/openpi/dtk-26.04-blas-raw \
-    -type f -name 'librocblas.so*' -printf '%h\n' | head -n 1)"
-
-  test -n "$BLAS_LIB_DIR"
-  mkdir -p /opt/openpi/dtk-26.04-blas
-  ln -s "$BLAS_LIB_DIR" /opt/openpi/dtk-26.04-blas/lib
-  test -e /opt/openpi/dtk-26.04-blas/lib/librocblas.so
-  echo "BLAS 安装并验证成功：$BLAS_LIB_DIR"
-)
 ```
 
 ## 7. 通过 turbo-physai run 启动训练
