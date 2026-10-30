@@ -87,6 +87,17 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 | `turbo_physai/optimizations/models/bevformer/training.py` | `projects/mmdet3d_plugin/bevformer/apis/train.py` | Modified |
 | `turbo_physai/optimizations/models/bevformer/tsa.py` | `projects/mmdet3d_plugin/bevformer/modules/temporal_self_attention.py` | Modified |
 
+### Diffusers Cosmos transformer
+
+- Repository: <https://github.com/huggingface/diffusers>
+- Fixed commit: `275869dcae4ebcfee6a80253fdabc56033335020` (v0.38.0)
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/dit4dit/cosmos_attention.py` | `src/diffusers/models/transformers/transformer_cosmos.py` | Modified |
+| `turbo_physai/optimizations/models/dit4dit/cosmos_forward.py` | `src/diffusers/models/transformers/transformer_cosmos.py` (`CosmosTransformer3DModel.forward`) | Modified |
+
 ### MMCV
 
 - Repository: <https://github.com/open-mmlab/mmcv>
@@ -112,6 +123,22 @@ The full Apache-2.0 text is in [third_party/licenses/Apache-2.0.txt](third_party
 The complete PyTorch v2.7.1 license text is in [third_party/licenses/PyTorch-BSD-3-Clause.txt](third_party/licenses/PyTorch-BSD-3-Clause.txt). `UpSampleBilinear2d.cu` also retains its inherited Caffe contributor attribution.
 
 ## Confirmed MIT derivations
+
+### DiT4DiT
+
+- Repository: <https://github.com/Mondo-Robotics/DiT4DiT>
+- Fixed commit: `d8854a11713f846b8b3f768fc3bf2c6cba2bc17f`
+- License: MIT
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/dit4dit/cosmos_cache.py` | `DiT4DiT/model/modules/vlm/Cosmos25.py` | Modified |
+| `turbo_physai/optimizations/models/dit4dit/cosmos_forward.py` | `DiT4DiT/model/modules/vlm/Cosmos25.py` | Modified |
+| `turbo_physai/optimizations/models/dit4dit/dataloader.py` | `DiT4DiT/dataloader/__init__.py`; `DiT4DiT/training/train.py` | Modified |
+| `turbo_physai/optimizations/models/dit4dit/training.py` | `DiT4DiT/training/train.py` | Modified |
+| `turbo_physai/optimizations/models/dit4dit/video_pack.py` | `DiT4DiT/model/modules/vlm/Cosmos25.py` | Modified |
+
+The complete DiT4DiT MIT license text is in [third_party/licenses/DiT4DiT-MIT.txt](third_party/licenses/DiT4DiT-MIT.txt).
 
 | Component | turbo_physai paths | Upstream repository and fixed commit | Upstream paths | License | NOTICE |
 | --- | --- | --- | --- | --- | --- |

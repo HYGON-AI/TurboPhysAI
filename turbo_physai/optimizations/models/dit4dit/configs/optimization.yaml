@@ -1,0 +1,151 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.dit4dit.bw1000.safe
+  version: 1.0.0
+  description: DiT4DiT framework optimizations for the clean customer baseline
+model:
+  name: DiT4DiT
+compatibility:
+  commits:
+  - d8854a11713f846b8b3f768fc3bf2c6cba2bc17f
+  dependencies:
+    accelerate: ==1.13.0
+    diffusers: ==0.38.0
+    torch: '>=2.10,<2.11'
+optimization_groups:
+- id: dit4dit.dataloader
+  enabled: true
+  options:
+    in_order: true
+    multiprocessing_context: spawn
+    num_workers: 4
+    persistent_workers: true
+    pin_memory: true
+    prefetch_factor: 4
+  trust:
+    source_hashes:
+      DiT4DiT.dataloader.build_dataloader:
+      - source-v1:8f57d34b946e890929106dcfd06f3ed3db7d7d3ebfc8c18a6f4d70a43dd69a4f
+      DiT4DiT.training.train.prepare_data:
+      - source-v1:e9a4661b7884dfcf4a4c12989245f42db6a8d79d1c261d080b5da4cd35be2d69
+    ast_hashes:
+      DiT4DiT.dataloader.build_dataloader:
+      - ast-v1:076ed46c569734c498be283f127d6ddd573b1bb19ae1146646f1021968c078bf
+      DiT4DiT.training.train.prepare_data:
+      - ast-v1:f985a190edad71bc58149cf5f49836e0fa1e85c7bd391f566df39e320f5c2d46
+- id: dit4dit.cosmos.attention
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      diffusers.models.transformers.transformer_cosmos.CosmosAttnProcessor2_0.__call__:
+      - source-v1:5ec61c5c754278570e927dc2bfd0f8edb71afebfdd7b90e58e542142290b56d2
+    ast_hashes:
+      diffusers.models.transformers.transformer_cosmos.CosmosAttnProcessor2_0.__call__:
+      - ast-v1:efdfa63add7ad0e28a4a89682cefbf9eb7a9891372a7957975eb4cd155a7973c
+- id: dit4dit.cosmos.cache
+  enabled: true
+  options:
+    rope_cache_max_entries: 4
+  trust:
+    source_hashes:
+      DiT4DiT.model.modules.vlm.Cosmos25.Cosmos25FeatureExtractor:
+      - source-v1:18e93144b1ca29219491577eb8eec40f15e7af4d974b9bc8754590a33c7dd272
+    ast_hashes:
+      DiT4DiT.model.modules.vlm.Cosmos25.Cosmos25FeatureExtractor:
+      - ast-v1:674481ccf365c347709e2e184156d3a72a3e797ceec6115eb5caca364af4678f
+- id: dit4dit.cosmos.vae_batch_encode
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      DiT4DiT.model.modules.vlm.Cosmos25.Cosmos25FeatureExtractor.prepare_latents:
+      - source-v1:16388cc46730909bb000c6b5fe4bcd84dd1793096515780c7666f897e9fccce8
+    ast_hashes:
+      DiT4DiT.model.modules.vlm.Cosmos25.Cosmos25FeatureExtractor.prepare_latents:
+      - ast-v1:398904337156ecf1756079e52502fd14fad080efe047ce80f1834cf3a17f7186
+- id: dit4dit.cosmos.hidden_capture
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      DiT4DiT.model.modules.vlm.Cosmos25.Cosmos25FeatureExtractor.forward:
+      - source-v1:eecfc2bc3e550c395bdbfc3b50843930bd68d3721e8f1a016bbd260b2f6b2b2c
+      DiT4DiT.model.modules.vlm.Cosmos25.Cosmos25FeatureExtractor._register_hook:
+      - source-v1:90c2d53d4b9fc3c18c04456f2c933e8730b9ac6874e88c68b80a3da25cd92fba
+    ast_hashes:
+      DiT4DiT.model.modules.vlm.Cosmos25.Cosmos25FeatureExtractor.forward:
+      - ast-v1:659ba0a50cbb15dc22d1d3abc59ef28542224eff8bfef01984aef5ae57ac947d
+      DiT4DiT.model.modules.vlm.Cosmos25.Cosmos25FeatureExtractor._register_hook:
+      - ast-v1:8f11be80dcf7e9c3174ea97f5c2599e6e4071988bf5424cec7c67f201006c9f1
+- id: dit4dit.cosmos.segment_compile
+  enabled: true
+  options:
+    alignment_asserts: false
+    backend: inductor
+    dynamic: false
+    fullgraph: false
+    mode: default
+    segment_size: 6
+  trust:
+    source_hashes:
+      turbo_physai.optimizations.models.dit4dit.cosmos_forward.install_segmented_cosmos_forward:
+      - source-v1:f4f59fcef099073e2656fd2f656895a7716197c6cc96f9f20090426e2a65d50e
+    ast_hashes:
+      turbo_physai.optimizations.models.dit4dit.cosmos_forward.install_segmented_cosmos_forward:
+      - ast-v1:b1f3f83205b4c5d46187ab1a702a249a45ee71bd86beccd85a71e4adbe486396
+- id: dit4dit.cosmos.video_pack
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      DiT4DiT.model.modules.vlm.Cosmos25._Cosmos25_Interface.build_cosmos_inputs:
+      - source-v1:87b3ebfa775f67b5c5204f9d96023e0d18e5a7ea22ee53e551afdf7e4429cb9b
+      turbo_physai.optimizations.models.dit4dit.video_pack.pack_flow_matching_video:
+      - source-v1:64abb29764edfb103b55bc762521a36ab992c7911708cea5bdcb008e92c402dc
+    ast_hashes:
+      DiT4DiT.model.modules.vlm.Cosmos25._Cosmos25_Interface.build_cosmos_inputs:
+      - ast-v1:d08fdc717d3e8fea870af839aa409586931dd2234f8d62c64bce3453dfe327e7
+      turbo_physai.optimizations.models.dit4dit.video_pack.pack_flow_matching_video:
+      - ast-v1:c472fbf53170f3dc3c809f7dc480498ed0db9ae784c3acaa392e6fcfd63557e9
+- id: dit4dit.action.compile_rng_fallback
+  enabled: true
+  options:
+    alignment_asserts: false
+    backend: inductor
+    dynamic: false
+    fallback_random: true
+    fullgraph: false
+  trust:
+    source_hashes:
+      DiT4DiT.model.framework.build_framework:
+      - source-v1:f28100b82ed696e253b1837c7fefc9c3ef3380883ad190dc321731dc49c62038
+    ast_hashes:
+      DiT4DiT.model.framework.build_framework:
+      - ast-v1:e16cce22758b92dc628472f21d43c5e376db9f571fb5e98053c50ef3330050c2
+- id: dit4dit.training.fused_adamw
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      DiT4DiT.training.train.setup_optimizer_and_scheduler:
+      - source-v1:ae8a98789826fa96c36ce6160be84dcc12474565674fc5a31ca0b3634f768139
+    ast_hashes:
+      DiT4DiT.training.train.setup_optimizer_and_scheduler:
+      - ast-v1:c3c83f2ae364f2b70752e9dabde74d011c23f88e0bfaa3c17d450cd1ef020ec1
+- id: dit4dit.training.metric_sync
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      DiT4DiT.training.train.VLATrainer._train_step:
+      - source-v1:4cbb7d9f241c6204d27e0a2f298c833ce1f7b1b3c7ee9f657b5487470549c30f
+    ast_hashes:
+      DiT4DiT.training.train.VLATrainer._train_step:
+      - ast-v1:66aa18e55c55aea3a71d33ed40cf3941f94b748c3820381d7918d46291407deb
+optimization_modules:
+- turbo_physai.optimizations.models.dit4dit.catalog
