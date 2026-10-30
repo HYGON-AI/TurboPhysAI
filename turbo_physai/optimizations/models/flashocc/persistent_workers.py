@@ -4,31 +4,21 @@
 """Keep MMDetection training DataLoader workers alive between epochs."""
 
 import functools
-import sys
+import inspect
 
 
 def persistent_workers_wrapper(original, options):
     del options
-    train_module = sys.modules[original.__module__]
+    signature = inspect.signature(original)
 
     @functools.wraps(original)
     def wrapped(*args, **kwargs):
-        original_builder = train_module.build_mmdet_dataloader
-
-        @functools.wraps(original_builder)
-        def build_with_persistent_workers(*builder_args, **builder_kwargs):
-            workers = builder_kwargs.get(
-                "workers_per_gpu",
-                builder_args[2] if len(builder_args) > 2 else 0,
-            )
-            if workers > 0:
-                builder_kwargs["persistent_workers"] = True
-            return original_builder(*builder_args, **builder_kwargs)
-
-        train_module.build_mmdet_dataloader = build_with_persistent_workers
-        try:
-            return original(*args, **kwargs)
-        finally:
-            train_module.build_mmdet_dataloader = original_builder
+        bound = signature.bind(*args, **kwargs)
+        dataset = bound.arguments.get("dataset")
+        workers = bound.arguments.get("num_workers", 0)
+        if (type(dataset).__module__.startswith("projects.mmdet3d_plugin.datasets.")
+                and workers > 0):
+            bound.arguments["persistent_workers"] = True
+        return original(*bound.args, **bound.kwargs)
 
     return wrapped

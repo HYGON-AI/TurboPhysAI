@@ -68,11 +68,11 @@ optimization_groups:
   options: {}
   trust:
     source_hashes:
-      mmdet3d.apis.train.train_detector:
-      - source-v1:3ea7a63d0d25230ba20dfcbda1b80f730d92061d460c67394e0069a65a3ed7df
+      torch.utils.data.DataLoader.__init__:
+      - source-v1:f985a52e44263a666717cfd714a67737a9ec9d9c3625b216cb6b161cb3de8374
     ast_hashes:
-      mmdet3d.apis.train.train_detector:
-      - ast-v1:5035b28ccbde9d0aa8a52cde1668d256dfd794b4f3f2cfd53c136431ad171539
+      torch.utils.data.DataLoader.__init__:
+      - ast-v1:9aa2ae5676e925ede76ce30e40c991c3e5faad6302c3b29f753900170bd9112c
 - id: flashocc.view_transformer.accelerated_preparation
   enabled: true
   options: {}
@@ -102,4 +102,4 @@ optimization_groups:
       projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.__init__:
       - ast-v1:a9d201d3a42fa4ad7d96869ebf7e50b536ffa90193e3b45f68d6e275fa6d5fcf
 optimization_modules:
-- turbo_physai.optimizations.models.flashocc.catalog
+- flashocc_optimization.catalog

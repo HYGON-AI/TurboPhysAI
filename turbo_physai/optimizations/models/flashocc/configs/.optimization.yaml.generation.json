@@ -4,20 +4,20 @@
   "model_commit": "449dc7947d6549ccb72a99d6f6d8c02f166ec0dd",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "d4aa2492044b385dd39238a4264ee0c8cc3265f4108b2fdf34cbda83200fd91c"
+    "sha256": "a2f70fcf4d71cf583693c733f7655c9cb271513b5956d00d21163717e3d0ca48"
   },
   "inputs": [
     {
       "role": "recipe",
-      "base": "package",
-      "path": "optimizations/models/flashocc/configs/recipe.yaml",
-      "sha256": "2f7fdda86befe77feee218fbea6a3792b73e2e1f4f192941149665cf0ab8e70d"
+      "base": "config",
+      "path": "recipe.yaml",
+      "sha256": "7c6183ac1eb1364536b12c653bcfe5689aa32757c3df0bb1dd375326153467ab"
     },
     {
       "role": "catalog",
-      "base": "package",
-      "path": "optimizations/models/flashocc/catalog.py",
-      "sha256": "dea20c9873f5da0e7284661ba438bbfdd2e453e5da179a333f52e07bd210d49e"
+      "base": "config",
+      "path": "../catalog.py",
+      "sha256": "f099f7ff2636dec08ca3a4b88dcdf494a3175abb6fc60b4504a990ab6a79231c"
     }
   ]
 }

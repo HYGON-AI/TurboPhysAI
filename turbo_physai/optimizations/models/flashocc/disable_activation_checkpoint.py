@@ -16,9 +16,7 @@ def disable_activation_checkpoint_wrapper(original, options):
             backbone_cfg = kwargs.get("img_backbone")
 
         if not isinstance(backbone_cfg, dict):
-            raise TypeError(
-                "BEVDet.img_backbone must be a mapping for the checkpoint replacement"
-            )
+            return original(self, *args, **kwargs)
 
         backbone_cfg = copy.copy(backbone_cfg)
         backbone_cfg["with_cp"] = False

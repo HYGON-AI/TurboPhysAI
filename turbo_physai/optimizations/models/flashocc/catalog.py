@@ -14,7 +14,7 @@ DISABLE_ACTIVATION_CHECKPOINT = group(
             "BEVDet.__init__"
         ),
         replacement=(
-            "turbo_physai.optimizations.models.flashocc.disable_activation_checkpoint."
+            f"{__package__}.disable_activation_checkpoint."
             "disable_activation_checkpoint_wrapper"
         ),
     ),
@@ -29,7 +29,7 @@ COMPILE_IMAGE_ENCODER = group(
             "BEVDet.image_encoder"
         ),
         replacement=(
-            "turbo_physai.optimizations.models.flashocc.compile_image_encoder."
+            f"{__package__}.compile_image_encoder."
             "compile_image_encoder_wrapper"
         ),
     ),
@@ -43,7 +43,7 @@ COMPILE_BEV_ENCODER = group(
             "BEVDet.bev_encoder"
         ),
         replacement=(
-            "turbo_physai.optimizations.models.flashocc.compile_bev_encoder."
+            f"{__package__}.compile_bev_encoder."
             "compile_bev_encoder_wrapper"
         ),
     ),
@@ -57,7 +57,7 @@ COMPILE_PREPARE_INPUTS = group(
             "BEVDet.prepare_inputs"
         ),
         replacement=(
-            "turbo_physai.optimizations.models.flashocc.compile_prepare_inputs."
+            f"{__package__}.compile_prepare_inputs."
             "compile_prepare_inputs_wrapper"
         ),
     ),
@@ -71,7 +71,7 @@ COMPILE_OCC_TRAIN = group(
             "BEVDetOCC.forward_occ_train"
         ),
         replacement=(
-            "turbo_physai.optimizations.models.flashocc.compile_occ_train."
+            f"{__package__}.compile_occ_train."
             "compile_occ_train_wrapper"
         ),
     ),
@@ -86,16 +86,16 @@ PIN_MEMORY = group(
             "mmdet.apis.train.build_dataloader",
             "mmdet3d.apis.train.build_mmdet_dataloader",
         ),
-        replacement="turbo_physai.optimizations.models.flashocc.pin_memory.pin_memory_wrapper",
+        replacement=f"{__package__}.pin_memory.pin_memory_wrapper",
     ),
 )
 
 PERSISTENT_WORKERS = group(
     "flashocc.loader.persistent_workers",
     wrap(
-        target="mmdet3d.apis.train.train_detector",
+        target="torch.utils.data.DataLoader.__init__",
         replacement=(
-            "turbo_physai.optimizations.models.flashocc.persistent_workers."
+            f"{__package__}.persistent_workers."
             "persistent_workers_wrapper"
         ),
     ),
@@ -109,7 +109,7 @@ VIEW_TRANSFORMER_PREPARATION = group(
             "LSSViewTransformer.__init__"
         ),
         replacement=(
-            "turbo_physai.optimizations.models.flashocc.device_buffers."
+            f"{__package__}.device_buffers."
             "register_device_buffers_wrapper"
         ),
     ),
@@ -119,7 +119,7 @@ VIEW_TRANSFORMER_PREPARATION = group(
             "LSSViewTransformer.get_ego_coor"
         ),
         replacement=(
-            "turbo_physai.optimizations.models.flashocc.geometry_compile."
+            f"{__package__}.geometry_compile."
             "get_ego_coor_wrapper"
         ),
     ),
@@ -129,7 +129,7 @@ VIEW_TRANSFORMER_PREPARATION = group(
             "LSSViewTransformer.voxel_pooling_prepare_v2"
         ),
         replacement=(
-            "turbo_physai.optimizations.models.flashocc.voxel_pooling_compile."
+            f"{__package__}.voxel_pooling_compile."
             "voxel_pooling_prepare_wrapper"
         ),
     ),

@@ -4,6 +4,7 @@
 """Compile voxel-coordinate/index preparation for LSSViewTransformer."""
 
 import functools
+import os
 
 import torch
 
@@ -43,7 +44,9 @@ def voxel_pooling_prepare_wrapper(original, options):
     compile_kwargs = {}
     if "mode" in options:
         compile_kwargs["mode"] = options["mode"]
-    compiled_pre_core = torch.compile(voxel_pooling_pre_core, **compile_kwargs)
+    compiled_pre_core = voxel_pooling_pre_core
+    if os.environ.get("TURBO_PHYSAI_DISABLE_TORCH_COMPILE") != "1":
+        compiled_pre_core = torch.compile(voxel_pooling_pre_core, **compile_kwargs)
 
     @functools.wraps(original)
     def wrapped(self, coor):

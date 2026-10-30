@@ -4,6 +4,7 @@
 """Compile the tensor-only geometry core of LSSViewTransformer."""
 
 import functools
+import os
 
 import torch
 
@@ -33,7 +34,9 @@ def get_ego_coor_wrapper(original, options):
     compile_kwargs = {}
     if "mode" in options:
         compile_kwargs["mode"] = options["mode"]
-    compiled = torch.compile(get_ego_coor_core, **compile_kwargs)
+    compiled = get_ego_coor_core
+    if os.environ.get("TURBO_PHYSAI_DISABLE_TORCH_COMPILE") != "1":
+        compiled = torch.compile(get_ego_coor_core, **compile_kwargs)
 
     @functools.wraps(original)
     def wrapped(self, sensor2ego, ego2global, cam2imgs, post_rots,

@@ -13,7 +13,7 @@ model:
   name: flashocc
 
 optimization_modules:
-  - turbo_physai.optimizations.models.flashocc.catalog
+  - flashocc_optimization.catalog
 
 compatibility: {}
 

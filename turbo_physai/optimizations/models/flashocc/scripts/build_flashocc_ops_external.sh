@@ -56,11 +56,11 @@ done
 
 export FLASHOCC_ROOT
 export FLASHOCC_RUNTIME_ROOT="$RUNTIME_ROOT"
-export PYTHONPATH="$TURBO_ROOT:$RUNTIME_ROOT/mmdetection3d:$FLASHOCC_ROOT"
+export PYTHONPATH="$MODEL_ROOT:$RUNTIME_ROOT/mmdetection3d:$FLASHOCC_ROOT"
 python - <<'PY'
 import importlib
 import os
-from turbo_physai.optimizations.models.flashocc.compatibility import install_compatibility
+from flashocc_optimization.compatibility import install_compatibility
 
 install_compatibility(os.environ["FLASHOCC_ROOT"], os.environ["FLASHOCC_RUNTIME_ROOT"])
 for name in (

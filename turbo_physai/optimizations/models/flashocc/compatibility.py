@@ -117,6 +117,8 @@ def resolve_dvr_compat_sources(
 class PrebuiltExtensionFinder(importlib.abc.MetaPathFinder):
     """Resolve selected official-package imports to compatible prebuilt HCU ops."""
 
+    _flashocc_finder_kind = "prebuilt"
+
     def __init__(self, module_files: Mapping[str, str | os.PathLike[str]]) -> None:
         self.module_files = {
             name: Path(path) for name, path in module_files.items()
@@ -148,6 +150,8 @@ class _GB18030SourceLoader(importlib.machinery.SourceFileLoader):
 
 class LegacyEncodingSourceFinder(importlib.abc.MetaPathFinder):
     """Load the one legacy GB18030 Python source without editing the model."""
+
+    _flashocc_finder_kind = "encoding"
 
     _SOURCE_PATH = Path(
         "projects/mmdet3d_plugin/models/detectors/bevdet_occ.py"
@@ -377,6 +381,16 @@ def install_compatibility(
     model_path = Path(model_root).expanduser().resolve()
     runtime_path = Path(runtime_root).expanduser().resolve()
     optimization_path = Path(__file__).resolve().parent
+    finders = {
+        getattr(finder, "_flashocc_finder_kind", None): finder
+        for finder in sys.meta_path
+        if getattr(finder, "_flashocc_finder_kind", None) in ("encoding", "prebuilt")
+    }
+    for finder in finders.values():
+        if (finder._flashocc_model_root, finder._flashocc_runtime_root) != (
+            model_path, runtime_path
+        ):
+            raise RuntimeError("FlashOCC compatibility is already installed with different roots")
     sys.path[:] = order_import_roots(
         sys.path, model_path, runtime_path, optimization_path
     )
@@ -387,7 +401,26 @@ def install_compatibility(
     )
     install_relative_nuscenes_path_compatibility(data_base)
 
-    sys.meta_path.insert(0, LegacyEncodingSourceFinder(model_path))
-    finder = PrebuiltExtensionFinder(_extension_files(runtime_path))
-    sys.meta_path.insert(0, finder)
+    if "encoding" not in finders:
+        finder = LegacyEncodingSourceFinder(model_path)
+        finder._flashocc_model_root = model_path
+        finder._flashocc_runtime_root = runtime_path
+        sys.meta_path.insert(0, finder)
+    if "prebuilt" not in finders:
+        finder = PrebuiltExtensionFinder(_extension_files(runtime_path))
+        finder._flashocc_model_root = model_path
+        finder._flashocc_runtime_root = runtime_path
+        sys.meta_path.insert(0, finder)
     install_dvr_compatibility(optimization_path)
+
+
+def install_for_turbo_run() -> bool:
+    """Install compatibility before Turbo resolves FlashOCC targets."""
+    if os.environ.get("TURBO_PHYSAI_BOOTSTRAP") != "1":
+        return False
+    model_root = os.environ.get("FLASHOCC_ROOT")
+    runtime_root = os.environ.get("FLASHOCC_RUNTIME_ROOT")
+    if not model_root or not runtime_root:
+        raise RuntimeError("FlashOCC compatibility roots are not configured")
+    install_compatibility(model_root, runtime_root)
+    return True

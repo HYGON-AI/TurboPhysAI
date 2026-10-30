@@ -4,9 +4,12 @@
 """Compile the BEVDet BEV encoder on accelerator inputs."""
 
 import functools
+import os
 
 
 def compile_bev_encoder_wrapper(original, options):
+    if os.environ.get("TURBO_PHYSAI_DISABLE_TORCH_COMPILE") == "1":
+        return original
     import torch
 
     compile_kwargs = {"mode": options["mode"]} if "mode" in options else {}
