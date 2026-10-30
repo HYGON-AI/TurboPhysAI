@@ -1,0 +1,115 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.pointpillars.hcu
+  version: 0.1.0
+  description: PointPillars model optimizations under validation
+model:
+  name: PointPillars
+compatibility:
+  commits:
+  - fe25f7a51d36e3702f961e198894580d83c4387b
+optimization_groups:
+- id: pointpillars.assigner.tensorized_compiled
+  enabled: true
+  options:
+    compile: true
+  trust:
+    source_hashes:
+      mmdet3d.models.task_modules.assigners.max_3d_iou_assigner.Max3DIoUAssigner.assign_wrt_overlaps:
+      - source-v1:4ff75c9912943569da6ca1e1b1f0e5558a4794b7ec89d165f29ae704eaafca0e
+    ast_hashes:
+      mmdet3d.models.task_modules.assigners.max_3d_iou_assigner.Max3DIoUAssigner.assign_wrt_overlaps:
+      - ast-v1:fac14e6f613947ee5b6c110284568669ae9ad4a7cef8dee8a74b53accef9e877
+- id: pointpillars.sampler.unique_free
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.models.task_modules.samplers.pseudosample.PseudoSampler.sample:
+      - source-v1:3fd127fad5aa15383229d8adc0080172330d2c236615abab000d05f693e55771
+    ast_hashes:
+      mmdet3d.models.task_modules.samplers.pseudosample.PseudoSampler.sample:
+      - ast-v1:8e9f291e013308a89f85200971167b747ffe6cda90134449a7324ea1a0f35910
+- id: pointpillars.iou.nearest_bev_compiled
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.structures.ops.iou3d_calculator.BboxOverlapsNearest3D.__call__:
+      - source-v1:2ffa68128ee6198f0f7c587813da19189c430e62ff1429c53cdc837e92c42620
+    ast_hashes:
+      mmdet3d.structures.ops.iou3d_calculator.BboxOverlapsNearest3D.__call__:
+      - ast-v1:14b78dead8223a276ec3cddfaadb4bc45f59d22f808680df9d3d2869d77c25a5
+- id: pointpillars.voxelization.legacy_sorted
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.models.data_preprocessors.voxelize.VoxelizationByGridShape.forward:
+      - source-v1:35a7ceefa49818c6cb810981a000880441cd37260ac5489183f54c98669f2e2b
+    ast_hashes:
+      mmdet3d.models.data_preprocessors.voxelize.VoxelizationByGridShape.forward:
+      - ast-v1:ed27739c9cee22cf7ae804f0554e51ea7a9a4200826a754050856c3c8cb144c6
+- id: pointpillars.scatter.flattened_batch
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.models.middle_encoders.pillar_scatter.PointPillarsScatter.forward_batch:
+      - source-v1:308451ec69f1ecfdc7e3f30ca7e48783a452df0784044805163605e2d6a468af
+    ast_hashes:
+      mmdet3d.models.middle_encoders.pillar_scatter.PointPillarsScatter.forward_batch:
+      - ast-v1:ef5200ca3e9ac5f23b8136dd6686b7f1feea32bdfda9ff5f200342fa7e691fd3
+- id: pointpillars.anchor.grid_compile
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.models.task_modules.anchor.anchor_3d_generator.Anchor3DRangeGenerator.grid_anchors:
+      - source-v1:b77fd7673868038c232fb450c24bc3955717e2ce96ae2ad9a93a96c486dd8176
+    ast_hashes:
+      mmdet3d.models.task_modules.anchor.anchor_3d_generator.Anchor3DRangeGenerator.grid_anchors:
+      - ast-v1:e6ee617fb84331ab753521655a5cf37f2c40035b232cda1659f17fe9126e67a1
+- id: pointpillars.geometry.limit_period
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmdet3d.structures.bbox_3d.utils.limit_period:
+      - source-v1:0b6d16c38508cab345fd3609095fb1b918f04e6184d20050dbe96c0956847d09
+    ast_hashes:
+      mmdet3d.structures.bbox_3d.utils.limit_period:
+      - ast-v1:58f90c676c3153c8fb3c69fd63ca0ca83645115af351267f436ff82be3fec2d7
+- id: pointpillars.framework.compile_point_modules
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmengine.runner.runner.Runner._maybe_compile:
+      - source-v1:51ec6be6738ce1654c967bb736b2060b9e52c3080d014ca872cbd13f42db07d0
+    ast_hashes:
+      mmengine.runner.runner.Runner._maybe_compile:
+      - ast-v1:b54fdc6c1c8c0727ed9b3489f555c47fffb31fea7ad30debac1284ff2220b82c
+- id: pointpillars.framework.cudnn_benchmark
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmengine.runner.runner.Runner.train:
+      - source-v1:98de231f177d0396a95c23e27d1bdcf80d0cae6b4c247b75876cb4857427b643
+    ast_hashes:
+      mmengine.runner.runner.Runner.train:
+      - ast-v1:835ff73381a7f97b80d12ff42b78e24d905928f5cfb81ed26140c3d89c608c69
+- id: pointpillars.framework.disable_dynamo_ddp
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      mmengine.runner.loops.EpochBasedTrainLoop.run:
+      - source-v1:51ae20508b4d459fb39f6d8fb1f2bd07ca6ed4b201926abf10cb991f1e4f1da8
+    ast_hashes:
+      mmengine.runner.loops.EpochBasedTrainLoop.run:
+      - ast-v1:ba561358dcc753f00a335b30c0e017288fcd415477bb5512aebdd092cbc0fe77
+optimization_modules:
+- turbo_physai.optimizations.models.PointPillars.catalog

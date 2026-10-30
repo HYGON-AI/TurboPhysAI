@@ -1,0 +1,34 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.pointpillars.hcu
+  version: "0.1.0"
+  description: PointPillars model optimizations under validation
+model:
+  name: PointPillars
+optimization_modules:
+  - turbo_physai.optimizations.models.PointPillars.catalog
+compatibility: {}
+optimization_groups:
+  - id: pointpillars.assigner.tensorized_compiled
+    enabled: true
+    options:
+      compile: true
+  - id: pointpillars.sampler.unique_free
+    enabled: true
+  - id: pointpillars.iou.nearest_bev_compiled
+    enabled: true
+  - id: pointpillars.voxelization.legacy_sorted
+    enabled: true
+  - id: pointpillars.scatter.flattened_batch
+    enabled: true
+  - id: pointpillars.anchor.grid_compile
+    enabled: true
+  - id: pointpillars.geometry.limit_period
+    enabled: true
+  - id: pointpillars.framework.compile_point_modules
+    enabled: true
+  - id: pointpillars.framework.cudnn_benchmark
+    enabled: true
+  - id: pointpillars.framework.disable_dynamo_ddp
+    enabled: true
