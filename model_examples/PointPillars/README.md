@@ -178,9 +178,3 @@ turbo-physai run \
 ├── static_data/
 │   ├── nuscenes_pointpillars/  # 数据和 PKL
 ```
-
-## 8. 使用注意事项
-
-- 优化组的目标和适用条件见 [OptimizationConfig](../../turbo_physai/optimizations/models/PointPillars/configs/optimization.yaml)。部分替换有输入和硬件限制，可能回退到原实现。
-- 当前版本完整训练精度、逐优化组对照、匹配基线吞吐及 loss 曲线仍需验证；不要把短时启动成功或配置加载作为完整验证结果。
-- 如果 MMCV 或其 HCU 扩展与 PyTorch/DTK 或 MMDetection3D 不兼容，应先核对版本与二进制依赖，再进行适配。
