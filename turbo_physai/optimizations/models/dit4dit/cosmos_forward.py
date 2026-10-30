@@ -61,6 +61,7 @@ def prepare_latents(
         device: torch.device,
         generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
         latents: Optional[torch.Tensor] = None,
+        video_layout: Optional[str] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         from diffusers.utils.torch_utils import randn_tensor
 
@@ -85,15 +86,23 @@ def prepare_latents(
         if video is None:
             raise ValueError("`video` must be provided when `num_frames_in` > 0")
 
-        needs_preprocessing = not (
-            isinstance(video, torch.Tensor) and video.ndim == 5 and (video.shape[1] == 3 or video.shape[2] == 3)
-        )
-        if needs_preprocessing:
+        if not isinstance(video, torch.Tensor) or video.ndim != 5:
             raise ValueError("`video` must be a 5D torch.Tensor in (B,3,T,H,W) or (B,T,3,H,W)")
+
+        is_bcthw = video.shape[1] == 3
+        is_btchw = video.shape[2] == 3
+        if video_layout is None:
+            if is_bcthw == is_btchw:
+                raise ValueError("ambiguous video layout; set `video_layout` to 'bcthw' or 'btchw'")
+            video_layout = "bcthw" if is_bcthw else "btchw"
+        elif video_layout not in ("bcthw", "btchw"):
+            raise ValueError("`video_layout` must be 'bcthw' or 'btchw'")
+        elif (video_layout == "bcthw" and not is_bcthw) or (video_layout == "btchw" and not is_btchw):
+            raise ValueError(f"video shape does not match `video_layout={video_layout}`")
 
         # Normalize to VAE dtype before encode
         video_t = video.to(device=device, dtype=self.vae.dtype)
-        if video_t.shape[1] == 3:
+        if video_layout == "bcthw":
             video_bcthw = video_t
         else:
             # preprocess_video expects (B,T,C,H,W) and returns (B,C,T,H,W)
@@ -276,6 +285,7 @@ def feature_extractor_forward(
                 device=device,
                 generator=generator,
                 latents=None,
+                video_layout="bcthw",
             )
 
             # This is determined entirely by static shapes and Python integers.
