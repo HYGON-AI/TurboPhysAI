@@ -1,1 +1,0 @@
-"""Packaged PointPillars optimization configuration."""

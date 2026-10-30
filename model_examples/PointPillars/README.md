@@ -129,27 +129,43 @@ PY
 
 ## 6. 通过 turbo-physai run 启动训练
 
-分支提供的启动脚本使用显式的 OptimizationConfig 和 RuntimeConfig，通过 `turbo-physai run` 启动官方 `tools/train.py`：
+启动脚本 `turbo_physai/optimizations/models/PointPillars/scripts/run_pointpillars_turbo.sh` 内容如下：
 
 ```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
 source /opt/conda/etc/profile.d/conda.sh
 conda activate mmcv2
-cd /workspace/PointPillars_TurboPhysAI
-bash TurboPhysAI/turbo_physai/optimizations/models/PointPillars/scripts/run_pointpillars_turbo.sh
+
+DATA_ROOT=${DATA_ROOT:-/workspace/PointPillars_TurboPhysAI/static_data/nuscenes_pointpillars}
+
+cd "${POINTPILLARS_REPO_ROOT:-/workspace/PointPillars_TurboPhysAI/mmdetection3d}"
+mkdir -p "${LOG_DIR:-/workspace/PointPillars_TurboPhysAI/logs}"
+
+turbo-physai run \
+    --optimization-config /workspace/PointPillars_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/PointPillars/configs/optimization.yaml \
+    --runtime-config /workspace/PointPillars_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/PointPillars/configs/runtime.yaml \
+    --set HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+    --set "PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}" \
+    --log-report -- \
+    torchrun --nproc_per_node 8 --standalone \
+    tools/train.py "${POINTPILLARS_CONFIG:-configs/pointpillars/pointpillars_hv_fpn_sbn-all_8xb4-2x_nus-3d.py}" \
+    --launcher pytorch \
+    --work-dir "${WORK_DIR:-/workspace/PointPillars_TurboPhysAI/work_dirs/pointpillars_turbo_$(date +%Y%m%d_%H%M%S)}" \
+    --cfg-options \
+    train_dataloader.batch_size=4 \
+    train_dataloader.num_workers=10 \
+    default_hooks.logger.interval=1 \
+    "train_dataloader.dataset.data_root=${DATA_ROOT}/" \
+    "val_dataloader.dataset.data_root=${DATA_ROOT}/" \
+    "test_dataloader.dataset.data_root=${DATA_ROOT}/" \
+    "val_evaluator.data_root=${DATA_ROOT}/" \
+    "val_evaluator.ann_file=${DATA_ROOT}/nuscenes_infos_val.pkl" \
+    "test_evaluator.data_root=${DATA_ROOT}/" \
+    "test_evaluator.ann_file=${DATA_ROOT}/nuscenes_infos_val.pkl" \
+    "$@" 2>&1 | tee "${LOG_DIR:-/workspace/PointPillars_TurboPhysAI/logs}/pointpillars_$(date +%Y%m%d_%H%M%S)_$$.log"
 ```
-
-脚本当前默认使用物理卡 `0,1,2,3,4,5,6,7`、8 个进程、每卡 batch size 4 和每卡 10 个 data loader worker。设备不满足时需同时调整脚本中的 `HIP_VISIBLE_DEVICES` 和 `torchrun --nproc_per_node`；按实际环境设置可用通信网卡。RuntimeConfig 默认开启 NUMA，需要可用的 NUMA 工具和设备拓扑。
-
-脚本支持通过环境变量设置数据和输出位置，例如：
-
-```bash
-DATA_ROOT=/path/to/nuscenes \
-WORK_DIR=/workspace/PointPillars_TurboPhysAI/work_dirs/pointpillars_run \
-LOG_DIR=/workspace/PointPillars_TurboPhysAI/logs \
-bash /workspace/PointPillars_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/PointPillars/scripts/run_pointpillars_turbo.sh
-```
-
-`DATA_ROOT` 下需有本例数据结构及兼容的 PKL。默认日志保存在 `logs/`，训练输出保存在 `work_dirs/`，均位于官方模型仓库外。训练启动后应检查有效配置、优化报告和日志；`applied` 只表明替换入口应用，不证明所有优化均实际命中。
 
 ## 7. 目录结构
 
@@ -165,6 +181,6 @@ bash /workspace/PointPillars_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/
 
 ## 8. 使用注意事项
 
-- 优化组的目标和适用条件见 [PointPillars 接入说明](../../turbo_physai/optimizations/models/PointPillars/README.md)。部分替换有输入和硬件限制，可能回退到原实现。
+- 优化组的目标和适用条件见 [OptimizationConfig](../../turbo_physai/optimizations/models/PointPillars/configs/optimization.yaml)。部分替换有输入和硬件限制，可能回退到原实现。
 - 当前版本完整训练精度、逐优化组对照、匹配基线吞吐及 loss 曲线仍需验证；不要把短时启动成功或配置加载作为完整验证结果。
 - 如果 MMCV 或其 HCU 扩展与 PyTorch/DTK 或 MMDetection3D 不兼容，应先核对版本与二进制依赖，再进行适配。
