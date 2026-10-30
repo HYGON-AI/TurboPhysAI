@@ -169,12 +169,38 @@ turbo-physai run \
 
 ## 7. 目录结构
 
+以下是 `PointPillars_zijia_base_v1` 容器内 `/workspace/PointPillars_TurboPhysAI` 的主要目录，日志、工作目录和转换临时目录的名称会随实际运行变化：
+
 ```text
 /workspace/PointPillars_TurboPhysAI/
-├── mmdetection3d/              # 官方模型源码
-├── TurboPhysAI/                # TurboPhysAI 源码
-│   ├── model_examples/PointPillars/README.md
+├── mmdetection3d/                        # 官方模型源码
+│   ├── configs/
+│   ├── mmdet3d/
+│   └── tools/
+├── TurboPhysAI/
+│   ├── model_examples/
+│   │   ├── BEVFormer/
+│   │   └── BEVFusion/
 │   └── turbo_physai/optimizations/models/PointPillars/
+│       ├── configs/
+│       │   ├── optimization.yaml
+│       │   ├── recipe.yaml
+│       │   └── runtime.yaml
+│       ├── scripts/
+│       │   └── run_pointpillars_turbo.sh
+│       └── ...                           # 优化代码
 ├── static_data/
-│   ├── nuscenes_pointpillars/  # 数据和 PKL
+│   ├── nuscenes_pointpillars/
+│   │   ├── maps -> /data/nuscenes/maps
+│   │   ├── samples -> /data/nuscenes/samples
+│   │   ├── sweeps -> /data/nuscenes/sweeps
+│   │   ├── v1.0-trainval -> /data/nuscenes/v1.0-trainval
+│   │   ├── nuscenes_infos_train.pkl
+│   │   └── nuscenes_infos_val.pkl
+│   └── pkl_run_YfiwYN/                   # 本次 PKL 转换的临时目录
+│       └── data/nuscenes -> /workspace/PointPillars_TurboPhysAI/static_data/nuscenes_pointpillars
+├── logs/
+└── work_dirs/
 ```
+
+上述目录是当前容器的实际快照，不是全新克隆后的目录：容器中的 `scripts/run_pointpillars_turbo.sh` 并未包含在 GitHub 分支中，其内容列于第六章；本 README 则位于 GitHub 分支的 `model_examples/PointPillars/`，当前容器中没有该目录。上图的 `/data/nuscenes` 是当前容器的数据挂载路径，其他环境需要按实际数据位置准备。
