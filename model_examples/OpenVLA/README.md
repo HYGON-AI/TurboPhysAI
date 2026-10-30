@@ -11,7 +11,7 @@ TurboPhysAI 的 OpenVLA 优化基于官方仓库 commit `c8f03f48af692657d3060c1
 
 ## 3. 构建训练环境
 
-### 3.1 构建镜像
+### 3.1 构建容器
 
 ```bash
 docker run -it --name openvla \
