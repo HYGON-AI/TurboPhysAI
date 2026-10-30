@@ -129,7 +129,7 @@ PY
 
 ## 6. 通过 turbo-physai run 启动训练
 
-启动脚本 `turbo_physai/optimizations/models/PointPillars/scripts/run_pointpillars_turbo.sh` 内容如下：
+训练脚本示例如下：
 
 ```bash
 #!/usr/bin/env bash
