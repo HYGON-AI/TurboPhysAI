@@ -161,6 +161,28 @@ def test_high_sigma_sampling_applies_complete_strategy():
     assert torch.all(result <= 1.0)
 
 
+def test_prepare_latents_rejects_ambiguous_video_layout():
+    torch = pytest.importorskip("torch")
+    owner = types.SimpleNamespace(
+        vae_scale_factor_temporal=1,
+        vae_scale_factor_spatial=1,
+    )
+
+    with pytest.raises(ValueError, match="ambiguous video layout"):
+        cosmos_forward.prepare_latents(
+            owner,
+            video=torch.zeros((1, 3, 3, 2, 2)),
+            batch_size=1,
+            num_channels_latents=16,
+            height=2,
+            width=2,
+            num_frames_in=3,
+            num_frames_out=3,
+            dtype=torch.float32,
+            device=torch.device("cpu"),
+        )
+
+
 def test_padding_mask_cache_is_identity_safe_and_versioned():
     torch = pytest.importorskip("torch")
     transformer = types.SimpleNamespace(_dit4dit_padding_mask_cache={})
