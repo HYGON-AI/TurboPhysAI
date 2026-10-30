@@ -1,0 +1,29 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+environment:
+  set:
+    # This container's deployment settings, not portable model defaults.
+    HIP_VISIBLE_DEVICES: '0,1,2,3,4,5,6,7'
+    NCCL_SOCKET_IFNAME: lo
+    GLOO_SOCKET_IFNAME: lo
+    FLASHOCC_ROOT: /workspace/FlashOCC_TurboPhysAI/FlashOCC
+    FLASHOCC_RUNTIME_ROOT: /workspace/FlashOCC_TurboPhysAI/runtime
+    FLASHOCC_DATA_BASE: /workspace/FlashOCC_TurboPhysAI/static_data
+    PYTHONPATH: /workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc:/workspace/FlashOCC_TurboPhysAI/FlashOCC:/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d
+    PYTHONDONTWRITEBYTECODE: '1'
+    NCCL_TOPO_FILE: 'null'
+    NCCL_ALGO: Ring
+    PYTORCH_MIOPEN_SUGGEST_NHWC: '1'
+    MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: '1'
+    MIOPEN_FIND_MODE: '1'
+    ROCBLAS_MATH_MODE: '1'
+    HSA_FORCE_FINE_GRAIN_PCIE: '1'
+    TORCHINDUCTOR_LAYOUT_OPTIMIZATION: '1'
+    TORCHINDUCTOR_COORDINATE_DESCENT_TUNING: '1'
+  unset:
+  - NCCL_RINGS
+process:
+  numa: true
