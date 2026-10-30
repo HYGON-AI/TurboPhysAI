@@ -4,20 +4,20 @@
   "model_commit": "fe25f7a51d36e3702f961e198894580d83c4387b",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "cea89ee0a99f8a69f125c1a0d239fd359e5a52fde98ca0cfadfd27d262268d10"
+    "sha256": "236c00f151407bc16dab21ed5de3018a125da4974149c415cdde9d4fbac6cb8d"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "config",
       "path": "recipe.yaml",
-      "sha256": "80dd267f5f1627aad55c6741497c486a1bc83d863688677dcd2fb6d864061d27"
+      "sha256": "ae33b509cf18b78e5892bae543da332a44e1fb6d217f34b29d68e7a1488ca5d7"
     },
     {
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/PointPillars/catalog.py",
-      "sha256": "dcc6a1bfec6511b4ff996f4b5558bf77df29f22e612501a61cae283554ebd730"
+      "sha256": "7f70676fcb4ed75e6b48c048f22630a8a19e78a4e67debaea0d8b9e599f1d1ea"
     }
   ]
 }

@@ -1,3 +1,19 @@
+# Portions are adapted from the PointPillars HCU optimization project:
+# Source: PointPillars/mmdetection3d/mmdet3d/models/dense_heads/unique_free_anchor3d_head.py
+# Revision: bd37518d0408bcea4ac879a90256ffb8b8628258
+# Project license: Apache-2.0
+# Project copyright: Copyright 2018-2019 Open-MMLab. All rights reserved.
+#
+# Portions are derived from OpenMMLab MMDetection3D:
+# https://github.com/open-mmlab/mmdetection3d
+# File: mmdet3d/models/task_modules/samplers/pseudosample.py
+# Commit: fe25f7a51d36e3702f961e198894580d83c4387b
+# Copyright (c) OpenMMLab. All rights reserved.
+#
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon.
+# SPDX-License-Identifier: Apache-2.0
+
 """PseudoSampler replacement that omits redundant unique operations."""
 
 from functools import wraps

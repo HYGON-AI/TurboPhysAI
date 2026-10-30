@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Engine-managed PointPillars targets for the official MMDetection3D model."""
 from turbo_physai import group, wrap
 

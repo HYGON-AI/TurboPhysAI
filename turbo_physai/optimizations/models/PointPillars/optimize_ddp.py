@@ -1,3 +1,6 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Scope the Dynamo DDP setting to an epoch-based training loop."""
 from functools import wraps
 import torch._dynamo.config

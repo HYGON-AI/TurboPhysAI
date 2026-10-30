@@ -1,3 +1,13 @@
+# Portions are adapted from the PointPillars HCU optimization project:
+# Source: PointPillars/mmdetection3d/mmdet3d/ops/voxelize_opt/__init__.py
+# Revision: bd37518d0408bcea4ac879a90256ffb8b8628258
+# Project license: Apache-2.0
+# Project copyright: Copyright 2018-2019 Open-MMLab. All rights reserved.
+#
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon.
+# SPDX-License-Identifier: Apache-2.0
+
 """Deterministic tensor hard-voxelization replacement."""
 
 from functools import wraps
