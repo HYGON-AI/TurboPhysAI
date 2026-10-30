@@ -21,7 +21,7 @@ docker run -it --name openvla \
 -v /opt/hyhal:/opt/hyhal/:ro \
 --privileged=true \
 --shm-size 64G \
-harbor.sourcefind.cn:5443/hcu/admin/base/pytorch:2.7.1-ubuntu22.04-dtk26.04-py3.10
+harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10-20260929
 ```
 
 下文命令均在容器内执行。
