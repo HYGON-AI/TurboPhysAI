@@ -1,15 +1,22 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
-import functools
-import types
 import torch
-import torch.nn as nn
-import openwam.model.architectures.base as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
+from openwam.model.architectures.base import (
+    _exclude_vlm_from_state_dict,
+    np,
+    os,
+)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openwam.model.architectures.base import (
+        Optional,
+        Tensor,
+    )
 
 
 def BaseWAMArchitecture__append_proprio_context_token(
@@ -79,7 +86,9 @@ def BaseWAMArchitecture__append_proprio_context_token(
     #                    RoboCOIN/EgoDex/RoboTwin/OXE readers; the
     #                    sample-level enable is ``mask.any(dim=-1)`` so any
     #                    real dim still gates the token in.
-    if sample_mask is None:
+    if packed_mask is not None:
+        sample_mask = packed_mask[:, -1:]
+    elif sample_mask is None:
         sample_mask = torch.ones(
             (proprio.shape[0], 1),
             dtype=torch.bool,
@@ -559,8 +568,6 @@ def BaseWAMArchitecture_compute_loss(
     return result
 
 
-bind_missing_globals(globals(), _source)
-
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,
 )
@@ -571,28 +578,16 @@ BaseWAMArchitecture__append_proprio_context_token_wrapper = _port_wrapper(
     "openwam.architecture",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 BaseWAMArchitecture_save_checkpoint_wrapper = _port_wrapper(
     BaseWAMArchitecture_save_checkpoint,
     "openwam.model.architectures.base.BaseWAMArchitecture.save_checkpoint",
     "openwam.architecture",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 BaseWAMArchitecture_prepare_inputs_wrapper = _port_wrapper(
     BaseWAMArchitecture_prepare_inputs,
     "openwam.model.architectures.base.BaseWAMArchitecture.prepare_inputs",
     "openwam.architecture",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 BaseWAMArchitecture_compute_loss_wrapper = _port_wrapper(

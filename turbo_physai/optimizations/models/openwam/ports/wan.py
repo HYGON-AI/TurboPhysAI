@@ -1,15 +1,26 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
-import functools
-import types
 import torch
-import torch.nn as nn
-import openwam.model.video_backbone.wan_backbone as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
+from openwam.model.video_backbone.wan_backbone import (
+    BlockLoopState,
+    check_resize_height_width,
+    modulate,
+    rearrange,
+    rope_apply,
+    wan_dit_forward,
+    wan_encode,
+)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openwam.model.video_backbone.wan_backbone import (
+        Tensor,
+        Tuple,
+    )
 from turbo_physai.optimizations.models.openwam.host_async import rope_freqs
 from turbo_physai.optimizations.models.openwam.linear_bias2d import (
     cross_attention_kwargs,
@@ -223,6 +234,7 @@ def WanBase_post_attn_at_layer_for_compile(
             .unsqueeze(1)
         )
     from turbo_physai.optimizations.models.openwam.sac import (
+        active_ffn_boundary,
         ffn_boundary,
         run_ffn as run_complete_ffn,
         run_norm,
@@ -235,7 +247,7 @@ def WanBase_post_attn_at_layer_for_compile(
         **cross_attention_kwargs(block.cross_attn),
     )
     mlp_input = modulate(run_norm(block.norm2, hidden_states), shift_mlp, scale_mlp)
-    if ffn_boundary():
+    if active_ffn_boundary() or (ffn_boundary() and torch.compiler.is_compiling()):
         mlp_output = run_complete_ffn(block.ffn, mlp_input, video=True)
     else:
         mlp_output = video_ffn(block.ffn, mlp_input)
@@ -337,8 +349,6 @@ def WanBase_preprocess_input_for_train(self, *, frames=None, text=None, **kw) ->
     }
 
 
-bind_missing_globals(globals(), _source)
-
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,
 )
@@ -349,28 +359,16 @@ WanBase_prepare_wrapper = _port_wrapper(
     "openwam.compute",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 WanBase_pre_attn_at_layer_for_compile_wrapper = _port_wrapper(
     WanBase_pre_attn_at_layer_for_compile,
     "openwam.model.video_backbone.wan_backbone.WanBase.pre_attn_at_layer_for_compile",
     "openwam.compute",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 WanBase_post_attn_at_layer_for_compile_wrapper = _port_wrapper(
     WanBase_post_attn_at_layer_for_compile,
     "openwam.model.video_backbone.wan_backbone.WanBase.post_attn_at_layer_for_compile",
     "openwam.compute",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 WanBase_preprocess_input_for_train_wrapper = _port_wrapper(

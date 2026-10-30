@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
@@ -7,11 +7,28 @@ from __future__ import annotations
 import functools
 import copy
 import logging
-import types
 import torch
-import torch.nn as nn
-import openwam.model.architectures.dual_system.mot_driver as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
+from openwam.model.architectures.dual_system.mot_driver import (
+    F,
+    build_cross_modal_attention_mask,
+    rearrange,
+    set_video_attention_mask_mode,
+    validate_attention_mask_mode,
+    widen_mask_for_prefix_kv,
+)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openwam.model.architectures.dual_system.mot_driver import (
+        ACTION_SEES_VIDEO,
+        ActionDiTBackbone,
+        ActionState,
+        BlockLoopState,
+        Optional,
+        Tensor,
+        Tuple,
+        VideoBackbone,
+    )
 from turbo_physai.optimizations.models.openwam import enabled
 from turbo_physai.optimizations.models.openwam.attention import (
     split_attention,
@@ -84,7 +101,12 @@ def DualSystemMoTDriver__build_attention_mask(
         device=torch.device("cpu") if split_enabled else device,
     )
     plan = split_mask_plan(mask) if split_enabled else None
-    mask = mask.to(device=device)
+    if enabled("host_async"):
+        from turbo_physai.optimizations.models.openwam.host_async import upload
+
+        mask = upload(mask, device)
+    else:
+        mask = mask.to(device=device)
     if plan is not None:
         try:
             version = mask._version
@@ -360,7 +382,7 @@ def DualSystemMoTDriver__step_checkpointed(
     checkpoint_kwargs = {"use_reentrant": False}
     from turbo_physai.optimizations.models.openwam.sac import active, context_fn
 
-    if active() or enabled("checkpoint_stats"):
+    if active():
         if offload and active():
             raise ValueError(
                 "Complete SAC requires gradient checkpoint offload to be disabled"
@@ -491,8 +513,6 @@ def DualSystemMoTDriver_run_joint_loop(
     return vstate, astate
 
 
-bind_missing_globals(globals(), _source)
-
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,
 )
@@ -503,18 +523,10 @@ DualSystemMoTDriver___init___wrapper = _port_wrapper(
     "openwam.mot",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 DualSystemMoTDriver__build_attention_mask_wrapper = _port_wrapper(
     DualSystemMoTDriver__build_attention_mask,
     "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._build_attention_mask",
     "openwam.mot",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 DualSystemMoTDriver__mixed_attention_wrapper = _port_wrapper(
@@ -523,18 +535,10 @@ DualSystemMoTDriver__mixed_attention_wrapper = _port_wrapper(
     "openwam.mot",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 DualSystemMoTDriver_step_wrapper = _port_wrapper(
     DualSystemMoTDriver_step,
     "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver.step",
     "openwam.mot",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 DualSystemMoTDriver__step_impl_wrapper = _port_wrapper(
@@ -543,18 +547,10 @@ DualSystemMoTDriver__step_impl_wrapper = _port_wrapper(
     "openwam.mot",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 DualSystemMoTDriver__step_checkpointed_wrapper = _port_wrapper(
     DualSystemMoTDriver__step_checkpointed,
     "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._step_checkpointed",
     "openwam.mot",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 DualSystemMoTDriver_run_joint_loop_wrapper = _port_wrapper(

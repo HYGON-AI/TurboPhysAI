@@ -1,19 +1,29 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
 import functools
-import types
 import torch
-import torch.nn as nn
-import openwam.model.action_backbone.separate_action_dit as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
+from openwam.model.action_backbone.separate_action_dit import (
+    get_attention_fn,
+    rearrange,
+    rope_apply_1d,
+)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openwam.model.action_backbone.separate_action_dit import (
+        ActionDiTState,
+        ActionState,
+        Optional,
+    )
 from turbo_physai.optimizations.models.openwam import enabled, pointwise
 from turbo_physai.optimizations.models.openwam.attention import fa2_padding
 from turbo_physai.optimizations.models.openwam.sac import (
     extras_enabled,
+    active_ffn_boundary,
     ffn_boundary,
     run_attention,
     run_ffn,
@@ -212,15 +222,15 @@ def ActionDiT_post_attn_at_layer_for_compile(
         )
     mlp_input = _modulate(run_norm(block.ffn_norm, x), shift_mlp, scale_mlp)
     mlp_output = (
-        run_ffn(block.ffn, mlp_input) if ffn_boundary() else block.ffn(mlp_input)
+        run_ffn(block.ffn, mlp_input)
+        if active_ffn_boundary() or (ffn_boundary() and torch.compiler.is_compiling())
+        else block.ffn(mlp_input)
     )
     x = block.gate(x, gate_mlp, mlp_output)
 
     payload.x_action = x
     return astate
 
-
-bind_missing_globals(globals(), _source)
 
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,
@@ -232,18 +242,10 @@ BridgeCrossAttention_forward_wrapper = _port_wrapper(
     "openwam.compute",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 CrossAttnActionDiTBlock_forward_wrapper = _port_wrapper(
     CrossAttnActionDiTBlock_forward,
     "openwam.model.action_backbone.separate_action_dit.CrossAttnActionDiTBlock.forward",
     "openwam.compute",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 SelfAttnActionDiTBlock_gate_wrapper = _port_wrapper(
@@ -252,28 +254,16 @@ SelfAttnActionDiTBlock_gate_wrapper = _port_wrapper(
     "openwam.compute",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 SelfAttnActionDiTBlock_forward_wrapper = _port_wrapper(
     SelfAttnActionDiTBlock_forward,
     "openwam.model.action_backbone.separate_action_dit.SelfAttnActionDiTBlock.forward",
     "openwam.compute",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 ActionDiT_pre_attn_at_layer_for_compile_wrapper = _port_wrapper(
     ActionDiT_pre_attn_at_layer_for_compile,
     "openwam.model.action_backbone.separate_action_dit.ActionDiT.pre_attn_at_layer_for_compile",
     "openwam.compute",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 ActionDiT_post_attn_at_layer_for_compile_wrapper = _port_wrapper(

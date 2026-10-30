@@ -253,7 +253,7 @@ TRAINING = group(
     "openwam.training",
     wrap(
         "openwam.train.openwam_trainer.OpenWAMTrainer.__init__",
-        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer___init___wrapper",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.trainer_init",
     ),
     wrap(
         "openwam.train.openwam_trainer.OpenWAMTrainer.train",
@@ -261,27 +261,23 @@ TRAINING = group(
     ),
     wrap(
         "openwam.train.openwam_trainer.OpenWAMTrainer.build_optimizer",
-        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_build_optimizer_wrapper",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.build_optimizer",
     ),
     wrap(
         "openwam.train.openwam_trainer.OpenWAMTrainer.build_dataloader",
-        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_build_dataloader_wrapper",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.build_dataloader",
     ),
     wrap(
         "openwam.train.openwam_trainer.OpenWAMTrainer.prepare_accelerate",
-        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_prepare_accelerate_wrapper",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.prepare_accelerate",
     ),
     wrap(
         "openwam.train.openwam_trainer.OpenWAMTrainer.compute_loss",
-        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_compute_loss_wrapper",
-    ),
-    wrap(
-        "openwam.train.openwam_trainer.OpenWAMTrainer.log_step",
-        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_log_step_wrapper",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.compute_loss",
     ),
     wrap(
         "openwam.train.openwam_trainer.OpenWAMTrainer.finish_training",
-        "turbo_physai.optimizations.models.openwam.ports.trainer.OpenWAMTrainer_finish_training_wrapper",
+        "turbo_physai.optimizations.models.openwam.ports.trainer.finish_training",
     ),
     wrap(
         "accelerate.utils.dataclasses.DeepSpeedPlugin.__post_init__",

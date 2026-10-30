@@ -99,7 +99,6 @@ optimization_groups:
   enabled: true
   options:
     checkpoint_skip_layers: 0
-    checkpoint_stats: false
     compile_mot: false
     mot_split_attn: true
     sac_attention: false
@@ -178,11 +177,10 @@ optimization_groups:
     host_async: false
     hw_queues: 0
     online_encode: false
-    profile_light: false
-    profiling: 'off'
-    trace_gc: false
+    zero_norm_overlap: false
     zero_overlap: true
     zero_reduce_scatter: false
+    zero_scaled_pack: false
   trust:
     ast_hashes:
       openwam.train.openwam_trainer.OpenWAMTrainer.__init__:
@@ -197,8 +195,6 @@ optimization_groups:
       - ast-v1:be541000e06c0025193fc98f9a5c77bbcaff902974988ff8de892211acad7427
       openwam.train.openwam_trainer.OpenWAMTrainer.compute_loss:
       - ast-v1:90a77bbcbf26df10a16419d678d6718021f16a1bf451729ea497b510ef76f3f0
-      openwam.train.openwam_trainer.OpenWAMTrainer.log_step:
-      - ast-v1:dd8233b14a0675344db365dc5b230913dd3e9a2c60b97be652404d187006a146
       openwam.train.openwam_trainer.OpenWAMTrainer.finish_training:
       - ast-v1:7ee643eaf1057afa1620a7a1402c088a7154a1324936e244f9697b97947a6aaf
 optimization_modules:

@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 """Step 1 of the VAE latent store: encode every RoboTwin training window once.
@@ -153,18 +153,20 @@ def main(cfg: DictConfig) -> None:
     backbone.vae.to(device=device)
     prepare_runtime_constants(architecture)
 
+    cache_keys = {key: key for key in signature["readers"]}
     meta_path = os.path.join(root, store.META)
     if os.path.isfile(meta_path):
         with open(meta_path, encoding="utf-8") as handle:
             # A store built for all tasks can resume a selected task without
             # rewriting its metadata or invalidating the other cached readers.
-            store.validate_signature(json.load(handle), signature)
+            cache_keys = store.validate_signature(json.load(handle), signature)
     elif rank == 0:
         os.makedirs(root, exist_ok=True)
         with open(f"{meta_path}.tmp", "w", encoding="utf-8") as handle:
             json.dump(signature, handle)
         os.replace(f"{meta_path}.tmp", meta_path)
 
+    reader_keys = [cache_keys[store.reader_key(reader)] for reader in readers]
     episodes = [
         (r, e)
         for r, reader in enumerate(readers)
@@ -175,19 +177,11 @@ def main(cfg: DictConfig) -> None:
         (r, e)
         for r, e in episodes[rank::world]
         if not _finished(
-            store.episode_path(root, readers[r], e),
+            store.episode_path(root, readers[r], e, reader_keys[r]),
             len(store.episode_starts(readers[r], e)),
         )
     ]
     total = sum(len(store.episode_starts(readers[r], e)) for r, e in mine)
-    logger.info(
-        "[latent store] rank %d/%d: %d of %d episodes to encode, %d windows",
-        rank,
-        world,
-        len(mine),
-        len(episodes[rank::world]),
-        total,
-    )
     workers = min(
         int(cfg.training.dataset_num_workers), 4
     )  # Whole episodes are large in shared memory.
@@ -218,18 +212,17 @@ def main(cfg: DictConfig) -> None:
         for (key, _), latent in zip(windows[:real], latents[:real]):
             rows[key].append(latent.contiguous())
             if len(rows[key]) == len(store.episode_starts(readers[key[0]], key[1])):
-                _write(store.episode_path(root, readers[key[0]], key[1]), rows.pop(key))
+                _write(
+                    store.episode_path(
+                        root, readers[key[0]], key[1], reader_keys[key[0]]
+                    ),
+                    rows.pop(key),
+                )
                 del resident[key]
         done += real
         batches += 1
         if rank == 0 and batches % 50 == 0:
             rate = done / (time.monotonic() - started)
-            logger.info(
-                "[latent store] rank 0: %d/%d windows, %.1f windows/s",
-                done,
-                total,
-                rate,
-            )
 
     with torch.no_grad():
         for r, e, frames in loader:
@@ -246,12 +239,6 @@ def main(cfg: DictConfig) -> None:
             encode(pending)
     if rows:
         raise RuntimeError(f"Unfinished episodes after encoding: {sorted(rows)}")
-    logger.info(
-        "[latent store] rank %d finished %d windows in %.0f s",
-        rank,
-        done,
-        time.monotonic() - started,
-    )
     if enabled("text_cache"):
         shard = text_store.generate(
             dataset,

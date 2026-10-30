@@ -4,13 +4,19 @@
 """OpenWAM model preparation and Turbo-configured optimization helpers."""
 
 import logging
-from .settings import enabled, value
-from .launch import configure_backends
+from .settings import enabled, value as value
+from .launch import configure_backends as configure_backends
 
 logger = logging.getLogger(__name__)
 
 
 def configure_zero(config: dict) -> None:
+    if (enabled("zero_scaled_pack") or enabled("zero_norm_overlap")) and not enabled(
+        "zero_reduce_scatter"
+    ):
+        raise ValueError(
+            "ZeRO scaled packing and norm overlap require zero_reduce_scatter"
+        )
     if enabled("host_async"):
         from turbo_physai.optimizations.models.openwam.host_async import (
             configure_deepspeed,
@@ -35,14 +41,10 @@ def configure_zero(config: dict) -> None:
     if enabled("zero_overlap"):
         zero = config["zero_optimization"]
         zero.update(overlap_comm=True, contiguous_gradients=True)
-        # Retain the measured ZeRO-2 default and explicit caller configurations.
+        # Keep activation headroom while preserving explicit caller configurations.
         # Bucket size is in elements, not bytes.
         if zero.get("stage") == 2:
-            zero.setdefault("reduce_bucket_size", 500_000_000)
-        logger.info(
-            "[optimizations] ZeRO overlap_comm=True, contiguous_gradients=True, reduce_bucket_size=%s",
-            zero.get("reduce_bucket_size", "default"),
-        )
+            zero.setdefault("reduce_bucket_size", 100_000_000)
 
 
 def prepare_model(architecture) -> None:
@@ -75,9 +77,6 @@ def prepare_model(architecture) -> None:
     if layout:
         torch.nn.utils.convert_conv3d_weight_memory_format(vae, torch.channels_last_3d)
         torch.nn.utils.convert_conv2d_weight_memory_format(vae, torch.channels_last)
-        logger.info(
-            "[optimizations] native VAE Conv2d/Conv3d weights use channels-last"
-        )
     if compile_vae:
         from turbo_physai.optimizations.models.openwam.global_compile import (
             compile_vae_encoder,
@@ -109,7 +108,6 @@ def prepare_runtime_constants(architecture) -> None:
 
         if isinstance(vae, WanVideoVAE):
             WanVideoVAE_prepare_scale_cache(vae)
-    logger.info("[optimizations] scheduler tables and VAE scales staged on %s", device)
 
 
 def stage_training_indices(indices, device):

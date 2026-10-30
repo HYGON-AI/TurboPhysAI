@@ -1,15 +1,17 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
-import functools
-import types
 import torch
-import torch.nn as nn
-import openwam.model.architectures.dual_system.idm as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openwam.model.architectures.dual_system.idm import (
+        Optional,
+        Tensor,
+    )
 
 
 def DualSystemIDMArchitecture_compute_loss(
@@ -183,8 +185,6 @@ def DualSystemIDMArchitecture_compute_loss(
         "loss_action": lambda_action * loss_action.detach(),
     }
 
-
-bind_missing_globals(globals(), _source)
 
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,

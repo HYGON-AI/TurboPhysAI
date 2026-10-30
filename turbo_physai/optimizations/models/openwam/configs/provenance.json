@@ -1,7 +1,7 @@
 {
   "source_repository": "https://github.com/iMountTai/OpenWAM",
   "source_branch": "main",
-  "source_commit": "bfce20b575a9b34aea385030fcb00a9eaf61fcb5",
+  "source_commit": "d1ea554ba44057b766fff94c0d999fb11a217ffb",
   "baseline_commit": "1204dde1b9e9c232131fc99a3f2c6b78330e7f64",
   "license": "Apache-2.0",
   "optimization_modules": [
@@ -9,7 +9,6 @@
     "_fa2_varlen.py",
     "attention.py",
     "deferred_gather.py",
-    "gc_trace.py",
     "global_compile.py",
     "host_async.py",
     "hw_queues.py",
@@ -23,7 +22,10 @@
     "text.py",
     "text_store.py",
     "vae_layout.py",
-    "zero.py"
+    "zero.py",
+    "zero_fused.py",
+    "zero_kernels.py",
+    "zero_norm.py"
   ],
   "ports": [
     {
@@ -164,18 +166,17 @@
       "source_file": "openwam/train/openwam_trainer.py",
       "symbols": [
         "OpenWAMTrainer.__init__",
-        "OpenWAMTrainer._build_profiler",
         "OpenWAMTrainer.train",
         "OpenWAMTrainer.build_optimizer",
         "OpenWAMTrainer.build_dataloader",
         "OpenWAMTrainer.prepare_accelerate",
         "OpenWAMTrainer.compute_loss",
-        "OpenWAMTrainer.log_step",
         "OpenWAMTrainer.finish_training"
       ]
     }
   ],
   "validation": "Static identity/configuration checks only; no model or HCU test.",
   "configuration": "Turbo Groups/options; legacy optimization environment switches are not used.",
-  "target_identity_evidence": "Canonical AST of definitions exported from the fixed upstream baseline; no model imports or execution."
+  "target_identity_evidence": "Canonical AST of definitions exported from the fixed upstream baseline; no model imports or execution.",
+  "scope": "Performance optimizations only. Native training setup, logging and checkpoint teardown are delegated; no profiler, GC tracing or SAC diagnostics are migrated."
 }

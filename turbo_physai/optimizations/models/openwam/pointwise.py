@@ -1,12 +1,11 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 """Compile only stateless tensor expressions, outside ZeRO/checkpoint orchestration."""
 
 from functools import lru_cache
 
-from turbo_physai.optimizations.models.openwam.settings import value
 
 import torch
 import torch.nn.functional as F

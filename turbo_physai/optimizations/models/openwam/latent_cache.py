@@ -1,6 +1,8 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
+
+from turbo_physai.optimizations.models.openwam.settings import value
 
 """Offline VAE latent store for RoboTwin training (two-step workflow).
 
@@ -14,8 +16,6 @@ Latents are the deterministic VAE mean, encoded by the same preprocessing and
 batch_encode path as online training. ``meta.json`` records every reader
 setting that changes the pixels; training refuses a store that differs.
 """
-
-from turbo_physai.optimizations.models.openwam.settings import value
 
 import hashlib
 import json
@@ -103,9 +103,11 @@ def check_windows(reader):
         )
 
 
-def episode_path(root, reader, ep_idx):
+def episode_path(root, reader, ep_idx, store_key=None):
     stem = os.path.splitext(os.path.basename(reader._episode_files[ep_idx]))[0]
-    return os.path.join(root, reader_key(reader), f"{stem}.npy")
+    return os.path.join(
+        root, store_key if store_key is not None else reader_key(reader), f"{stem}.npy"
+    )
 
 
 def validate_backbone(architecture):
@@ -149,31 +151,51 @@ def store_signature(dataset, vae):
 
 
 def validate_signature(meta, expected):
-    """Allow task subsets, but reject any change affecting the stored latents."""
+    """Resolve runtime readers to stored keys, allowing dataset-root relocation.
+
+    Legacy directory hashes locate files; they are not dataset identity. Match
+    task/variant/data and every recorded preprocessing/episode field instead.
+    Metadata does not fingerprint episode contents: replacing data in place
+    still requires regenerating its cache.
+    """
     for name in ("version", "dtype", "vae"):
         if meta.get(name) != expected[name]:
             raise ValueError(
                 f"VAE latent store {name} mismatch: stored {meta.get(name)!r}, run {expected[name]!r}"
             )
     stored = meta.get("readers", {})
+    resolved = {}
+
+    def identity(reader):
+        return tuple(reader["data_root"].replace("\\", "/").rstrip("/").split("/")[-3:])
+
     for key, reader in expected["readers"].items():
-        previous = stored.get(key)
-        if previous is None:
-            tail = "/".join(reader["data_root"].replace("\\", "/").split("/")[-3:])
-            candidates = [
-                value.get("data_root")
-                for value in stored.values()
-                if str(value.get("data_root", ""))
-                .replace("\\", "/")
-                .endswith("/" + tail)
+        candidates = (
+            [key]
+            if key in stored
+            else [
+                k for k, value in stored.items() if identity(value) == identity(reader)
             ]
-            detail = f"; similar stored paths: {candidates}" if candidates else ""
+        )
+        if not candidates:
             raise ValueError(
-                f"VAE latent store has no reader for {reader['data_root']}{detail}. "
-                "Use the original dataset/cache paths or a new cache directory."
+                f"VAE latent store has no reader for task {'/'.join(identity(reader))}"
             )
+        matches = [
+            k
+            for k in candidates
+            if {n: v for n, v in stored[k].items() if n != "data_root"}
+            == {n: v for n, v in reader.items() if n != "data_root"}
+        ]
+        if len(matches) > 1:
+            raise ValueError(
+                f"Ambiguous VAE latent readers for {reader['data_root']}: {matches}"
+            )
+        selected = matches[0] if matches else candidates[0]
+        previous = stored[selected]
         changes = []
-        for name, value in reader.items():
+        for name in sorted((set(reader) | set(previous)) - {"data_root"}):
+            value = reader.get(name)
             if previous.get(name) != value:
                 old, new = repr(previous.get(name)), repr(value)
                 changes.append(f"{name}: stored {old[:160]}, run {new[:160]}")
@@ -182,22 +204,44 @@ def validate_signature(meta, expected):
                 f"VAE latent store reader mismatch for {reader['data_root']}: "
                 + "; ".join(changes)
             )
+        if not matches:
+            raise ValueError(
+                f"VAE latent store reader fields differ for {reader['data_root']}"
+            )
+        if (
+            selected in {"", ".", ".."}
+            or "/" in selected
+            or "\\" in selected
+            or ":" in selected
+        ):
+            raise ValueError(f"Invalid latent reader directory key: {selected!r}")
+        resolved[key] = selected
+    return resolved
 
 
 class EpisodeLatents:
     """Per-worker lazy memory maps of the episode files of one reader."""
 
-    def __init__(self, root, reader):
+    def __init__(self, root, reader, store_key=None):
         self.root, self.reader, self.maps = root, reader, {}
+        self.store_key = store_key
 
     def __getstate__(self):
         # DataLoader workers reopen their own maps instead of pickling them.
-        return {"root": self.root, "reader": self.reader, "maps": {}}
+        return {
+            "root": self.root,
+            "reader": self.reader,
+            "maps": {},
+            "store_key": self.store_key,
+        }
 
     def __call__(self, ep_idx, start):
         array = self.maps.pop(ep_idx, None)
         if array is None:
-            array = np.load(episode_path(self.root, self.reader, ep_idx), mmap_mode="r")
+            array = np.load(
+                episode_path(self.root, self.reader, ep_idx, self.store_key),
+                mmap_mode="r",
+            )
             if len(self.maps) >= _OPEN_MAPS:
                 # Each map holds a file descriptor; keep the recently used ones.
                 self.maps.pop(next(iter(self.maps)))
@@ -219,15 +263,16 @@ def attach(dataset, vae):
     with open(meta_path, encoding="utf-8") as handle:
         meta = json.load(handle)
     expected = store_signature(dataset, vae)
-    validate_signature(meta, expected)
+    keys = validate_signature(meta, expected)
     shape = None
     for reader in readers(dataset):
+        key = keys[reader_key(reader)]
         check_windows(reader)
         for ep_idx in range(len(reader._episode_files)):
             starts = episode_starts(reader, ep_idx)
             if not starts:
                 continue
-            path = episode_path(root, reader, ep_idx)
+            path = episode_path(root, reader, ep_idx, key)
             if not os.path.isfile(path):
                 raise FileNotFoundError(
                     f"VAE latent store is incomplete, missing {path}"
@@ -240,13 +285,7 @@ def attach(dataset, vae):
                     f"VAE latent store file {path} has shape {array.shape}, expected {len(starts)} rows"
                 )
             shape = array.shape[1:]
-        reader._latent_store = EpisodeLatents(root, reader)
-    logger.info(
-        "[optimizations] VAE latent store %s: per-sample latent %s, readers=%d",
-        root,
-        tuple(shape or ()),
-        len(meta["readers"]),
-    )
+        reader._latent_store = EpisodeLatents(root, reader, key)
 
 
 def stacked(samples):

@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 """Standard PyTorch SAC policies for complete FFNs, attention and other ops.
@@ -15,11 +15,8 @@ activations through autograd, so SAC never caches them a second time.
 
 from turbo_physai.optimizations.models.openwam.settings import value
 
-import json
 import logging
-import os
 import re
-from collections import Counter
 from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import lru_cache
@@ -34,7 +31,6 @@ from torch.utils.checkpoint import (
 from turbo_physai.optimizations.models.openwam import enabled
 from turbo_physai.optimizations.models.openwam.runtime import (
     checkpoint_layers,
-    checkpoint_skip_layers,
     integer,
 )
 
@@ -45,7 +41,6 @@ _session = ContextVar("openwam_sac_session", default=None)
 _regions = ContextVar("openwam_sac_regions", default=())
 _inside_mode = ContextVar("openwam_inside_sac_mode", default=False)
 _native_mot = ContextVar("openwam_sac_native_mot_expression", default=False)
-_counts = Counter()
 
 
 def dispatcher(fn):
@@ -99,6 +94,10 @@ def active():
 
 def ffn_boundary():
     return enabled("sac_ffn_full") or enabled("sac_gemm") or extras_enabled()
+
+
+def active_ffn_boundary():
+    return _session.get() is not None and ffn_boundary()
 
 
 def attention_boundary():
@@ -166,7 +165,6 @@ def layer_range(total):
 
 
 def validate(total=None):
-    enabled("checkpoint_stats")
     if not active():
         return
     if total is not None:
@@ -229,15 +227,6 @@ def prepare(architecture):
                         f"FA SAC requires registered forward op {name}, got {entry}"
                     )
     start, stop = layer_range(backbone.num_layers)
-    logger.info(
-        "[optimizations] standard SAC flags=%s, layers=[%d, %d) of %d, no-checkpoint tail=%d, extra ops=%s",
-        {name: enabled(name) for name in FLAGS},
-        start,
-        stop,
-        backbone.num_layers,
-        backbone.num_layers - stop,
-        sorted(_extra_ops(value("sac_extra_ops", ""))),
-    )
 
 
 class _Policy:
@@ -246,7 +235,6 @@ class _Policy:
         self.ffn = enabled("sac_ffn_full")
         self.gemm = enabled("sac_gemm")
         self.extra = _extra_ops(value("sac_extra_ops", ""))
-        self.diagnostics = enabled("checkpoint_stats")
         self.seen_extra = set()
         self.seen_fa = False
 
@@ -268,20 +256,12 @@ class _Policy:
                 self.seen_fa = True
             if not attention and name in self.extra:
                 self.seen_extra.add(name)
-        if self.diagnostics:
-            phase = "replay" if context.is_recompute else "forward"
-            choice = "saved" if save else "computed"
-            _counts[(phase, region_stack[-1], choice, name)] += 1
         return CheckpointPolicy.MUST_SAVE if save else CheckpointPolicy.PREFER_RECOMPUTE
 
 
 @contextmanager
 def _checkpoint_scope(mode, phase, policy):
     token = _session.set(mode)
-    if enabled("checkpoint_stats"):
-        _counts[(phase, "checkpoint", "entered", "layer")] += 1
-        if mode is not None:
-            _counts[(phase, "checkpoint", "selected", "layer")] += 1
     try:
         yield
         if phase == "forward" and policy is not None:
@@ -323,6 +303,12 @@ def native_mot_expression():
 
 def _invoke(region, fn, *args, **kwargs):
     mode = _session.get()
+    if (
+        mode is None
+        and region not in {"projection", "norm", "pointwise"}
+        and not extras_enabled()
+    ):
+        return fn(*args, **kwargs)
     # Norms moved out of GLOBAL keep the same native expression/backend choice.
     scope = value("compile_scope", "all").strip().lower()
     native = enabled("global_compile") and scope in {"mot", "all"}
@@ -378,7 +364,11 @@ def _call(region, fn, *args, **kwargs):
 
 @dispatcher
 def run_attention(fn, *args, label="attention", **kwargs):
-    if not attention_boundary():
+    if not attention_boundary() or (
+        _session.get() is None
+        and not torch.compiler.is_compiling()
+        and not extras_enabled()
+    ):
         return fn(*args, **kwargs)
     return _call(label, fn, *args, **kwargs)
 
@@ -416,41 +406,3 @@ def run_norm(norm, x):
 @dispatcher
 def run_pointwise(fn, *args):
     return _call("pointwise", fn, *args)
-
-
-def begin_step(device):
-    _counts.clear()
-    torch.cuda.reset_peak_memory_stats(device)
-
-
-def report_step(step, device, metrics, steps_per_sec, batch_size, opt_step):
-    groups = {}
-    for (phase, region, choice, op), count in sorted(_counts.items()):
-        groups.setdefault(phase, {}).setdefault(region, {}).setdefault(choice, {})[
-            op
-        ] = count
-    print(
-        "[checkpoint_stats] "
-        + json.dumps(
-            {
-                "rank": int(os.environ.get("RANK", "0")),
-                "step": step,
-                "optimizer_step": opt_step,
-                "sac_flags": {name: enabled(name) for name in FLAGS},
-                "sac_layers": value("sac_layers", "all"),
-                "skip_layers": checkpoint_skip_layers(),
-                "operators": groups,
-                "s_microstep": 1.0 / steps_per_sec,
-                "global_samples_s": steps_per_sec
-                * batch_size
-                * int(os.environ.get("WORLD_SIZE", "1")),
-                "samples_s_gpu": steps_per_sec * batch_size,
-                "loss_total": float(metrics["loss_total"]),
-                "grad_norm": float(metrics["grad_norm"]),
-                "peak_allocated_gib": torch.cuda.max_memory_allocated(device) / 2**30,
-                "peak_reserved_gib": torch.cuda.max_memory_reserved(device) / 2**30,
-            },
-            sort_keys=True,
-        ),
-        flush=True,
-    )

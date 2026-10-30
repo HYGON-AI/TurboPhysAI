@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 """Skip DAS offset filtering only for offsets constructed by our padding packer."""
@@ -34,16 +34,10 @@ def packed_varlen_kernel(public_kernel):
             for fn in (original.forward, original.backward)
         )
         if fingerprints != _SUPPORTED:
-            logger.info(
-                "[optimizations] FA2 padding retains public entry: unrecognized autograd implementation"
-            )
             return public_kernel
         forward = backend._wrapped_flash_attn_varlen_forward
         backward = original.backward
     except (ImportError, AttributeError, OSError, TypeError):
-        logger.info(
-            "[optimizations] FA2 padding retains public entry: private API unavailable"
-        )
         return public_kernel
 
     class PackedVarlen(torch.autograd.Function):
@@ -100,7 +94,4 @@ def packed_varlen_kernel(public_kernel):
         # dummy keys for empty rows. No data-dependent GPU validation is needed.
         return PackedVarlen.apply(q, k, v, cu_q, cu_k, max_q, max_k)
 
-    logger.info(
-        "[optimizations] FA2 padding uses validated packed offsets without duplicate filtering"
-    )
     return run

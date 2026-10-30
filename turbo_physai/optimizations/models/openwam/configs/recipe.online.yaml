@@ -39,7 +39,6 @@ optimization_groups:
     sac_gemm: false
     sac_layers: null
     sac_extra_ops: ''
-    checkpoint_stats: false
 - id: openwam.text
   options:
     text_cache: false
@@ -64,6 +63,5 @@ optimization_groups:
     fused_adamw: true
     host_async: true
     hw_queues: 16
-    profiling: 'off'
-    profile_light: false
-    trace_gc: false
+    zero_scaled_pack: false
+    zero_norm_overlap: false

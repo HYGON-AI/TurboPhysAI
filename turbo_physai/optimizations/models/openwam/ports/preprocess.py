@@ -1,15 +1,15 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
-import functools
-import types
 import torch
-import torch.nn as nn
-import openwam.model.video_backbone.wan.preprocess as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
+from openwam.model.video_backbone.wan.preprocess import (
+    Image,
+    np,
+    preprocess_image,
+)
 from turbo_physai.optimizations.models.openwam import enabled
 
 
@@ -46,8 +46,6 @@ def preprocess_video(
     video = torch.stack(video, dim=pattern.index("T") // 2)
     return video
 
-
-bind_missing_globals(globals(), _source)
 
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,

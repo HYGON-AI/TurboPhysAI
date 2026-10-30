@@ -14,6 +14,7 @@ import functools
 import inspect
 import sys
 from collections.abc import Mapping
+from importlib import import_module
 
 GROUP_DEFAULTS = {
     "openwam.data": {
@@ -37,7 +38,6 @@ GROUP_DEFAULTS = {
         "sac_gemm": False,
         "sac_layers": None,
         "sac_extra_ops": "",
-        "checkpoint_stats": False,
     },
     "openwam.text": {
         "text_cache": True,
@@ -57,14 +57,13 @@ GROUP_DEFAULTS = {
     "openwam.training": {
         "zero_overlap": True,
         "zero_reduce_scatter": False,
+        "zero_scaled_pack": False,
+        "zero_norm_overlap": False,
         "online_encode": False,
         "deferred_gather": False,
         "fused_adamw": False,
         "host_async": False,
         "hw_queues": 0,
-        "profiling": "off",
-        "profile_light": False,
-        "trace_gc": False,
     },
 }
 
@@ -80,24 +79,26 @@ def _plain(value):
 
 
 def _installed_groups():
-    from .bindings import PATCH_POINTS
+    from turbo_physai.engine.definitions.registry import default_registry
 
+    import_module(f"{__package__}.catalog")
     groups = {}
-    for target, group in PATCH_POINTS:
-        parts = target.split(".")
-        for length in range(len(parts) - 1, 0, -1):
-            parent = sys.modules.get(".".join(parts[:length]))
-            if parent is not None:
-                for part in parts[length:]:
-                    parent = getattr(parent, part, None)
-                if getattr(parent, "__openwam_group__", None) == group:
-                    options = _plain(parent.__openwam_options__)
-                    if group in groups and groups[group] != options:
-                        raise ValueError(
-                            f"Inconsistent options on installed {group} wrappers"
-                        )
-                    groups[group] = options
-                break
+    for group in GROUP_DEFAULTS:
+        for member in default_registry.get_group(group).members:
+            parts = default_registry.get_spec(member).target.split(".")
+            for length in range(len(parts) - 1, 0, -1):
+                parent = sys.modules.get(".".join(parts[:length]))
+                if parent is not None:
+                    for part in parts[length:]:
+                        parent = getattr(parent, part, None)
+                    if getattr(parent, "__openwam_group__", None) == group:
+                        options = _plain(parent.__openwam_options__)
+                        if group in groups and groups[group] != options:
+                            raise ValueError(
+                                f"Inconsistent options on installed {group} wrappers"
+                            )
+                        groups[group] = options
+                    break
     return groups
 
 
@@ -137,8 +138,12 @@ def initialize(*, force=False):
             ):
                 raise ValueError(f"{group}.{key} must be a non-empty path or null")
         result.update(candidate)
-    if result["profiling"] not in {"off", "rank0", "all"}:
-        raise ValueError("openwam.training.profiling must be off, rank0 or all")
+    if (result["zero_scaled_pack"] or result["zero_norm_overlap"]) and not result[
+        "zero_reduce_scatter"
+    ]:
+        raise ValueError(
+            "ZeRO scaled packing and norm overlap require zero_reduce_scatter"
+        )
     if result["text_cache_size"] < 1:
         raise ValueError("openwam.text.text_cache_size must be positive")
     if result["hw_queues"] == 1:
@@ -209,17 +214,6 @@ def port_wrapper(implementation, target, group):
             class_invoke.__openwam_group__ = group
             class_invoke.__openwam_options__ = options
             return _CallableClassMethod(class_invoke)
-        # Initialize backends before constructing modules or launching collectives.
-        if target.endswith("OpenWAMTrainer.__init__"):
-
-            @functools.wraps(invoke)
-            def training_init(*args, **kwargs):
-                from .launch import configure_backends
-
-                configure_backends()
-                return invoke(*args, **kwargs)
-
-            return training_init
         return invoke
 
     return factory

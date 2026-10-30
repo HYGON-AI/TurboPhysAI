@@ -1,15 +1,28 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
-import functools
-import types
 import torch
-import torch.nn as nn
 import openwam.model.video_backbone.wan.models.dit as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
+import torch.nn as nn
+from openwam.model.video_backbone.wan.models.dit import (
+    CrossAttention,
+    F,
+    FLASH_ATTN_2_AVAILABLE,
+    FLASH_ATTN_3_AVAILABLE,
+    GateModule,
+    SAGE_ATTN_AVAILABLE,
+    SelfAttention,
+    rearrange,
+)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openwam.model.video_backbone.wan.models.dit import (
+        Optional,
+    )
 from turbo_physai.optimizations.models.openwam import enabled, pointwise
 from turbo_physai.optimizations.models.openwam.attention import fa2_padding
 from turbo_physai.optimizations.models.openwam.linear_bias2d import video_linear
@@ -60,7 +73,7 @@ def _flash_attention_impl(q, k, v, num_heads, compatibility_mode=False, attn_mas
         q = rearrange(q, "b s (n d) -> b s n d", n=num_heads)
         k = rearrange(k, "b s (n d) -> b s n d", n=num_heads)
         v = rearrange(v, "b s (n d) -> b s n d", n=num_heads)
-        x = flash_attn_interface.flash_attn_func(q, k, v)
+        x = _source.flash_attn_interface.flash_attn_func(q, k, v)
         if isinstance(x, tuple):
             x = x[0]
         x = rearrange(x, "b s n d -> b s (n d)", n=num_heads)
@@ -68,13 +81,13 @@ def _flash_attention_impl(q, k, v, num_heads, compatibility_mode=False, attn_mas
         q = rearrange(q, "b s (n d) -> b s n d", n=num_heads)
         k = rearrange(k, "b s (n d) -> b s n d", n=num_heads)
         v = rearrange(v, "b s (n d) -> b s n d", n=num_heads)
-        x = flash_attn.flash_attn_func(q, k, v)
+        x = _source.flash_attn.flash_attn_func(q, k, v)
         x = rearrange(x, "b s n d -> b s (n d)", n=num_heads)
     elif SAGE_ATTN_AVAILABLE:
         q = rearrange(q, "b s (n d) -> b n s d", n=num_heads)
         k = rearrange(k, "b s (n d) -> b n s d", n=num_heads)
         v = rearrange(v, "b s (n d) -> b n s d", n=num_heads)
-        x = sageattn(q, k, v)
+        x = _source.sageattn(q, k, v)
         x = rearrange(x, "b n s d -> b s (n d)", n=num_heads)
     else:
         q = rearrange(q, "b s (n d) -> b n s d", n=num_heads)
@@ -191,8 +204,6 @@ def DiTBlock___init__(
     self.gate = GateModule()
 
 
-bind_missing_globals(globals(), _source)
-
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,
 )
@@ -203,16 +214,8 @@ flash_attention_wrapper = _port_wrapper(
     "openwam.compute",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 modulate_wrapper = _port_wrapper(
     modulate, "openwam.model.video_backbone.wan.models.dit.modulate", "openwam.compute"
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 rope_apply_wrapper = _port_wrapper(
@@ -221,18 +224,10 @@ rope_apply_wrapper = _port_wrapper(
     "openwam.compute",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 RMSNorm_forward_wrapper = _port_wrapper(
     RMSNorm_forward,
     "openwam.model.video_backbone.wan.models.dit.RMSNorm.forward",
     "openwam.compute",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 SelfAttention_forward_wrapper = _port_wrapper(
@@ -241,28 +236,16 @@ SelfAttention_forward_wrapper = _port_wrapper(
     "openwam.compute",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 CrossAttention_forward_wrapper = _port_wrapper(
     CrossAttention_forward,
     "openwam.model.video_backbone.wan.models.dit.CrossAttention.forward",
     "openwam.compute",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 GateModule_forward_wrapper = _port_wrapper(
     GateModule_forward,
     "openwam.model.video_backbone.wan.models.dit.GateModule.forward",
     "openwam.compute",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 DiTBlock___init___wrapper = _port_wrapper(

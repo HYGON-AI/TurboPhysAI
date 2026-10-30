@@ -1,15 +1,23 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
 import functools
-import types
 import torch
-import torch.nn as nn
 import openwam.model.video_backbone.wan.models.vae as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
+import torch.nn as nn
+from openwam.model.video_backbone.wan.models.vae import (
+    CACHE_T,
+    CausalConv3d,
+    F,
+    RMS_norm,
+    ResidualBlock,
+    check_is_instance,
+    patchify,
+    rearrange,
+)
 from turbo_physai.optimizations.models.openwam import enabled, pointwise
 
 
@@ -476,8 +484,6 @@ def VideoVAE38__encode(self, x, scale):
     return mu
 
 
-bind_missing_globals(globals(), _source)
-
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,
 )
@@ -488,18 +494,10 @@ CausalConv3d_forward_wrapper = _port_wrapper(
     "openwam.vae",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 RMS_norm_forward_wrapper = _port_wrapper(
     RMS_norm_forward,
     "openwam.model.video_backbone.wan.models.vae.RMS_norm.forward",
     "openwam.vae",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 Resample_forward_wrapper = _port_wrapper(
@@ -508,18 +506,10 @@ Resample_forward_wrapper = _port_wrapper(
     "openwam.vae",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 ResidualBlock_forward_wrapper = _port_wrapper(
     ResidualBlock_forward,
     "openwam.model.video_backbone.wan.models.vae.ResidualBlock.forward",
     "openwam.vae",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 Encoder3d_forward_wrapper = _port_wrapper(
@@ -528,18 +518,10 @@ Encoder3d_forward_wrapper = _port_wrapper(
     "openwam.vae",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 Encoder3d_38_forward_wrapper = _port_wrapper(
     Encoder3d_38_forward,
     "openwam.model.video_backbone.wan.models.vae.Encoder3d_38.forward",
     "openwam.vae",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 Decoder3d_forward_wrapper = _port_wrapper(
@@ -548,18 +530,10 @@ Decoder3d_forward_wrapper = _port_wrapper(
     "openwam.vae",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 Decoder3d_38_forward_wrapper = _port_wrapper(
     Decoder3d_38_forward,
     "openwam.model.video_backbone.wan.models.vae.Decoder3d_38.forward",
     "openwam.vae",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 WanVideoVAE_batch_encode_wrapper = _port_wrapper(
@@ -568,28 +542,16 @@ WanVideoVAE_batch_encode_wrapper = _port_wrapper(
     "openwam.vae",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 WanVideoVAE_single_encode_wrapper = _port_wrapper(
     WanVideoVAE_single_encode,
     "openwam.model.video_backbone.wan.models.vae.WanVideoVAE.single_encode",
     "openwam.vae",
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 WanVideoVAE_single_decode_wrapper = _port_wrapper(
     WanVideoVAE_single_decode,
     "openwam.model.video_backbone.wan.models.vae.WanVideoVAE.single_decode",
     "openwam.vae",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 VideoVAE38__encode_wrapper = _port_wrapper(

@@ -1,15 +1,22 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
-import functools
 import types
 import torch
-import torch.nn as nn
 import openwam.dataloader.robotwin as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
+from openwam.dataloader.robotwin import (
+    UNIFY_DIM,
+    crop_and_resize,
+    format_prompt_for_inference,
+    h5py,
+    map_to_unify,
+    np,
+    os,
+    random,
+)
 
 
 def _prompt_choices(instructions: dict, ep_file: str, task_name: str):
@@ -274,8 +281,6 @@ def MultiTaskRoboTwinDataset_from_config(cls, config, split: str = "train"):
     )
 
 
-bind_missing_globals(globals(), _source)
-
 # Preserve the bound classmethod interface without changing dataset identity.
 MultiTaskRoboTwinDataset_from_config = types.MethodType(
     MultiTaskRoboTwinDataset_from_config, _source.MultiTaskRoboTwinDataset
@@ -289,18 +294,10 @@ _resolve_prompt_wrapper = _port_wrapper(
     _resolve_prompt, "openwam.dataloader.robotwin._resolve_prompt", "openwam.data"
 )
 
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
 RoboTwinDataset__build_sample_wrapper = _port_wrapper(
     RoboTwinDataset__build_sample,
     "openwam.dataloader.robotwin.RoboTwinDataset._build_sample",
     "openwam.data",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 MultiTaskRoboTwinDataset_from_config_wrapper = _port_wrapper(

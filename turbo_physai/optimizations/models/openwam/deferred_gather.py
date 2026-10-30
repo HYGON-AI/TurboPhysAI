@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 """Deferred ZeRO-2 parameter gather, waited per MoT layer by the next forward.
@@ -157,11 +157,6 @@ class DeferredGather:
             piece.length for piece in self.pieces if 0 < piece.stage < self.tail
         )
         total = sum(piece.length for piece in self.pieces)
-        logger.info(
-            "[optimizations] deferred ZeRO gather: %d broadcasts, %.1f%% of elements waited per MoT layer",
-            len(self.pieces),
-            100.0 * layers / max(total, 1),
-        )
 
     def _check_plan(self):
         text = repr(
@@ -187,9 +182,6 @@ class DeferredGather:
             dist.destroy_process_group(self.group)
             self.group = None
             raise
-        logger.info(
-            "[optimizations] ZeRO-2 parameter gather deferred into the next forward"
-        )
         return self
 
     def __exit__(self, *exc):
@@ -228,11 +220,15 @@ class DeferredGather:
             raise RuntimeError("Deferred gather must be used inside its context")
         self.works = []
         self.next = 0
-        for piece in self.pieces:
+        if not hasattr(self, "piece_views"):
+            self.piece_views = [
+                self.flats[p.group].narrow(0, p.start, p.length) for p in self.pieces
+            ]
+        for piece, view in zip(self.pieces, self.piece_views):
             # Keep each submitted Work immediately. If a later launch fails,
             # __exit__ still waits for the earlier broadcasts before cleanup.
             work = dist.broadcast(
-                self.flats[piece.group].narrow(0, piece.start, piece.length),
+                view,
                 src=self.sources[piece.owner],
                 group=self.group,
                 async_op=True,

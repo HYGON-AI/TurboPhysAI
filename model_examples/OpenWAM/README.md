@@ -1,6 +1,6 @@
 # OpenWAM
 
-本接入参考 OpenWAM `main` 的 `bfce20b575a9b34aea385030fcb00a9eaf61fcb5`，在运行时替换函数及其调用别名，模型源码不需要打补丁。使用原生 Wan 视频骨干和 ActionDiT，主要面向 `dual_system/joint_self_attn` 训练。
+本接入参考 OpenWAM `main` 的 `d1ea554ba44057b766fff94c0d999fb11a217ffb`，在运行时替换函数及其调用别名，模型源码不需要打补丁。使用原生 Wan 视频骨干和 ActionDiT，主要面向 `dual_system/joint_self_attn` 训练。
 
 优化接入基线为 `1204dde1b9e9c232131fc99a3f2c6b78330e7f64`。请使用该上游基线，不要叠加已经内置同类优化的 OpenWAM 分支。随包配置记录了基线函数的 AST 身份；目前完成的是必要静态检查，尚未在训练环境验证多卡正确性、数值、收敛或性能。
 
@@ -34,14 +34,24 @@ turbo-physai run --model openwam --log-report \
 | `openwam.data` | uint8 视频上传、RoboTwin 任务筛选和离线 latent 读取 | `uint8_preprocess`, `vae_latent_cache`, `vae_latent_cache_dir` |
 | `openwam.compute` | Wan/ActionDiT pointwise、实数 RoPE、Norm、投影、SAC 算子边界 | `rope_real`, `pointwise_compile`, `lightop_norm`, `linear_bias2d` |
 | `openwam.architecture` | 文本/本体感知 mask 接入、训练常量、latent 输入和连续 checkpoint 张量 | `constant_cache` |
-| `openwam.mot` | 分段 Attention、block compile、尾层取消重算和选择性重算 | `mot_split_attn`, `compile_mot`, `checkpoint_skip_layers`, `sac_attention`, `sac_ffn_full`, `sac_gemm`, `sac_layers`, `sac_extra_ops`, `checkpoint_stats` |
+| `openwam.mot` | 分段 Attention、block compile、尾层取消重算和选择性重算 | `mot_split_attn`, `compile_mot`, `checkpoint_skip_layers`, `sac_attention`, `sac_ffn_full`, `sac_gemm`, `sac_layers`, `sac_extra_ops` |
 | `openwam.text` | 冻结 T5 的前缀裁剪、LRU/离线缓存、文本长度与 FA2 padding plan | `text_cache`, `text_cache_size`, `text_cache_dir`, `t5_prefix`, `text_trim`, `padding_plan_cpu`, `fa2_padding`, `fa2_mask_fused` |
 | `openwam.vae` | channels-last、因果缓存 layout、VAE pointwise 和 encoder compile | `vae_channels_last`, `vae_pointwise_compile`, `compile_vae` |
-| `openwam.training` | ZeRO 参数、ReduceScatter、在线编码/deferred gather、fused AdamW、异步指标和诊断 | `zero_overlap`, `zero_reduce_scatter`, `online_encode`, `deferred_gather`, `fused_adamw`, `host_async`, `hw_queues`, `profiling`, `profile_light`, `trace_gc` |
+| `openwam.training` | ZeRO 参数、ReduceScatter、在线编码/deferred gather、fused AdamW、Host 异步性能路径 | `zero_overlap`, `zero_reduce_scatter`, `zero_scaled_pack`, `zero_norm_overlap`, `online_encode`, `deferred_gather`, `fused_adamw`, `host_async`, `hw_queues` |
 
-默认配置启用数据/文本/layout/实数 RoPE 和 ZeRO overlap 设置；compile、SAC、通信调度改动、Lightop、fused AdamW、磁盘缓存和诊断默认关闭。这是待目标环境验证的接入配置，不代表新的最优性能组合。
+默认配置启用数据/文本/layout/实数 RoPE 和 ZeRO overlap 设置；compile、SAC、通信调度改动、Lightop、fused AdamW、磁盘缓存默认关闭。这是待目标环境验证的接入配置，不代表新的最优性能组合。
 
 `openwam.mot` 依赖 `openwam.compute`；`openwam.training` 依赖其余六组，以保证所需调用入口一起安装。Group 内各 options 可独立配置。
+
+## 最新 main 性能增量
+
+参考 `main@d1ea554ba44057b766fff94c0d999fb11a217ffb`，新增四阶段 MoT 编译与分离 Q/输出的结构化注意力路径；保持拼接 K/V 的单份存储，避免扩大反向激活驻留。SAC 仅在实际 checkpoint 区间保留 FFN 边界，非重算层允许融合。
+
+ZeRO-2 增加有界梯度批量入桶、owner 范围计划缓存、分区复制合并、批量范数及参数 view 复用。默认 ZeRO overlap 的 reduction bucket 调整为 100M 元素，保留显式配置。
+
+`openwam.training` 另提供两个默认关闭的可选优化：`zero_scaled_pack` 将稀疏 owner 的 BF16 缩放与打包融合；`zero_norm_overlap` 在最终梯度累积完成后，于侧流计算分区范数。两者均要求 `zero_reduce_scatter=true`；使用 Triton 的目标环境需安装匹配版本。数值裁剪边界及多卡收益仍需目标环境验证。
+
+在线编码在梯度累积大于 1 或无 DataLoader worker 时保留普通训练与 Deferred Gather 路径。Host 异步复用 ZeRO 已计算的设备端梯度范数，避免 getter 的标量同步。缓存支持目录迁移后按元数据匹配旧 reader key，生成与读取共用相同 key。
 
 ## 自定义 options
 
@@ -80,7 +90,7 @@ turbo-physai run --model openwam \
 
 随包配置使用 [generate_openwam_config.py](../../tools/generate_openwam_config.py) 从同一基线源定义生成 AST 证据及标准生成凭据，生成过程不导入模型依赖、不运行模型。需要只做静态配置生成时也可使用此工具；它仅接受上述干净基线。
 
-`zero_reduce_scatter`、`online_encode` 和 `deferred_gather` 需要原生 DeepSpeed ZeRO-2 且关闭 CPU offload/MoE。在线编码需要梯度累积为 1、DataLoader workers 大于 0，以及冻结的原生 Wan22Ti2v VAE38/T5。`host_async` 会将训练指标延后一拍记录。`hw_queues` 必须在 HIP 初始化之前设置，已有 `GPU_MAX_HW_QUEUES` 优先；默认 `0` 保持环境设置。性能测试保持 `profiling: off`；采集时使用 `rank0` 或 `all`。
+`zero_reduce_scatter`、`online_encode` 和 `deferred_gather` 需要原生 DeepSpeed ZeRO-2 且关闭 CPU offload/MoE。在线编码需要梯度累积为 1、DataLoader workers 大于 0，以及冻结的原生 Wan22Ti2v VAE38/T5。`host_async` 会将训练指标延后一拍记录。`hw_queues` 必须在 HIP 初始化之前设置，已有 `GPU_MAX_HW_QUEUES` 优先；默认 `0` 保持环境设置。Turbo 不迁移模型日志实现、profiler 采集、GC trace 或 SAC 统计逻辑。
 
 ## 报告优化组合
 

@@ -1,252 +1,28 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
 # SPDX-License-Identifier: Apache-2.0
+
+"""Performance scheduling only; setup, logs and checkpoint teardown stay native."""
 
 from __future__ import annotations
 
-import functools
 import contextlib
-import gzip
-import json
-import time
-import types
+import functools
 import torch
-import torch.nn as nn
-import openwam.train.openwam_trainer as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
-from turbo_physai.optimizations.models.openwam import (
-    prepare_model,
-    prepare_runtime_constants,
+from openwam.train.openwam_trainer import (
+    cfg_get,
+    init_wandb,
+    itertools,
+    logger,
+    manage_checkpoints,
+    math,
+    per_step_seed,
+    reduce_step_metrics,
+    save_full_state,
+    save_weights,
+    wire_sampler_seed,
 )
-from turbo_physai.optimizations.models.openwam.settings import value
-
-
-def OpenWAMTrainer___init__(self, cfg: DictConfig, accelerator=None, dataset=None):
-    self.cfg = cfg
-    self.dataset = dataset
-    self.accelerator = accelerator
-
-    # ---- Reproducible seed (FastWAM-style, yaml-driven) ----
-    # Seed before build_architecture so DiT/ActionDiT weight init is
-    # deterministic. seed_process uses the same RANK_OFFSET rank stride as
-    # per_step_seed and the launcher's seed_everything, so a process's init
-    # and per-step seeds share one rank window (cudnn left to the launcher).
-    project_cfg = getattr(cfg, "project", None)
-    yaml_seed = getattr(project_cfg, "seed", None) if project_cfg is not None else None
-    self._rank = int(os.environ.get("RANK", 0))
-    self._run_seed = int(yaml_seed) if yaml_seed is not None else None
-    if self._run_seed is not None:
-        seed_process(self._run_seed, rank=self._rank)
-        if self._rank == 0:
-            logger.info(
-                "Reproducible mode: cfg.project.seed=%d (rank=%d)",
-                self._run_seed,
-                self._rank,
-            )
-
-    t = cfg.training
-    m = cfg.model
-
-    # Build architecture (creates video_backbone internally from config).
-    from openwam.model import build_architecture, resolve_architecture_config
-
-    # Finetune/resume: build from the self-contained checkpoint dir
-    # (skeletons from its config.yaml component specs, weights from its
-    # safetensors) so model.video_backbone.model_path need not exist on
-    # this host. Weights land here, BEFORE the freeze below. The ckpt config
-    # is the reconstruction BASE only — on finetune this run's cfg.model is
-    # layered on top (see ckpt_model_loader.merge_ckpt_model_cfg).
-    finetune_path = cfg_get(t, "finetune_ckpt_path", None) or None
-    resume_path = cfg_get(t, "resume_ckpt_path", None) or None
-    if finetune_path and resume_path:
-        raise ValueError(
-            "finetune_ckpt_path and resume_ckpt_path are mutually exclusive; set at most one."
-        )
-    self._ckpt_source_dir = finetune_path or resume_path
-    if self._ckpt_source_dir is not None:
-        from openwam.train.utils.ckpt_model_loader import (
-            build_architecture_from_ckpt_dir,
-            propagate_component_specs,
-            warn_live_model_cfg_ignored,
-        )
-
-        # Finetune starts a NEW run: the ckpt config is only the
-        # reconstruction base (it alone carries the component/tokenizer
-        # specs), and this run's cfg.model overrides it — merged in place, so
-        # the architecture built here and the config save_config() writes to
-        # the new run dir are the same one. Resume continues ONE run whose
-        # config.yaml is already on disk and is reused untouched, so there the
-        # ckpt config stays authoritative and divergence is only reported.
-        resolved_arch, self.architecture, ckpt_cfg = build_architecture_from_ckpt_dir(
-            self._ckpt_source_dir,
-            weights_required=finetune_path is not None,
-            override_cfg=cfg if finetune_path is not None else None,
-        )
-        if finetune_path is not None:
-            # The merge replaced the cfg.model node, so `m` (bound above)
-            # still points at the pre-merge one — rebind it before `freeze`
-            # and the architecture logging below read from it.
-            m = cfg.model
-        else:
-            warn_live_model_cfg_ignored(ckpt_cfg, cfg, self._ckpt_source_dir)
-            propagate_component_specs(ckpt_cfg, cfg)
-    else:
-        resolved_arch = resolve_architecture_config(m)
-        self.architecture = build_architecture(
-            resolved_arch.registry_name, resolved_arch.params
-        )
-    logger.info(
-        "Architecture: %s (framework=%s variant=%s)",
-        resolved_arch.registry_name,
-        resolved_arch.canonical.framework,
-        resolved_arch.canonical.variant,
-    )
-
-    # Device placement: skip .to(device) when initialize_model_on_cpu and a real
-    # training Accelerator is present — DeepSpeed's prepare() then handles the move.
-    _init_on_cpu = bool(t.get("initialize_model_on_cpu", False))
-    if not (_init_on_cpu and self.accelerator is not None):
-        self.architecture.set_dtype_device(
-            self.architecture.dtype, self.architecture.device
-        )
-
-    # --- Freeze: declared per-architecture in the model yaml (freeze:);
-    # freeze_modules silently skips paths absent on a given architecture.
-    freeze_list = list(getattr(m, "freeze", []))
-    for name in self.architecture.freeze_modules(freeze_list):
-        logger.info("Frozen: %s", name)
-    prepare_model(self.architecture)
-
-    # Initialize all schedulers (video + action) inside architecture
-    self.architecture.init_training_schedulers(1000)
-
-    # Loss weights from the training config
-    self.lambda_video = float(t.lambda_video)
-    self.lambda_action = float(t.lambda_action)
-
-    # Push forward-time training flags onto the architecture so prepare_inputs
-    # is self-contained.
-    self.architecture.set_training_runtime(
-        use_gradient_checkpointing=bool(t.use_gradient_checkpointing),
-        use_gradient_checkpointing_offload=bool(t.use_gradient_checkpointing_offload),
-        max_timestep_boundary=float(t.max_timestep_boundary),
-        min_timestep_boundary=float(t.min_timestep_boundary),
-    )
-
-    self.model = self  # self-reference some external callers expect
-
-    is_main = self.accelerator is None or self.accelerator.is_main_process
-    log_parameter_counts(self.architecture, is_main=is_main)
-
-
-def OpenWAMTrainer__build_profiler(self, output_path: str):
-    """Construct torch.profiler.profile context manager matching DiffSynth-Studio design.
-
-    Controlled by openwam.training.options.profiling (off/rank0/all).
-
-    profile_light=1 disables stacks/shapes and warms up for one
-    step (wait=14) while retaining the same active ProfilerStep#15.
-    Saves compressed trace directly to:
-      <output_path>/profiler_traces/rank{rank}_trace.json.gz
-    """
-    raw_val = value("profiling", "off").strip().lower()
-    if raw_val not in ("rank0", "all"):
-        return contextlib.nullcontext()
-
-    if raw_val != "all" and self._rank != 0:
-        return contextlib.nullcontext()
-
-    trace_dir = os.path.join(output_path, "profiler_traces")
-    os.makedirs(trace_dir, exist_ok=True)
-
-    activities = [torch.profiler.ProfilerActivity.CPU]
-    if torch.cuda.is_available():
-        activities.append(torch.profiler.ProfilerActivity.CUDA)
-
-    def _sanitize_trace(trace_path: str):
-        """Ensure GPU streams and CPU threads remain strictly segregated (泾渭分明).
-
-        Fixes ROCm/HCU Kineto quirk where unmapped background threads (DataLoader
-        queues/Inductor pool) during initialization fall back to (pid 0, tid 0),
-        which would otherwise rename GPU Stream 0 to 'thread 0 (python3)' and merge
-        Python call stacks into the GPU stream track.
-        """
-        try:
-            open_fn = gzip.open if trace_path.endswith(".gz") else open
-            with open_fn(trace_path, "rt", encoding="utf-8") as f:
-                data = json.load(f)
-
-            events = data.get("traceEvents", [])
-            cpu_pid = None
-            for e in events:
-                if (
-                    e.get("name") == "process_labels"
-                    and e.get("args", {}).get("labels") == "CPU"
-                ):
-                    cpu_pid = e.get("pid")
-                    break
-
-            modified = False
-            for e in events:
-                if e.get("pid") == 0 and e.get("cat") == "python_function":
-                    if cpu_pid is not None:
-                        e["pid"] = cpu_pid
-                    modified = True
-                elif (
-                    e.get("ph") == "M"
-                    and e.get("pid") == 0
-                    and e.get("tid") == 0
-                    and e.get("name") == "thread_name"
-                ):
-                    if "thread" in e.get("args", {}).get("name", "").lower():
-                        e["args"]["name"] = "stream 0 "
-                        modified = True
-
-            if modified:
-                with open_fn(trace_path, "wt", encoding="utf-8") as f:
-                    json.dump(data, f)
-        except Exception as err:
-            logger.warning("[PROFILER] Trace sanitize warning: %s", err)
-
-    def trace_handler(prof_inst):
-        step_tag = (
-            f"_step{prof_inst.step_num}" if hasattr(prof_inst, "step_num") else ""
-        )
-        trace_path = os.path.join(
-            trace_dir, f"rank{self._rank}{step_tag}_trace.json.gz"
-        )
-        t0 = time.monotonic()
-        prof_inst.export_chrome_trace(trace_path)
-        _sanitize_trace(trace_path)
-        duration = time.monotonic() - t0
-        msg = f"[PROFILER] Rank {self._rank} exported trace to `{trace_path}` in {duration:.2f}s."
-        logger.info(msg)
-        if self._rank == 0:
-            print(f"\n{msg}\n", flush=True)
-
-    from turbo_physai.optimizations.models.openwam import enabled
-
-    light = enabled("profile_light")
-    wait, warmup = (14, 1) if light else (15, 0)
-    logger.info(
-        "[PROFILER] rank=%d wait=%d warmup=%d active=1 with_stack=%s record_shapes=%s traces=`%s`",
-        self._rank,
-        wait,
-        warmup,
-        not light,
-        not light,
-        trace_dir,
-    )
-
-    return torch.profiler.profile(
-        activities=activities,
-        schedule=torch.profiler.schedule(wait=wait, warmup=warmup, active=1, repeat=1),
-        on_trace_ready=trace_handler,
-        record_shapes=not light,
-        profile_memory=False,
-        with_stack=not light,
-        with_modules=False,
-    )
+from .. import prepare_model, prepare_runtime_constants
+from ..settings import enabled, port_wrapper
 
 
 def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
@@ -266,7 +42,6 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
     if debug:
         max_steps = 20
         save_steps_override = 10
-        logger.info("DEBUG mode: max_steps=20, save@10, constant LR")
 
     # num_epochs=null means step-only training: max_steps is the sole stop condition.
     if num_epochs is None and not max_steps:
@@ -321,10 +96,7 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
         from openwam.dataloader.mixture import MixtureDataset
 
         if isinstance(self.dataset, MixtureDataset):
-            logger.info(
-                "Skipping DataLoader sampler seed wiring for MixtureDataset; "
-                "its index-map shuffle is seeded by the dataset itself."
-            )
+            pass
         else:
             wire_sampler_seed(dataloader, int(self._run_seed), rank=self._rank)
 
@@ -356,9 +128,6 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
             max_steps and global_step >= max_steps
         )
         if already_done:
-            logger.info(
-                "[resume] global_step=%d already complete; finishing.", global_step
-            )
             self.finish_training(
                 output_path, global_step, save_steps, keep_last_k, is_main, wandb_run
             )
@@ -403,9 +172,11 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
     # reproducible across runs and ZeRO stages: same (rank, step) -> same RNG,
     # different ranks at the same step keep in-batch timestep diversity.
     # Gated on _run_seed so unseeded production runs stay fully stochastic.
-    prof_context = functools.partial(OpenWAMTrainer__build_profiler, self)(output_path)
     from turbo_physai.optimizations.models.openwam import enabled
 
+    online_eligible = (
+        enabled("online_encode") and grad_accum == 1 and int(dataloader.num_workers) > 0
+    )
     deferred = None
     if enabled("deferred_gather"):
         from turbo_physai.optimizations.models.openwam.deferred_gather import (
@@ -416,10 +187,10 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
         deferred = DeferredGather(
             self.accelerator.unwrap_model(self.architecture),
             self.architecture.optimizer,
-            patch_step=not enabled("online_encode"),
+            patch_step=not online_eligible,
         )
     online = None
-    if enabled("online_encode"):
+    if online_eligible:
         from turbo_physai.optimizations.models.openwam.online_encode import (
             OnlineEncoder,
         )
@@ -431,11 +202,6 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
             gradient_accumulation_steps=grad_accum,
             deferred=deferred,
         )
-    gc_trace = None
-    if enabled("trace_gc"):
-        from turbo_physai.optimizations.models.openwam.gc_trace import GCTrace
-
-        gc_trace = GCTrace(output_path, self._rank)
     lagged = None
     if enabled("host_async"):
         from turbo_physai.optimizations.models.openwam.host_async import (
@@ -462,10 +228,8 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
                 report(info, metrics)
 
     with (
-        prof_context as prof,
         deferred if deferred is not None else contextlib.nullcontext(),
         online if online is not None else contextlib.nullcontext(),
-        gc_trace if gc_trace is not None else contextlib.nullcontext(),
     ):
         epochs = (
             itertools.count(start_epoch)
@@ -513,9 +277,19 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
                     )
                     if self.accelerator.sync_gradients:
                         if max_grad_norm is not None:
-                            grad_norm_val = self.accelerator.clip_grad_norm_(
-                                all_params, max_grad_norm
+                            from turbo_physai.optimizations.models.openwam.host_async import (
+                                device_grad_norm,
                             )
+
+                            grad_norm_val = (
+                                device_grad_norm(self.accelerator)
+                                if lagged is not None
+                                else None
+                            )
+                            if grad_norm_val is None:
+                                grad_norm_val = self.accelerator.clip_grad_norm_(
+                                    all_params, max_grad_norm
+                                )
                             if lagged is not None:
                                 grad_norm = device_scalar(grad_norm_val, loss.device)
                             else:
@@ -529,10 +303,6 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
                         opt_step += 1
 
                 global_step += 1
-                if gc_trace is not None:
-                    gc_trace.step(global_step)
-                if prof is not None:
-                    prof.step()
 
                 current_lr = optimizer.param_groups[0]["lr"]
                 _now = _time.monotonic()
@@ -591,358 +361,122 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
         )
 
 
-def OpenWAMTrainer_build_optimizer(self) -> torch.optim.Optimizer:
-    """AdamW over the per-module (action/video) LR parameter groups."""
-    t = self.cfg.training
-    params = build_trainable_parameters(
-        self,
-        action_lr=float(t.action_lr) if getattr(t, "action_lr", None) else None,
-        video_lr=float(t.video_lr) if getattr(t, "video_lr", None) else None,
-    )
-    betas = tuple(getattr(t, "adam_betas", [0.9, 0.95]))
-    from turbo_physai.optimizations.models.openwam import enabled
+def trainer_init(original, options):
+    @functools.wraps(original)
+    def wrapped(self, *args, **kwargs):
+        from ..launch import configure_backends
 
-    # One fused kernel per tensor group instead of seven foreach passes over
-    # the fp32 ZeRO partition; same AdamW update, rounding may differ slightly.
-    extra = {"fused": True} if enabled("fused_adamw") else {}
-    return torch.optim.AdamW(
-        params,
-        lr=float(t.learning_rate),
-        weight_decay=float(t.weight_decay),
-        betas=betas,
-        **extra,
-    )
+        configure_backends()
+        result = original(self, *args, **kwargs)
+        prepare_model(self.architecture)
+        return result
+
+    wrapped.__openwam_group__ = "openwam.training"
+    wrapped.__openwam_options__ = options
+    return wrapped
 
 
-def OpenWAMTrainer_build_dataloader(
-    self, batch_size: int
-) -> torch.utils.data.DataLoader:
-    """Build the training DataLoader.
+def build_optimizer(original, options):
+    @functools.wraps(original)
+    def wrapped(self, *args, **kwargs):
+        optimizer = original(self, *args, **kwargs)
+        if enabled("fused_adamw"):
+            # Native build_optimizer creates torch.optim.AdamW. Keep parameter
+            # grouping, master weights and hyperparameters owned by OpenWAM.
+            if type(optimizer) is not torch.optim.AdamW:
+                raise TypeError("fused_adamw requires native torch.optim.AdamW")
+            if optimizer.state:
+                raise ValueError(
+                    "fused_adamw must be configured before optimizer state is initialized"
+                )
+            for group in optimizer.param_groups:
+                if group.get("differentiable"):
+                    raise ValueError(
+                        "fused_adamw does not support differentiable AdamW"
+                    )
+                group.update(fused=True, foreach=False)
+            optimizer = torch.optim.AdamW(
+                optimizer.param_groups,
+                **{**optimizer.defaults, "fused": True, "foreach": False},
+            )
+        return optimizer
 
-    ``MixtureDataset`` already owns a shuffled virtual index map and
-    reshuffles it in ``set_epoch``.  Do not wrap it in PyTorch's
-    ``RandomSampler``: on a large mixture that would build a second full-size
-    permutation, convert it to Python integers, and duplicate it in every
-    rank. Other datasets keep the standard DataLoader shuffle.
-
-    When ``cfg.project.seed`` is set, wires a per-rank ``generator`` and a
-    ``worker_init_fn`` so dataset-side randomness is reproducible across
-    runs while keeping per-epoch / per-worker variation.
-    """
-    from openwam.dataloader.mixture import MixtureDataset
-
-    t = self.cfg.training
-    shuffle = not isinstance(self.dataset, MixtureDataset)
-    kwargs: dict = dict(
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=int(t.dataset_num_workers),
-        collate_fn=list,
-        pin_memory=True,
-    )
-    from turbo_physai.optimizations.models.openwam import enabled
-
-    if enabled("padding_plan_cpu"):
-        from turbo_physai.optimizations.models.openwam.text import collate_cpu_padding
-
-        kwargs["collate_fn"] = collate_cpu_padding
-    if not shuffle:
-        logger.info(
-            "DataLoader shuffle disabled for MixtureDataset; its shuffled index map "
-            "is reshuffled by dataset.set_epoch(epoch)."
-        )
-    if self._run_seed is not None:
-        from openwam.train.utils.seeding import (
-            dataloader_worker_init_fn,
-            make_dataloader_generator,
-        )
-
-        kwargs["generator"] = make_dataloader_generator(self._run_seed, rank=self._rank)
-        kwargs["worker_init_fn"] = dataloader_worker_init_fn
-    return torch.utils.data.DataLoader(self.dataset, **kwargs)
+    return wrapped
 
 
-def OpenWAMTrainer_prepare_accelerate(self, optimizer, dataloader, scheduler):
-    """Wrap architecture/optimizer/dataloader with the DeepSpeed Accelerator."""
-    prepare_args = [self.architecture, optimizer, dataloader]
-    if scheduler is not None:
-        prepare_args.append(scheduler)
-        self.architecture, optimizer, dataloader, scheduler = self.accelerator.prepare(
-            *prepare_args
-        )
-    else:
-        self.architecture, optimizer, dataloader = self.accelerator.prepare(
-            *prepare_args
-        )
-    # After prepare, self.architecture is the wrapped handle used for the loop's
-    # forward/backward. Architecture-level helpers must run on the UNDERLYING
-    # module, not the wrapper: DeepSpeedEngine.__getattr__ forwards unknown attrs
-    # to the inner module, but DistributedDataParallel does NOT — so calling
-    # set_dtype_device/move_frozen_to_device on the wrapper would raise
-    # AttributeError under a hypothetical plain-DDP accelerator (world_size>1).
-    # unwrap_model returns the inner module for both backends (no-op single-GPU,
-    # where Accelerate adds no wrapper). NB: this only covers these setup-time
-    # helpers — the training loop's self.architecture.prepare_inputs/compute_loss
-    # calls would hit the same non-forwarding wrapper if a non-DeepSpeed multi-GPU
-    # path is ever reintroduced.
-    arch = self.accelerator.unwrap_model(self.architecture)
-    # Propagate device down through architecture; frozen modules (T5/VAE) idempotent move.
-    arch.set_dtype_device(arch.dtype, self.accelerator.device)
-    from turbo_physai.optimizations.models.openwam import enabled
+def build_dataloader(original, options):
+    @functools.wraps(original)
+    def wrapped(self, *args, **kwargs):
+        loader = original(self, *args, **kwargs)
+        if enabled("padding_plan_cpu"):
+            from ..text import collate_cpu_padding
 
-    if enabled("vae_latent_cache"):
-        # Stored latents replace the VAE. DeepSpeed moved the whole module to
-        # the device; return the frozen VAE to the CPU and release its memory.
-        arch.move_frozen_to_device(self.accelerator.device, names=("text_encoder",))
-        arch.video_backbone.vae.to(device="cpu")
-        torch.cuda.empty_cache()
-        logger.info("[optimizations] VAE kept on CPU; training reads stored latents")
-    else:
-        arch.move_frozen_to_device(self.accelerator.device)
-    from turbo_physai.optimizations.models.openwam import text_store
+            loader.collate_fn = collate_cpu_padding
+        return loader
 
-    if text_store.requested():
-        text_store.offload(arch.video_backbone)
-        torch.cuda.empty_cache()
-        logger.info("[optimizations] T5 weights moved to CPU for offline text caching")
-    prepare_runtime_constants(arch)
-
-    if enabled("zero_reduce_scatter"):
-        from turbo_physai.optimizations.models.openwam.zero import (
-            install_reduce_scatter,
-        )
-
-        install_reduce_scatter(self.architecture.optimizer)
-    logger.info(
-        "architecture wrapped (%s), device=%s",
-        type(self.architecture).__name__,
-        self.accelerator.device,
-    )
-    return optimizer, dataloader, scheduler
+    return wrapped
 
 
-def OpenWAMTrainer_compute_loss(self, batch) -> dict:
-    """Compute joint video-action loss. Returns dict: total/video/action."""
-    from turbo_physai.optimizations.models.openwam import enabled
+def prepare_accelerate(original, options):
+    @functools.wraps(original)
+    def wrapped(self, *args, **kwargs):
+        result = original(self, *args, **kwargs)
+        arch = self.accelerator.unwrap_model(self.architecture)
+        if enabled("vae_latent_cache"):
+            arch.video_backbone.vae.to(device="cpu")
+            torch.cuda.empty_cache()
+        from .. import text_store
 
-    if enabled("checkpoint_stats"):
-        from turbo_physai.optimizations.models.openwam.sac import begin_step
+        if text_store.requested():
+            text_store.offload(arch.video_backbone)
+            torch.cuda.empty_cache()
+        prepare_runtime_constants(arch)
+        if enabled("zero_reduce_scatter"):
+            from ..zero import install_reduce_scatter
 
-        begin_step(self.accelerator.device)
-    from turbo_physai.optimizations.models.openwam import deferred_gather
-    from turbo_physai.optimizations.models.openwam.online_encode import PreparedInputs
+            install_reduce_scatter(self.architecture.optimizer)
+        return result
 
-    # deferred_gather: non-layer parameters may still be in flight.
-    deferred_gather.wait_prologue()
-    if isinstance(batch, PreparedInputs):
+    return wrapped
+
+
+def compute_loss(original, options):
+    @functools.wraps(original)
+    def wrapped(self, batch):
+        from .. import deferred_gather
+        from ..online_encode import PreparedInputs
+
+        deferred_gather.wait_prologue()
+        if not isinstance(batch, PreparedInputs):
+            return original(self, batch)
         inputs = batch.values
-    else:
-        if not isinstance(batch, list):
-            batch = [batch]
-        inputs = self.architecture.prepare_inputs(batch)
-    if self.lambda_action > 0 and inputs.get("actions") is None:
-        raise ValueError("lambda_action > 0 but no action in data.")
-
-    result = self.architecture.compute_loss(
-        **inputs,
-        lambda_video=self.lambda_video,
-        lambda_action=self.lambda_action,
-    )
-
-    return {
-        "total": result["loss"],
-        "video": result.get("loss_video", torch.tensor(0.0)),
-        "action": result.get("loss_action", torch.tensor(0.0)),
-    }
-
-
-def OpenWAMTrainer_log_step(
-    self,
-    *,
-    metrics,
-    global_step,
-    opt_step,
-    epoch,
-    lr,
-    steps_per_sec,
-    batch_size,
-    total_steps,
-    wandb_run,
-    debug,
-    output_path,
-) -> None:
-    """Print one rank-0 line per reported step, log to WandB, and retain debug CSV output."""
-    from turbo_physai.optimizations.models.openwam import enabled
-
-    if enabled("checkpoint_stats"):
-        from turbo_physai.optimizations.models.openwam.sac import report_step
-
-        report_step(
-            global_step,
-            self.accelerator.device,
-            metrics,
-            steps_per_sec,
-            batch_size,
-            opt_step,
+        if self.lambda_action > 0 and inputs.get("actions") is None:
+            raise ValueError("lambda_action > 0 but no action in data.")
+        result = self.architecture.compute_loss(
+            **inputs, lambda_video=self.lambda_video, lambda_action=self.lambda_action
         )
-    # Metrics are already reduced by every rank before entering this method.
-    # Gate only output; no collective or training work belongs behind this check.
-    is_main = self.accelerator is None or self.accelerator.is_main_process
-    if not is_main:
-        return
-    labels = [("action", "loss_action")]
-    loss_total = metrics["loss_total"]
-    loss_video = metrics["loss_video"]
-    grad_norm = metrics["grad_norm"]
-
-    num_procs = self.accelerator.num_processes if self.accelerator is not None else 1
-    samples_per_sec = steps_per_sec * batch_size * num_procs
-    loss_parts = " ".join(f"{name}={metrics[key]:.6f}" for name, key in labels)
-    tag = "debug" if debug else "train"
-    msg = (
-        f"[{tag}][step {global_step:04d}/{total_steps:04d} opt {opt_step:04d}] "
-        f"loss={loss_total:.6f} video={loss_video:.6f} {loss_parts} "
-        f"grad_norm={grad_norm:.6f} lr={lr:.3e} epoch={epoch} "
-        f"s/step={1.0 / max(steps_per_sec, 1e-9):.4f} samples/s={samples_per_sec:.3f}"
-    )
-    # Like parameter counts, print directly so Hydra's logging filter cannot
-    # hide progress. Plain newlines also remain readable through tee.
-    print(msg, flush=True)
-
-    if wandb_run is not None:
-        log_dict = {
-            "train/loss": loss_total,
-            "train/loss_video": loss_video,
-            "train/grad_norm": grad_norm,
-            "train/lr": lr,
-            "performance/steps_per_sec": steps_per_sec,
-            "performance/samples_per_sec": samples_per_sec,
+        return {
+            "total": result["loss"],
+            "video": result.get("loss_video", torch.tensor(0.0)),
+            "action": result.get("loss_action", torch.tensor(0.0)),
         }
-        for name, key in labels:
-            log_dict[f"train/loss_{name}"] = metrics[key]
-        wandb_run.log(log_dict, step=global_step)
 
-    if debug and output_path:
-        write_debug_loss_row(
-            output_path,
-            labels=labels,
-            metrics=metrics,
-            global_step=global_step,
-            opt_step=opt_step,
-            epoch=epoch,
-            lr=lr,
-            steps_per_sec=steps_per_sec,
-        )
+    return wrapped
 
 
-def OpenWAMTrainer_finish_training(
-    self,
-    output_path: str,
-    global_step: int,
-    save_steps,
-    keep_last_k: int,
-    is_main: bool,
-    wandb_run,
-) -> None:
-    """Unified teardown for every exit path: final weights, drop resume state, close wandb.
+def finish_training(original, options):
+    @functools.wraps(original)
+    def wrapped(self, *args, **kwargs):
+        from .. import deferred_gather
 
-    Falsy ``save_steps`` = a profiling/no-write run, so no final artifact (matches the
-    periodic-save gating). After the final weights land, ``finalize_keep_weights_only``
-    removes every ``accel_state_step_*`` and retains the configured number of recent
-    weight checkpoints (rank-0, post-barrier).
-    """
-    from turbo_physai.optimizations.models.openwam import deferred_gather
+        deferred_gather.finish()
+        return original(self, *args, **kwargs)
 
-    deferred_gather.finish()
-    if save_steps:
-        save_weights(
-            self.accelerator, self.architecture, output_path, global_step, final=True
-        )
-    self.accelerator.wait_for_everyone()
-    if is_main:
-        finalize_keep_weights_only(output_path, keep_last_k)
-    if wandb_run is not None:
-        wandb_run.finish()
+    return wrapped
 
 
-bind_missing_globals(globals(), _source)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
-OpenWAMTrainer___init___wrapper = _port_wrapper(
-    OpenWAMTrainer___init__,
-    "openwam.train.openwam_trainer.OpenWAMTrainer.__init__",
-    "openwam.training",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
-OpenWAMTrainer_train_wrapper = _port_wrapper(
+OpenWAMTrainer_train_wrapper = port_wrapper(
     OpenWAMTrainer_train,
     "openwam.train.openwam_trainer.OpenWAMTrainer.train",
-    "openwam.training",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
-OpenWAMTrainer_build_optimizer_wrapper = _port_wrapper(
-    OpenWAMTrainer_build_optimizer,
-    "openwam.train.openwam_trainer.OpenWAMTrainer.build_optimizer",
-    "openwam.training",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
-OpenWAMTrainer_build_dataloader_wrapper = _port_wrapper(
-    OpenWAMTrainer_build_dataloader,
-    "openwam.train.openwam_trainer.OpenWAMTrainer.build_dataloader",
-    "openwam.training",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
-OpenWAMTrainer_prepare_accelerate_wrapper = _port_wrapper(
-    OpenWAMTrainer_prepare_accelerate,
-    "openwam.train.openwam_trainer.OpenWAMTrainer.prepare_accelerate",
-    "openwam.training",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
-OpenWAMTrainer_compute_loss_wrapper = _port_wrapper(
-    OpenWAMTrainer_compute_loss,
-    "openwam.train.openwam_trainer.OpenWAMTrainer.compute_loss",
-    "openwam.training",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
-OpenWAMTrainer_log_step_wrapper = _port_wrapper(
-    OpenWAMTrainer_log_step,
-    "openwam.train.openwam_trainer.OpenWAMTrainer.log_step",
-    "openwam.training",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
-)
-
-OpenWAMTrainer_finish_training_wrapper = _port_wrapper(
-    OpenWAMTrainer_finish_training,
-    "openwam.train.openwam_trainer.OpenWAMTrainer.finish_training",
     "openwam.training",
 )

@@ -1,15 +1,10 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
-import functools
-import types
 import torch
-import torch.nn as nn
-import openwam.model.action_backbone.components as _source
-from turbo_physai.optimizations.common.python.source_binding import bind_missing_globals
 from turbo_physai.optimizations.models.openwam import enabled, pointwise
 
 
@@ -43,8 +38,6 @@ def RMSNorm_forward(self, x: torch.Tensor) -> torch.Tensor:
     return normed.to(dtype) * self.weight
 
 
-bind_missing_globals(globals(), _source)
-
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,
 )
@@ -53,10 +46,6 @@ rope_apply_1d_wrapper = _port_wrapper(
     rope_apply_1d,
     "openwam.model.action_backbone.components.rope_apply_1d",
     "openwam.compute",
-)
-
-from turbo_physai.optimizations.models.openwam.settings import (
-    port_wrapper as _port_wrapper,
 )
 
 RMSNorm_forward_wrapper = _port_wrapper(

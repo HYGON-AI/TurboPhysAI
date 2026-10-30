@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main bfce20b575a9b34aea385030fcb00a9eaf61fcb5.
+# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
 # SPDX-License-Identifier: Apache-2.0
 
 """Offline frozen T5 contexts, generated alongside the RoboTwin VAE store.
@@ -283,11 +283,6 @@ def finalize_index(shards):
         os.path.join(root, INDEX),
         {"signature": meta, "complete": True, "lengths": previous},
     )
-    logger.info(
-        "[text store] index ready: %s, %d prompts",
-        os.path.join(root, INDEX),
-        len(previous),
-    )
 
 
 def finalize_distributed_index(shard):
@@ -335,9 +330,6 @@ def generate(dataset, backbone, *, device, batch_size, rank=0, world=1):
         raise ValueError("T5 cache batch size must be positive")
     if world < 1 or not 0 <= rank < world:
         raise ValueError("Invalid T5 cache rank/world")
-    logger.info(
-        "[text store] rank %d/%d: computing model/tokenizer fingerprint", rank, world
-    )
     meta = signature(backbone)
     meta_path = os.path.join(root, "meta.json")
     if os.path.isfile(meta_path):
@@ -356,33 +348,13 @@ def generate(dataset, backbone, *, device, batch_size, rank=0, world=1):
     prompts = training_prompts(dataset)
     assigned, mine, entries = prompts[rank::world], [], {}
     started = time.monotonic()
-    logger.info(
-        "[text store] rank %d/%d: validating %d existing entries for index",
-        rank,
-        world,
-        len(assigned),
-    )
     for index, prompt in enumerate(assigned, 1):
         try:
             entries[_key(prompt)] = _entry(root, prompt, meta)[0]
         except (OSError, ValueError, KeyError, EOFError):
             mine.append(prompt)
         if index % 4096 == 0:
-            logger.info(
-                "[text store] rank %d: validated %d/%d entries (%.1f s)",
-                rank,
-                index,
-                len(assigned),
-                time.monotonic() - started,
-            )
-    logger.info(
-        "[text store] rank %d/%d: %d/%d unique prompts to encode (%d total)",
-        rank,
-        world,
-        len(mine),
-        len(assigned),
-        len(prompts),
-    )
+            pass
     encoder = backbone.text_encoder
     if mine:
         encoder.to(device=device)
@@ -422,12 +394,6 @@ def generate(dataset, backbone, *, device, batch_size, rank=0, world=1):
                 # Written last: an interrupted tensor write is never a complete entry.
                 _json(path + ".json", {"prompt": prompt, "length": length})
                 entries[_key(prompt)] = length
-            logger.info(
-                "[text store] rank %d: %d/%d prompts",
-                rank,
-                min(start + batch_size, len(mine)),
-                len(mine),
-            )
     shard = {
         "root": root,
         "signature": meta,
@@ -516,21 +482,11 @@ def attach(dataset, backbone):
         meta = json.load(handle)["signature"]
     _validate_version(root, meta)
     started = time.monotonic()
-    logger.info("[text store] checking model/tokenizer fingerprint: %s", root)
     if meta != signature(backbone):
         raise ValueError(f"T5 text cache weights/tokenizer/settings mismatch ({root})")
-    logger.info(
-        "[text store] fingerprint checked (%.1f s); loading prompt index",
-        time.monotonic() - started,
-    )
     prompts = training_prompts(dataset)
     contexts = PromptContexts(root, meta, prompts)
     offload(backbone)
     backbone.text_encoder._openwam_text_store = contexts
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-    logger.info(
-        "[optimizations] offline T5 cache %s: %d prompts; T5 weights on CPU",
-        root,
-        len(prompts),
-    )

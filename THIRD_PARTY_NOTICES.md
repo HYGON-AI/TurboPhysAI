@@ -7,14 +7,14 @@ This file records the provenance of source code distributed in TurboPhysAI. The 
 ### OpenWAM / native Wan training
 
 - Source repository: <https://github.com/iMountTai/OpenWAM>
-- Source branch and fixed commit: `main` @ `bfce20b575a9b34aea385030fcb00a9eaf61fcb5`
+- Source branch and fixed commit: `main` @ `d1ea554ba44057b766fff94c0d999fb11a217ffb`
 - Runtime target baseline: `1204dde1b9e9c232131fc99a3f2c6b78330e7f64`
 - License: Apache-2.0, including the source's native Wan license material.
 - Local source ports and helper modules are modified; they retain Apache-2.0 identifiers and Hygon modification notices. Original class identities are retained; functions are installed as Turbo wrappers.
 
 | Local files under `turbo_physai/optimizations/models/openwam/` | Direct source path |
 | --- | --- |
-| Optimization helpers (`attention.py`, `_fa2_varlen.py`, `deferred_gather.py`, `gc_trace.py`, `global_compile.py`, `host_async.py`, `hw_queues.py`, `latent_cache.py`, `linear_bias2d.py`, `norms.py`, `online_encode.py`, `pointwise.py`, `runtime.py`, `sac.py`, `text.py`, `text_store.py`, `vae_layout.py`, `zero.py`) and model preparation in `__init__.py` | Same-named files under `openwam/optimizations/` |
+| Optimization helpers (`attention.py`, `_fa2_varlen.py`, `deferred_gather.py`, `global_compile.py`, `host_async.py`, `hw_queues.py`, `latent_cache.py`, `linear_bias2d.py`, `norms.py`, `online_encode.py`, `pointwise.py`, `runtime.py`, `sac.py`, `text.py`, `text_store.py`, `vae_layout.py`, `zero.py`, `zero_fused.py`, `zero_kernels.py`, `zero_norm.py`) and model preparation in `__init__.py` | Same-named files under `openwam/optimizations/` |
 | `ports/data.py` | `openwam/dataloader/robotwin.py` |
 | `ports/action_components.py`, `ports/action.py` | `openwam/model/action_backbone/components.py`, `separate_action_dit.py` |
 | `ports/architecture.py` | `openwam/model/architectures/base.py` |

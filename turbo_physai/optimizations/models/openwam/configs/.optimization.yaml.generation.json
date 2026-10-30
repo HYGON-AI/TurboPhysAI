@@ -4,20 +4,20 @@
   "model_commit": "1204dde1b9e9c232131fc99a3f2c6b78330e7f64",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "9ffb27162db5eb30130e2d5fe41481c386d776a2692aa1fbe89bde5edd0cce18"
+    "sha256": "8fd3919b8de4f9e524c0d505177953c735f4653ab100f381d0d5478dcf2e16f8"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "package",
       "path": "optimizations/models/openwam/configs/recipe.yaml",
-      "sha256": "5408953c49131f7dc6aa22d70382f276ef10567650efc6f4e085c2aad08313ba"
+      "sha256": "b2fa50d4a4f5df12cc9c72c9b3422fd5e45f883ed77d5fa82d99e130708b3539"
     },
     {
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/openwam/catalog.py",
-      "sha256": "d44ef84432e80c58ab7c342ab32fba24f4819819ce0bd6971467a820fe440910"
+      "sha256": "eb7ebd7ed6a59ac59caa3abbdd6fc8290e9867cb243988c6ba4d94bb6f7dba43"
     }
   ]
 }
