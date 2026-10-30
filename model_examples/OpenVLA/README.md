@@ -114,6 +114,7 @@ turbo-physai run \
   --model openvla \
   --log-report \
   torchrun --standalone --nnodes 1 --nproc-per-node 8 vla-scripts/train.py \
+    --vla.type prism-dinosiglip-224px+mx-bridge \
     --vla.train_strategy fsdp-shard-grad-op \
     --data_root_dir /workspace/dataset/BridgeDataV2 \
     --vla.max_steps 1000 \
@@ -130,6 +131,7 @@ turbo-physai run \
   --model openvla \
   --log-report \
   torchrun --standalone --nnodes 1 --nproc-per-node 8 vla-scripts/train.py \
+    --vla.type prism-dinosiglip-224px+mx-bridge \
     --vla.train_strategy fsdp-shard-grad-op \
     --data_root_dir /workspace/dataset/BridgeDataV2 \
     --run_root_dir <训练输出目录> \
