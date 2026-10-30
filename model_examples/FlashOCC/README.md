@@ -162,7 +162,7 @@ FlashOCC 的优化配置和运行环境配置分别位于：
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml`
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml`
 
-当前 `runtime.yaml` 指定使用 HCU 1、2。以下命令与启动脚本保持一致，使用单机两卡、单卡 batch size 24 和每卡 24 个数据加载 worker。运行前请确认设备空闲且显存充足；使用其他设备时需同步调整 RuntimeConfig 和进程数。
+当前 `runtime.yaml` 指定使用 HCU 0–7。以下命令使用单机八卡、单卡 batch size 24 和每卡 24 个数据加载 worker。运行前请确认设备空闲且显存充足；使用其他设备时需同步调整 RuntimeConfig 和进程数。
 
 通过 `turbo-physai run` 显式加载配置并启动训练：
 
@@ -174,7 +174,7 @@ turbo-physai run \
   --runtime-config "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml" \
   --log-report \
   -- \
-  torchrun --nproc_per_node=2 --master_port=29500 tools/train.py \
+  torchrun --nproc_per_node=8 --master_port=29500 tools/train.py \
     ./projects/configs/flashocc/flashocc-r50.py \
     --launcher pytorch \
     --work-dir "/workspace/FlashOCC_TurboPhysAI/work_dirs/flashocc_turbo_$(date +%Y%m%d_%H%M%S)" \
@@ -190,12 +190,6 @@ turbo-physai run \
       "data.test.ann_file=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/bevdetv2-nuscenes_infos_val.pkl" \
       "load_from=/workspace/FlashOCC_TurboPhysAI/static_data/ckpts/bevdet-r50-cbgs.pth" \
       log_config.interval=1
-```
-
-也可以使用仓库提供的启动脚本，它封装了以上 `turbo-physai run` 和训练参数：
-
-```bash
-bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/run_flashocc_turbo.sh"
 ```
 
 NUMA 配置、优化应用结果及其检查方法见 [快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
