@@ -22,10 +22,10 @@ TurboPhysAI 的 DiT4DiT 优化基于官方仓库 commit `d8854a11713f846b8b3f768
 
 ## 3. 启动基础镜像
 
-基础镜像只提供 DTK、HCU PyTorch、DeepSpeed 等平台依赖。将下面的镜像地址替换为发布页给出的固定 tag 和 digest：
+基础镜像只提供 DTK、HCU PyTorch、DeepSpeed 等平台依赖。已验证镜像如下：
 
 ```bash
-export BASE_IMAGE=REPOSITORY:TAG@sha256:DIGEST
+export BASE_IMAGE=harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10-20260929
 export CONTAINER_NAME=dit4dit-hcu
 export WORKSPACE=/path/to/dit4dit-workspace
 
