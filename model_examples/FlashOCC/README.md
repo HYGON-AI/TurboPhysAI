@@ -162,7 +162,9 @@ FlashOCC 的优化配置和运行环境配置分别位于：
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml`
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml`
 
-通过 `turbo-physai run` 显式加载配置并启动单机八卡训练：
+当前 `runtime.yaml` 指定使用 HCU 1、2。以下命令与启动脚本保持一致，使用单机两卡、单卡 batch size 24 和每卡 24 个数据加载 worker。运行前请确认设备空闲且显存充足；使用其他设备时需同步调整 RuntimeConfig 和进程数。
+
+通过 `turbo-physai run` 显式加载配置并启动训练：
 
 ```bash
 cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
@@ -172,13 +174,14 @@ turbo-physai run \
   --runtime-config "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml" \
   --log-report \
   -- \
-  torchrun --nproc_per_node=8 tools/train.py \
+  torchrun --nproc_per_node=2 --master_port=29500 tools/train.py \
     ./projects/configs/flashocc/flashocc-r50.py \
     --launcher pytorch \
     --work-dir "/workspace/FlashOCC_TurboPhysAI/work_dirs/flashocc_turbo_$(date +%Y%m%d_%H%M%S)" \
     --cfg-options \
-      data.samples_per_gpu=16 \
-      data.workers_per_gpu=4 \
+      data.samples_per_gpu=24 \
+      data.workers_per_gpu=24 \
+      evaluation.start=24 \
       "data.train.data_root=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/" \
       "data.train.ann_file=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/bevdetv2-nuscenes_infos_train.pkl" \
       "data.val.data_root=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/" \
