@@ -89,17 +89,6 @@ export PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashO
 bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/scripts/build_flashocc_ops_external.sh"
 ```
 
-准备完成后的主要目录如下：
-
-```text
-/workspace/FlashOCC_TurboPhysAI/
-├── FlashOCC/
-├── runtime/
-│   └── mmdetection3d/
-├── TurboPhysAI/
-└── static_data/
-```
-
 ## 4. 准备 nuScenes 数据并生成标注
 
 按照 [FlashOCC 官方安装文档 Step 3](https://github.com/Yzichen/FlashOCC/blob/master/doc/install.md) 下载并准备 nuScenes。将数据放到 `/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes`，至少包括以下目录：
@@ -153,6 +142,17 @@ mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts"
 curl -fL --retry 5 --retry-delay 3 \
   -o "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts/bevdet-r50-cbgs.pth" \
   https://haihub-model-bj-1251001002.cos.ap-beijing.myqcloud.com/HyperDrive/ckpt/bevdet-r50-cbgs.pth
+```
+
+准备完成后的主要目录如下：
+
+```text
+/workspace/FlashOCC_TurboPhysAI/
+├── FlashOCC/
+├── runtime/
+│   └── mmdetection3d/
+├── TurboPhysAI/
+└── static_data/
 ```
 
 ## 6. 启动训练
