@@ -133,13 +133,14 @@ hf download physical-intelligence/libero \
 
 ### 6.2 下载 PI0.5 base 权重
 
-使用 Python 脚本下载官方 JAX checkpoint：
+使用 Python 脚本下载官方 JAX checkpoint，`--output-dir` 可按实际情况修改：
 
 ```bash
-python /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/download_pi05_base.py
+python /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/download_pi05_base.py \
+  --output-dir /workspace/openpi_TurboPhysAI/static_data/pi05_base
 ```
 
-下载成功后再进行格式转换。中断后可重新运行下载命令。
+下载成功后再进行格式转换。中断后可重新运行下载命令。若修改下载目录，请同步修改 6.4 节中的 checkpoint 检查路径和 `--checkpoint_dir`，两者均指向相同的下载目录。
 
 ### 6.3 应用 Transformers 补丁
 
