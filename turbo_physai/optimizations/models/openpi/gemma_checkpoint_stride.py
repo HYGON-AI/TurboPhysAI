@@ -6,7 +6,7 @@
 #
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # Modified by Hygon.
-# # SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache-2.0
 
 """Patch-equivalent selective Gemma gradient-checkpoint replacement."""
 
@@ -18,15 +18,6 @@ from typing import Any
 
 import torch
 from transformers.models.gemma import modeling_gemma
-
-_CHECKPOINT_ONLY_KWARGS = {
-    "use_reentrant",
-    "preserve_rng_state",
-    "context_fn",
-    "determinism_check",
-    "debug",
-    "early_stop",
-}
 
 def wrap_gemma_forward(original, options: Mapping[str, Any]):
     """Replace Gemma's forward loop with the patch's stride-aware loop.
