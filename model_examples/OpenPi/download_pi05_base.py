@@ -1,3 +1,4 @@
+import argparse
 import http.client
 import json
 import os
@@ -11,7 +12,14 @@ from pathlib import Path
 
 BUCKET = "openpi-assets"
 PREFIX = "checkpoints/pi05_base/"
-DEST = Path("/workspace/openpi_TurboPhysAI/static_data/pi05_base")
+parser = argparse.ArgumentParser(description="下载官方 PI0.5 base JAX checkpoint")
+parser.add_argument(
+    "--output-dir",
+    type=Path,
+    default=Path("/workspace/openpi_TurboPhysAI/static_data/pi05_base"),
+    help="权重保存目录（默认：/workspace/openpi_TurboPhysAI/static_data/pi05_base）",
+)
+DEST = parser.parse_args().output_dir
 DEST.mkdir(parents=True, exist_ok=True)
 ROOT = DEST.resolve()
 
