@@ -78,6 +78,7 @@ turbo-physai --help
 ### 3.5 准备外置 MMDetection3D 依赖并构建 HCU 扩展
 
 ```bash
+mkdir -p “/workspace/FlashOCC_TurboPhysAI/static_data”
 mkdir -p "/workspace/FlashOCC_TurboPhysAI/runtime"
 git clone --branch v1.0.0rc4 \
   https://github.com/open-mmlab/mmdetection3d.git \
@@ -105,7 +106,6 @@ bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/mod
 在 `static_data` 目录运行官方数据转换脚本，生成训练所需的 PKL 标注：
 
 ```bash
-mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data"
 cd "/workspace/FlashOCC_TurboPhysAI/static_data"
 
 PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}" \
