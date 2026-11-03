@@ -244,21 +244,16 @@ curl -fL --retry 5 --retry-delay 2 \
 ```
 
 ## 7. 通过 turbo-physai run 启动训练
-
-`turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。请按实际设备和数据位置调整路径、可见卡及通信网卡；示例使用八卡，每卡 batch size 为 32。
-
-启动命令中的 `PYTHONPATH` 指向包含 `sitecustomize.py` 的 OpenPI 优化目录，用于加载 Python 和数据集兼容处理；`OPENPI_DATA_HOME` 和 `HF_LEROBOT_HOME` 分别指定资源缓存及数据集目录。请根据实际安装位置调整这三项。
-
 启动训练前，先创建输出目录：
-
 ```bash
 mkdir -p \
   /workspace/openpi_TurboPhysAI/output/checkpoints \
   /workspace/openpi_TurboPhysAI/output/logs
 ```
 
-### 7.1 显式指定配置
-
+`turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。
+请按实际设备和数据位置调整路径、可见卡及通信网卡；示例使用八卡，每卡 batch size 为 32。
+启动命令中的 `PYTHONPATH` 指向包含 `sitecustomize.py` 的 OpenPI 优化目录，用于加载 Python 和数据集兼容处理；`OPENPI_DATA_HOME` 和 `HF_LEROBOT_HOME` 分别指定资源缓存及数据集目录。请根据实际安装位置调整这三项。
 `ens65f0np0` 仅为通信网卡名称示例，请按本节点实际情况修改；多机训练时各节点应选择相互连通的网卡。单机训练如果不需要指定网卡，可删除 `--set NCCL_SOCKET_IFNAME` 参数。
 
 ```bash
