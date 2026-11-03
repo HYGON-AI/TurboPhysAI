@@ -162,7 +162,9 @@ FlashOCC 的优化配置和运行环境配置分别位于：
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml`
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml`
 
-当前 `runtime.yaml` 指定使用 HCU 0–7。以下命令使用单机八卡、单卡 batch size 24 和每卡 24 个数据加载 worker。运行前请确认设备空闲且显存充足；使用其他设备时需同步调整 RuntimeConfig 和进程数。
+当前 `runtime.yaml` 指定使用 HCU 0–7。以下命令使用单机八卡、单卡 batch size 4（全局 batch size 32）和每卡 24 个数据加载 worker。运行前请确认设备空闲、显存及共享内存充足；使用其他设备时需同步调整 RuntimeConfig 和进程数。
+
+命令通过 `--validate` 启用训练中的验证，并通过 `evaluation.start=24` 从第 24 个 epoch 开始验证。此前在 MMCV 1.x 与当前 PyTorch 组合中，多卡测试入口出现过分布式兼容错误；此训练中验证路径尚未单独验证，不能保证验证阶段成功。如遇错误，请保留完整日志并先检查最早的异常。
 
 通过 `turbo-physai run` 显式加载配置并启动训练：
 
@@ -177,9 +179,10 @@ turbo-physai run \
   torchrun --nproc_per_node=8 --master_port=29500 tools/train.py \
     ./projects/configs/flashocc/flashocc-r50.py \
     --launcher pytorch \
+    --validate \
     --work-dir "/workspace/FlashOCC_TurboPhysAI/work_dirs/flashocc_turbo_$(date +%Y%m%d_%H%M%S)" \
     --cfg-options \
-      data.samples_per_gpu=24 \
+      data.samples_per_gpu=4 \
       data.workers_per_gpu=24 \
       evaluation.start=24 \
       "data.train.data_root=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/" \
