@@ -247,6 +247,8 @@ curl -fL --retry 5 --retry-delay 2 \
 
 `turbo-physai run` 加载随组件交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。请按实际设备和数据位置调整路径、可见卡及通信网卡；示例使用八卡，每卡 batch size 为 32。
 
+启动命令中的 `PYTHONPATH` 指向包含 `sitecustomize.py` 的 OpenPI 优化目录，用于加载 Python 和数据集兼容处理；`OPENPI_DATA_HOME` 和 `HF_LEROBOT_HOME` 分别指定资源缓存及数据集目录。请根据实际安装位置调整这三项。
+
 启动训练前，先创建输出目录：
 
 ```bash
@@ -267,7 +269,9 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 turbo-physai run \
   --optimization-config /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/configs/optimization.yaml \
   --runtime-config /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/configs/runtime.yaml \
+  --set "PYTHONPATH=/workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi${PYTHONPATH:+:${PYTHONPATH}}" \
   --set OPENPI_DATA_HOME=/workspace/openpi_TurboPhysAI/static_data/assets \
+  --set HF_LEROBOT_HOME=/workspace/openpi_TurboPhysAI/static_data/.lerobot_root \
   --set NCCL_SOCKET_IFNAME=ens65f0np0 \
   --set HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
   --log-report \
