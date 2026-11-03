@@ -31,6 +31,3 @@ optimization_groups:
   - id: openpi.fused_adamw
     enabled: true
 
-  - id: openpi.disable_tqdm
-    enabled: true
-

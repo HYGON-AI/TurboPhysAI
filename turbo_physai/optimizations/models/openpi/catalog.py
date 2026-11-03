@@ -9,7 +9,6 @@ CATALOG_GROUPS = (
     "openpi.compile_stack",
     "openpi.gemma_checkpoint_stride",
     "openpi.fused_adamw",
-    "openpi.disable_tqdm",
 )
 
 COMPILE_STACK = group(
@@ -37,13 +36,6 @@ FUSED_ADAMW = group(
     wrap(
         target="torch.optim.AdamW",
         replacement="turbo_physai.optimizations.models.openpi.fused_adamw.wrap_fused_adamw",
-    ),
-)
-DISABLE_TQDM = group(
-    "openpi.disable_tqdm",
-    wrap(
-        target="scripts.train_pytorch.tqdm.tqdm",
-        replacement="turbo_physai.optimizations.models.openpi.disable_tqdm.wrap_tqdm_disabled",
     ),
 )
 
