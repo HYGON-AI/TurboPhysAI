@@ -18,7 +18,7 @@
 
 ### 3.1 创建容器
 
-宿主机需预先准备自驾基础镜像 `docker pull autonomous-driving:torch2.10-dtk26.04`，然后创建容器：
+宿主机需预先准备自驾基础镜像 `autonomous-driving:torch2.10-dtk26.04`，然后创建容器：
 
 ```bash
 docker run -d -t \
