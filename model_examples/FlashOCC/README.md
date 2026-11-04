@@ -78,7 +78,7 @@ turbo-physai --help
 ### 3.5 准备外置 MMDetection3D 依赖并构建 HCU 扩展
 
 ```bash
-mkdir -p “/workspace/FlashOCC_TurboPhysAI/static_data”
+mkdir /workspace/FlashOCC_TurboPhysAI/static_data
 mkdir -p "/workspace/FlashOCC_TurboPhysAI/runtime"
 git clone --branch v1.0.0rc4 \
   https://github.com/open-mmlab/mmdetection3d.git \
