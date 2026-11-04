@@ -161,26 +161,96 @@ def test_high_sigma_sampling_applies_complete_strategy():
     assert torch.all(result <= 1.0)
 
 
-def test_prepare_latents_rejects_ambiguous_video_layout():
+def test_hidden_capture_accepts_upstream_prepare_latents_signature():
     torch = pytest.importorskip("torch")
-    owner = types.SimpleNamespace(
-        vae_scale_factor_temporal=1,
-        vae_scale_factor_spatial=1,
-    )
+    captured = {}
 
-    with pytest.raises(ValueError, match="ambiguous video layout"):
-        cosmos_forward.prepare_latents(
-            owner,
-            video=torch.zeros((1, 3, 3, 2, 2)),
-            batch_size=1,
-            num_channels_latents=16,
-            height=2,
-            width=2,
-            num_frames_in=3,
-            num_frames_out=3,
+    class PrepareLatentsCalled(Exception):
+        pass
+
+    class Owner:
+        device = torch.device("cpu")
+        transformer = types.SimpleNamespace(
             dtype=torch.float32,
-            device=torch.device("cpu"),
+            config=types.SimpleNamespace(in_channels=17),
         )
+        vae = types.SimpleNamespace(dtype=torch.float32)
+        vae_scale_factor_temporal = 4
+        max_sequence_length = 8
+
+        def encode_prompt(self, **kwargs):
+            return torch.zeros((1, 1, 1)), None
+
+        def _coerce_videos_to_bcthw(self, videos, *, height, width):
+            return videos
+
+        def prepare_latents(
+            self,
+            *,
+            video,
+            batch_size,
+            num_channels_latents,
+            height,
+            width,
+            num_frames_in,
+            num_frames_out,
+            dtype,
+            device,
+            generator=None,
+            latents=None,
+        ):
+            captured["video"] = video
+            raise PrepareLatentsCalled
+
+    videos = torch.zeros((1, 3, 1, 16, 16))
+    with pytest.raises(PrepareLatentsCalled):
+        cosmos_forward.feature_extractor_forward(
+            Owner(),
+            prompts=["test"],
+            videos=videos,
+            height=16,
+            width=16,
+        )
+
+    assert captured["video"] is videos
+
+
+def test_latent_stats_remain_fp32_when_module_is_cast_to_bfloat16():
+    torch = pytest.importorskip("torch")
+
+    class Base(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.latents_mean = torch.tensor([1.001], dtype=torch.float32)
+            self.latents_std = torch.tensor([0.499], dtype=torch.float32)
+
+    class Owner(cosmos_cache._Caches, Base):
+        pass
+
+    owner = Owner()
+    expected_mean = owner.latents_mean.clone()
+    expected_std = owner.latents_std.clone()
+
+    assert "latents_mean" not in owner._buffers
+    assert "latents_std" not in owner._buffers
+
+    owner.bfloat16()
+
+    assert owner.latents_mean.dtype == torch.float32
+    assert owner.latents_std.dtype == torch.float32
+    torch.testing.assert_close(owner.latents_mean, expected_mean, rtol=0, atol=0)
+    torch.testing.assert_close(owner.latents_std, expected_std, rtol=0, atol=0)
+
+    mean, std = owner._get_latent_stats(
+        device=torch.device("cpu"), dtype=torch.bfloat16
+    )
+    assert mean.dtype == torch.bfloat16
+    assert std.dtype == torch.bfloat16
+    cached_mean, cached_std = owner._get_latent_stats(
+        device=torch.device("cpu"), dtype=torch.bfloat16
+    )
+    assert cached_mean is mean
+    assert cached_std is std
 
 
 def test_padding_mask_cache_is_identity_safe_and_versioned():
