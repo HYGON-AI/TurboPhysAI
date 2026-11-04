@@ -140,9 +140,9 @@ def require_release(actual, expected, component):
     assert parsed.release == expected, f"{component}: expected {expected}, got {actual}"
 
 
-require_release(torch.__version__, (2, 7, 1), "PyTorch")
-require_release(torchvision.__version__, (0, 22, 0), "torchvision")
-require_release(triton.__version__, (3, 2, 0), "Triton")
+require_release(torch.__version__, (2, 10, 0), "PyTorch")
+require_release(torchvision.__version__, (0, 25, 0), "torchvision")
+require_release(triton.__version__, (3, 6, 0), "Triton")
 assert torch.version.hip is not None, "DAS/HCU PyTorch with HIP support is required"
 assert torch.cuda.is_available(), "HCU is not available through torch.cuda"
 assert torch.cuda.device_count() >= 1, "at least one visible HCU is required"
