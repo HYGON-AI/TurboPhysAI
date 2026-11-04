@@ -31,7 +31,7 @@ docker run -d -t \
   --network=host \
   --device=/dev/mkfd \
   --group-add video \
-  --name flashocc-turbo \
+  --name FlashOCC_TurboPhysAI \
   --entrypoint /bin/bash \
   autonomous-driving:torch2.10-dtk26.04 \
   -lc 'exec sleep infinity'
