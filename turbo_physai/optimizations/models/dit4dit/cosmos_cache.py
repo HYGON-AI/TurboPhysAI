@@ -21,11 +21,6 @@ class _Caches:
         self._text_encoder_output_cache_safe = None
         self._direct_hidden_capture = False
         super().__init__(*args, **kwargs)
-        for name in ("latents_mean", "latents_std"):
-            value = getattr(self, name, None)
-            if torch.is_tensor(value):
-                delattr(self, name)
-                self.register_buffer(name, value.detach(), persistent=False)
 
     def _apply(self, fn):
             # Cached device/dtype views become stale when the module is moved.
