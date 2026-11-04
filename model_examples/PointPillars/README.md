@@ -61,10 +61,12 @@ git -C /workspace/PointPillars_TurboPhysAI/mmdetection3d checkout --detach \
 
 ### 4.2 拉取并安装 TurboPhysAI
 
+注意：官方 `main` 分支需包含 PointPillars 优化代码和配置，才能执行第 6 节的训练命令。
+
 ```bash
 cd /workspace/PointPillars_TurboPhysAI
-git clone --branch pointpillars-TurboPhysAI \
-  https://github.com/Coulsonq/TurboPhysAI.git \
+git clone --branch main \
+  https://github.com/HYGON-AI/TurboPhysAI.git \
   /workspace/PointPillars_TurboPhysAI/TurboPhysAI
 cd /workspace/PointPillars_TurboPhysAI/TurboPhysAI
 python -c 'import torch; print(torch.__version__, torch.version.hip)'
