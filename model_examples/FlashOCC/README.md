@@ -62,7 +62,7 @@ git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC" checkout --detach \
 
 ```bash
 cd "/workspace/FlashOCC_TurboPhysAI"
-git clone --branch flashocc-optimization \
+git clone --branch main \
   https://github.com/HYGON-AI/TurboPhysAI.git \
   "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI"
 
