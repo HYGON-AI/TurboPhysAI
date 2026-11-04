@@ -1,8 +1,9 @@
 # Copyright 2025 The NVIDIA Team and The HuggingFace Team.
 # Copyright 2025 DiT4DiT team. All rights reserved.
 # Copyright 2026 Hygon Information Technology Co., Ltd.
+# Adapted from Diffusers under Apache-2.0 and DiT4DiT d8854a1 under MIT.
 # Modified for TurboPhysAI; see THIRD_PARTY_NOTICES.md.
-# Licensed under the Apache License, Version 2.0.
+# SPDX-License-Identifier: Apache-2.0 AND MIT
 
 """Verified VAE batching and hidden capture; segment compilation is optional."""
 
@@ -475,8 +476,6 @@ def feature_extractor_forward(
                         # directly into its final output, so an intermediate
                         # contiguous copy would only add device traffic.
                         gt_bcthw = gt.permute(0, 2, 1, 3, 4)
-                        # gt 来自 dataloader，契约为 [0,1]。直接转换可避免
-                        # gt_bcthw.min() 的 GPU reduction 和 Python bool 同步。
                         full_bcthw = video_pack.pack_flow_matching_video(
                             videos_bcthw,
                             gt_bcthw,
