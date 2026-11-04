@@ -3,7 +3,6 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # Adapted from Diffusers under Apache-2.0 and DiT4DiT d8854a1 under MIT.
 # Modified for TurboPhysAI; see THIRD_PARTY_NOTICES.md.
-# SPDX-License-Identifier: Apache-2.0 AND MIT
 
 """Verified VAE batching and hidden capture; segment compilation is optional."""
 
