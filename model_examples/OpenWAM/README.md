@@ -81,6 +81,13 @@ turbo-physai run --model openwam --log-report \
 
 按实际卡数调整 `HIP_VISIBLE_DEVICES` 和 `--nproc_per_node`。`save_steps=0` 不保存周期或最终权重。输出目录另设为 `outputs/hcu_openwam_turbo`，便于与原运行记录区分。注意追加 `training.speed_preset=null` 避免使用官方针对 CUDA 的 cuDNN SDPA 预设。
 
+### 抓取 Trace (Profiling)
+如需在训练过程中抓取 PyTorch 算子与通信 Trace 进行性能对比分析，添加环境变量即可自动触发：
+- `enable_profiling=1`（或 `true`）：仅对 rank 0 进行采样（默认采样第 15 步），自动输出压缩 Trace 到 `<output_path>/profiler_traces/rank0_trace.json.gz`。
+- `enable_profiling=all`：对所有 rank 进行采样。
+- `OPENWAM_PROFILE_LIGHT=1`：可选，开启轻量采样模式（关闭 call stack 和 tensor shapes 记录以减少 profiling 开销）。
+内置 DCU 专用的 trace sanitize 清洗逻辑，确保 GPU Stream 0 与 CPU 背景线程严格隔离。
+
 ## 优化配置
 
 `turbo-physai run --model openwam` 默认加载基础优化；上面的命令显式选择随包在线优化配置，启用编译、SAC 和通信重叠等选项。

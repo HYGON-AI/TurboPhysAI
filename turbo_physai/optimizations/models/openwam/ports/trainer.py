@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import gzip
+import json
 import os
 import subprocess
+import time as _time
 import torch
 from openwam.train.openwam_trainer import (
     cfg_get,
@@ -29,6 +32,107 @@ from tqdm import tqdm
 
 from .. import prepare_model, prepare_runtime_constants
 from ..settings import enabled, port_wrapper
+
+
+def _build_profiler(trainer, output_path: str):
+    """Construct torch.profiler.profile context manager matching DiffSynth-Studio design.
+
+    Controlled cleanly by single environment variable:
+      - enable_profiling=true (or 1): profiles rank 0 (wait=15, warmup=0, active=2, repeat=1).
+      - enable_profiling=all:        profiles all ranks.
+
+    OPENWAM_PROFILE_LIGHT=1 disables stacks/shapes and warms up for one
+    step (wait=14) while retaining the same active ProfilerStep#15.
+    Saves compressed trace directly to:
+      <output_path>/profiler_traces/rank{rank}_trace.json.gz
+    """
+    raw_val = (
+        os.environ.get("enable_profiling") or os.environ.get("ENABLE_PROFILING", "")
+    ).strip().lower()
+    if raw_val not in ("true", "1", "all", "yes", "on"):
+        return contextlib.nullcontext()
+
+    rank = getattr(trainer, "_rank", 0)
+    if raw_val != "all" and rank != 0:
+        return contextlib.nullcontext()
+
+    trace_dir = os.path.join(output_path, "profiler_traces")
+    os.makedirs(trace_dir, exist_ok=True)
+
+    activities = [torch.profiler.ProfilerActivity.CPU]
+    if torch.cuda.is_available():
+        activities.append(torch.profiler.ProfilerActivity.CUDA)
+
+    def _sanitize_trace(trace_path: str):
+        """Ensure GPU streams and CPU threads remain strictly segregated (泾渭分明).
+
+        Fixes ROCm/DCU Kineto quirk where unmapped background threads (DataLoader
+        queues/Inductor pool) during initialization fall back to (pid 0, tid 0),
+        which would otherwise rename GPU Stream 0 to 'thread 0 (python3)' and merge
+        Python call stacks into the GPU stream track.
+        """
+        try:
+            open_fn = gzip.open if trace_path.endswith(".gz") else open
+            with open_fn(trace_path, "rt", encoding="utf-8") as f:
+                data = json.load(f)
+
+            events = data.get("traceEvents", [])
+            cpu_pid = None
+            for e in events:
+                if e.get("name") == "process_labels" and e.get("args", {}).get("labels") == "CPU":
+                    cpu_pid = e.get("pid")
+                    break
+
+            modified = False
+            for e in events:
+                if e.get("pid") == 0 and e.get("cat") == "python_function":
+                    if cpu_pid is not None:
+                        e["pid"] = cpu_pid
+                    modified = True
+                elif e.get("ph") == "M" and e.get("pid") == 0 and e.get("tid") == 0 and e.get("name") == "thread_name":
+                    if "thread" in e.get("args", {}).get("name", "").lower():
+                        e["args"]["name"] = "stream 0 "
+                        modified = True
+
+            if modified:
+                with open_fn(trace_path, "wt", encoding="utf-8") as f:
+                    json.dump(data, f)
+        except Exception as err:
+            logger.warning("[PROFILER] Trace sanitize warning: %s", err)
+
+    def trace_handler(prof_inst):
+        step_tag = f"_step{prof_inst.step_num}" if hasattr(prof_inst, "step_num") else ""
+        trace_path = os.path.join(trace_dir, f"rank{rank}{step_tag}_trace.json.gz")
+        t0 = _time.monotonic()
+        prof_inst.export_chrome_trace(trace_path)
+        _sanitize_trace(trace_path)
+        duration = _time.monotonic() - t0
+        msg = f"[PROFILER] Rank {rank} exported trace to `{trace_path}` in {duration:.2f}s."
+        logger.info(msg)
+        if rank == 0:
+            print(f"\n{msg}\n", flush=True)
+
+    light = os.environ.get("OPENWAM_PROFILE_LIGHT", "").strip().lower() in ("1", "true", "yes", "on")
+    wait, warmup = (14, 1) if light else (15, 0)
+    logger.info(
+        "[PROFILER] rank=%d wait=%d warmup=%d active=2 with_stack=%s record_shapes=%s traces=`%s`",
+        rank,
+        wait,
+        warmup,
+        not light,
+        not light,
+        trace_dir,
+    )
+
+    return torch.profiler.profile(
+        activities=activities,
+        schedule=torch.profiler.schedule(wait=wait, warmup=warmup, active=2, repeat=1),
+        on_trace_ready=trace_handler,
+        record_shapes=not light,
+        profile_memory=False,
+        with_stack=not light,
+        with_modules=False,
+    )
 
 
 def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
@@ -225,7 +329,14 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
             for info, metrics in lagged.flush():
                 report(info, metrics)
 
+    prof_context = (
+        self._build_profiler(output_path)
+        if hasattr(self, "_build_profiler")
+        else _build_profiler(self, output_path)
+    )
+
     with (
+        prof_context as prof,
         deferred if deferred is not None else contextlib.nullcontext(),
         online if online is not None else contextlib.nullcontext(),
         tqdm(
@@ -330,6 +441,8 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
                     for ready_info, metrics in lagged.push(losses, grad_norm, info):
                         report(ready_info, metrics)
                 maybe_freeze_gc(global_step)  # OPENWAM_GC_FREEZE
+                if prof is not None and hasattr(prof, "step"):
+                    prof.step()
 
                 # save_steps: write the weights line (+ the resumable full state when
                 # save_full_states_for_resume=true), then prune in lockstep.
