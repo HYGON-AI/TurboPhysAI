@@ -48,6 +48,7 @@ turbo-physai run \
   [--force-group GROUP_ID[,GROUP_ID...]] \
   [--disable-group GROUP_ID[,GROUP_ID...]] \
   [--set NAME=VALUE] \
+  [--option GROUP_ID.KEY=VALUE] \
   [--disable-numa] \
   <training-command>
 ```
@@ -61,6 +62,7 @@ turbo-physai run \
 | `--force-group GROUP_ID[,GROUP_ID...]` | 对指定且已启用的一个或多个 Group 的可放行检查进行一次性覆盖 |
 | `--disable-group GROUP_ID[,GROUP_ID...]` | 本次启动不应用指定的一个或多个 Group |
 | `--set NAME=VALUE` | 覆盖或增加非空环境变量，可重复 |
+| `--option GROUP_ID.KEY=VALUE` | 覆盖当前配置中已有的 Group option，可重复；仅本次启动生效 |
 | `--disable-numa` | 关闭本次启动的 NUMA 绑定；默认开启 |
 
 训练命令直接写在 TurboPhysAI 参数之后，框架逐字透传，不解析或改写启动器参数。可以使用 `torchrun`、`torchpack dist-run`、DeepSpeed、accelerate、`mpirun`、`srun` 或 Shell 启动脚本，TurboPhysAI 会在每个 Python 训练 rank 中自动应用 OptimizationConfig。
@@ -96,6 +98,16 @@ turbo-physai run \
 `--force-group` 仅对本次启动有效，且 Group 必须已被当前 OptimizationConfig 启用。多个 Group ID 使用逗号分隔。该参数只能覆盖框架明确标记为可放行的证据类检查。目标不存在、Alias 身份冲突、签名不兼容和优化冲突等结构性问题仍会阻断。
 
 `--disable-group` 仅对本次启动有效，不修改 OptimizationConfig。多个 Group ID 使用逗号分隔。依赖被禁用 Group 的其他 Group 同时跳过。报告分别使用 `disabled_by_user` 和 `dependency_disabled` 记录两类原因。同一 Group 不能同时强制放行和禁用。
+
+`--option` 放在训练命令之前。值支持 JSON（例如 `true`、`false`、`12`、`null`），普通路径直接作为字符串传入。参数仅覆盖 Group 的 `options`，保留配置中的来源校验和依赖关系，不改写 YAML。包含空格的参数需要用引号包住。
+
+```bash
+turbo-physai run --model openwam \
+  --option openwam.data.vae_latent_cache=true \
+  --option openwam.data.vae_latent_cache_dir=/data/openwam-cache \
+  --option openwam.text.text_cache=true \
+  torchrun --nproc_per_node=8 scripts/train.py ...
+```
 
 `run` 用 `exec` 替换自身执行训练命令，进程树中不留中间进程。`SIGINT`、`SIGTERM` 等信号由训练进程直接接收，不经过转发。
 

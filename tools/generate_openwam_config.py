@@ -105,6 +105,8 @@ def generate(recipe, sources, output, *, force=False):
             )
         )
     content = (
+        "# Copyright 2026 Hygon Information Technology Co., Ltd.\n"
+        "# SPDX-License-Identifier: BSD-3-Clause\n\n"
         "# Static target AST identities; no model execution was performed.\n"
         + yaml.safe_dump(result, sort_keys=False)
     )

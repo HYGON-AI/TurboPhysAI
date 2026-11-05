@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import functools
+import os
 import sys
 
 from .settings import enabled, initialize
@@ -19,10 +20,15 @@ def configure_backends():
     sac.validate()
     if enabled("vae_channels_last"):
         vae_layout.validate()
+        os.environ.setdefault("PYTORCH_MIOPEN_SUGGEST_NHWC", "1")
+        os.environ.setdefault("PYTORCH_MIOPEN_SUGGEST_NDHWC", "1")
     if enabled("lightop_norm"):
-        from .norms import lightop_ops
+        import torch
 
-        lightop_ops()
+        if getattr(torch.version, "hip", None):
+            from .norms import lightop_ops
+
+            lightop_ops()
     # Source dispatcher decorators ran while all settings were inactive.
     if enabled("global_compile"):
         for name, module in tuple(sys.modules.items()):
@@ -43,5 +49,25 @@ def deepspeed_post_init(original, options):
 
         configure_zero(self.deepspeed_config)
         return result
+
+    return wrapped
+
+
+def deepspeed_mixed_precision(original, options):
+    del options
+
+    @functools.wraps(original)
+    def wrapped(self, mixed_precision, *args, **kwargs):
+        # The reference owner-reduction path communicates BF16 gradients in
+        # BF16. Set this before Accelerate can insert its newer FP32 default.
+        # An explicitly supplied communication dtype remains authoritative.
+        config = self.deepspeed_config
+        if (
+            mixed_precision == "bf16"
+            and enabled("zero_reduce_scatter")
+            and config.get("zero_optimization", {}).get("stage") == 2
+        ):
+            config.setdefault("communication_data_type", "bf16")
+        return original(self, mixed_precision, *args, **kwargs)
 
     return wrapped

@@ -211,12 +211,14 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
 
         lagged = LaggedMetrics(self.accelerator)
 
+    from tqdm import tqdm
+
     def report(info, metrics):
         self.log_step(
             metrics=metrics,
             **info,
             batch_size=batch_size,
-            total_steps=total_steps,
+            pbar=pbar,
             wandb_run=wandb_run,
             debug=debug,
             output_path=output_path,
@@ -230,6 +232,12 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
     with (
         deferred if deferred is not None else contextlib.nullcontext(),
         online if online is not None else contextlib.nullcontext(),
+        tqdm(
+            total=total_steps,
+            desc="Training",
+            unit="step",
+            initial=min(global_step, total_steps),
+        ) as pbar,
     ):
         epochs = (
             itertools.count(start_epoch)
@@ -394,10 +402,16 @@ def build_optimizer(original, options):
                     raise ValueError(
                         "fused_adamw does not support differentiable AdamW"
                     )
-                group.update(fused=True, foreach=False)
+            defaults = {**optimizer.defaults, "fused": True, "foreach": False}
+            # AdamW injects this into Adam's defaults on newer PyTorch, but
+            # does not accept it in its own constructor.
+            defaults.pop("decoupled_weight_decay", None)
             optimizer = torch.optim.AdamW(
-                optimizer.param_groups,
-                **{**optimizer.defaults, "fused": True, "foreach": False},
+                [
+                    dict(group, fused=True, foreach=False)
+                    for group in optimizer.param_groups
+                ],
+                **defaults,
             )
         return optimizer
 

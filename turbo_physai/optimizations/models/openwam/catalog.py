@@ -284,6 +284,11 @@ TRAINING = group(
         "turbo_physai.optimizations.models.openwam.launch.deepspeed_post_init",
         collect_target_hash=False,
     ),
+    wrap(
+        "accelerate.utils.dataclasses.DeepSpeedPlugin.set_mixed_precision",
+        "turbo_physai.optimizations.models.openwam.launch.deepspeed_mixed_precision",
+        collect_target_hash=False,
+    ),
     depends_on=(
         "openwam.data",
         "openwam.compute",

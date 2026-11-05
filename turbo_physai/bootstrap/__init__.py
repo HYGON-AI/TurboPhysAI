@@ -14,6 +14,7 @@ it runs in every descendant interpreter of a ``turbo-physai run``.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import uuid
@@ -29,6 +30,7 @@ RUN_ID = "TURBO_PHYSAI_RUN_ID"
 LOG_REPORT = "TURBO_PHYSAI_LOG_REPORT"
 FORCE_GROUPS = "TURBO_PHYSAI_FORCE_GROUPS"
 DISABLE_GROUPS = "TURBO_PHYSAI_DISABLE_GROUPS"
+OPTION_OVERRIDES = "TURBO_PHYSAI_OPTION_OVERRIDES"
 
 # A rank that cannot install its OptimizationConfig must not fall through to an
 # unoptimized run. site.execsitecustomize() swallows exceptions, so activation
@@ -149,6 +151,7 @@ def bootstrap_environment(
     log_report: bool = False,
     force_groups: Sequence[str] = (),
     disable_groups: Sequence[str] = (),
+    option_overrides: Mapping | None = None,
 ) -> dict[str, str]:
     """Add the variables that make a descendant interpreter self-activate."""
 
@@ -174,6 +177,10 @@ def bootstrap_environment(
         prepared[DISABLE_GROUPS] = os.pathsep.join(disable_groups)
     else:
         prepared.pop(DISABLE_GROUPS, None)
+    if option_overrides:
+        prepared[OPTION_OVERRIDES] = json.dumps(option_overrides, allow_nan=False)
+    else:
+        prepared.pop(OPTION_OVERRIDES, None)
     return prepared
 
 
@@ -204,6 +211,9 @@ def _activate() -> None:
 
     raw_groups = os.environ.get(FORCE_GROUPS, "")
     raw_disabled_groups = os.environ.get(DISABLE_GROUPS, "")
+    options = {}
+    if os.environ.get(OPTION_OVERRIDES):
+        options["option_overrides"] = json.loads(os.environ[OPTION_OVERRIDES])
     report = apply(
         optimization_config_path=os.environ.get(OPTIMIZATION_CONFIG) or None,
         log_report=os.environ.get(LOG_REPORT) == "1",
@@ -211,6 +221,7 @@ def _activate() -> None:
         disable_groups=tuple(
             group for group in raw_disabled_groups.split(os.pathsep) if group
         ),
+        **options,
     )
     if os.environ.get(LOG_REPORT) == "1":
         _print_optimization_result(report)

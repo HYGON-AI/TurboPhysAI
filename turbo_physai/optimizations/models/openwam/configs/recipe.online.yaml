@@ -6,7 +6,7 @@ kind: OptimizationConfig
 metadata:
   id: model.openwam.hcu.online
   version: 0.1.0
-  description: 'OpenWAM online report combination: OPT-02 through 07, 10, 11 and 13'
+  description: OpenWAM online training with scaled owner packing and norm overlap
 model:
   name: OpenWAM
 optimization_modules:
@@ -62,6 +62,6 @@ optimization_groups:
     deferred_gather: true
     fused_adamw: true
     host_async: true
-    hw_queues: 16
-    zero_scaled_pack: false
-    zero_norm_overlap: false
+    hw_queues: 0
+    zero_scaled_pack: true
+    zero_norm_overlap: true

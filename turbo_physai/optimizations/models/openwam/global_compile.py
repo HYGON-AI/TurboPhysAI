@@ -7,6 +7,7 @@ from turbo_physai.optimizations.models.openwam.settings import value
 """Compile training blocks, with explicit boundaries for optional eager kernels."""
 
 import logging
+from functools import partial
 from typing import Optional
 
 import torch
@@ -14,6 +15,7 @@ from einops import rearrange
 from torch import Tensor
 
 from turbo_physai.optimizations.models.openwam.ports.action import (
+    BridgeCrossAttention__attend,
     _modulate,
     rope_apply_1d,
 )
@@ -483,7 +485,7 @@ def compile_mot_layer(driver):
         if a_ca_q is not None:
             ca_a = action_block.cross_attn
             a_attn_out = run_attention(
-                ca_a._attend,
+                partial(BridgeCrossAttention__attend, ca_a),
                 a_ca_q,
                 a_ca_k,
                 a_ca_v,

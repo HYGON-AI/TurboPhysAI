@@ -42,6 +42,7 @@ from .definitions.registry import Registry, default_registry as _default_registr
 from .execution.report import build_report, emit_report
 from .execution.replacements import default_handlers
 from .config.loader import OptimizationConfigCatalog, load_optimization_config, resolve_optimization_config_path
+from .config.overrides import apply_option_overrides
 
 
 PathLike = Union[str, os.PathLike]
@@ -174,6 +175,7 @@ def _resolve(
     model: Optional[str],
     force_groups: Sequence[str],
     disable_groups: Sequence[str],
+    option_overrides=None,
 ) -> Tuple[
     OptimizationConfig,
     PreparedExecution,
@@ -187,6 +189,7 @@ def _resolve(
         model=model,
     )
     config = load_optimization_config(resolved_config_path, catalog=catalog)
+    config = apply_option_overrides(config, option_overrides)
     dependencies = config.compatibility.get("dependencies", {})
     dependency_names = dependencies.keys() if hasattr(dependencies, "keys") else ()
     context = detect_context(dependency_names=dependency_names)
@@ -358,6 +361,7 @@ def apply(
     catalog: Optional[OptimizationConfigCatalog] = None,
     force_groups: Sequence[str] = (),
     disable_groups: Sequence[str] = (),
+    option_overrides=None,
 ) -> OptimizationReport:
     """Apply one OptimizationConfig during process startup and report its result.
 
@@ -370,6 +374,7 @@ def apply(
     Blocked or successfully rolled-back Groups are isolated together with their
     dependents; unrelated Groups continue.  A rollback failure is terminal.
     ``force_groups`` bypasses only overrideable checks for the named enabled Groups.
+    ``option_overrides`` maps ``GROUP_ID.KEY`` to per-run option values.
     """
 
     _claim_apply()
@@ -388,6 +393,7 @@ def apply(
         model=model,
         force_groups=force_groups,
         disable_groups=disable_groups,
+        option_overrides=option_overrides,
     )
     regular_outcome: ExecutionOutcome = Executor().execute(
         regular_prepared, prepared_groups=prepared_groups

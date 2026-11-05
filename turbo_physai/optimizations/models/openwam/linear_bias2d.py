@@ -23,7 +23,11 @@ from turbo_physai.optimizations.models.openwam.sac import (
 _HIP_TORCH_271 = (
     torch.version.hip is not None and torch.__version__.split("+")[0] == "2.7.1"
 )
-_CUBLAS_BACKEND = getattr(getattr(torch._C, "_BlasBackend", None), "Cublas", None)
+_CUBLAS_BACKEND = getattr(
+    getattr(torch.backends.cuda, "BlasBackend", None),
+    "Cublas",
+    getattr(getattr(torch._C, "_BlasBackend", None), "Cublas", None),
+)
 
 
 @lru_cache(maxsize=16)
