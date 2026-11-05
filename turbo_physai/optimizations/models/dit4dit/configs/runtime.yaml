@@ -1,0 +1,16 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+# MIOpen caches are generated at runtime in the persistent path selected in
+# the model README. Custom BLAS/Tensile artifacts are not part of this recipe;
+# keep only portable process/runtime settings here.
+environment:
+  set:
+    TOKENIZERS_PARALLELISM: "false"
+  unset: []
+
+process:
+  numa: auto
