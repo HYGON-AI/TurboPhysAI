@@ -16,36 +16,25 @@
 
 ### 3.1 创建容器
 
-按[安装指南的产品镜像说明](../../docs/zh/get_started/installation.md#使用产品镜像)获取镜像地址，将下面的 `REPOSITORY:TAG` 和宿主机工作目录替换为实际值，在宿主机执行：
+宿主机准备好 `autonomous-driving:torch2.10-dtk26.04` 镜像后，执行：
 
 ```bash
-export CONTAINER_NAME=FlashOCC_TurboPhysAI
-export WORKSPACE=/path/to/turbophysai-workspace
-
-mkdir -p "$WORKSPACE"
-docker pull REPOSITORY:TAG
-
-docker run -dit \
-  --network=host \
-  --name="$CONTAINER_NAME" \
-  --privileged \
-  --device=/dev/kfd \
-  --device=/dev/dri \
-  --ipc=host \
-  --shm-size=512G \
-  --group-add video \
-  --cap-add=SYS_PTRACE \
-  --security-opt seccomp=unconfined \
-  -u root \
-  --ulimit stack=-1:-1 \
-  --ulimit memlock=-1:-1 \
-  --workdir=/workspace \
+docker run -d -t \
   -v /opt/hyhal:/opt/hyhal:ro \
-  -v "$WORKSPACE":/workspace \
-  REPOSITORY:TAG \
-  /bin/bash
+  --workdir /workspace/FlashOCC_TurboPhysAI \
+  --privileged \
+  --shm-size=128G \
+  --device=/dev/kfd \
+  --device=/dev/dri/ \
+  --network=host \
+  --device=/dev/mkfd \
+  --group-add video \
+  --name flashocc_cuiqi_zijia_base_v3 \
+  --entrypoint /bin/bash \
+  autonomous-driving:torch2.10-dtk26.04 \
+  -lc 'exec sleep infinity'
 
-docker exec -it "$CONTAINER_NAME" bash
+docker exec -it flashocc_cuiqi_zijia_base_v3 bash
 ```
 
 ### 3.2 激活环境并设置工作目录
