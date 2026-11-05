@@ -16,7 +16,37 @@
 
 ### 3.1 创建容器
 
-按[安装指南的产品镜像说明](../../docs/zh/get_started/installation.md#使用产品镜像)获取镜像并创建容器.
+按[安装指南的产品镜像说明](../../docs/zh/get_started/installation.md#使用产品镜像)获取镜像地址，将下面的 `REPOSITORY:TAG` 和宿主机工作目录替换为实际值，在宿主机执行：
+
+```bash
+export CONTAINER_NAME=FlashOCC_TurboPhysAI
+export WORKSPACE=/path/to/turbophysai-workspace
+
+mkdir -p "$WORKSPACE"
+docker pull REPOSITORY:TAG
+
+docker run -dit \
+  --network=host \
+  --name="$CONTAINER_NAME" \
+  --privileged \
+  --device=/dev/kfd \
+  --device=/dev/dri \
+  --ipc=host \
+  --shm-size=512G \
+  --group-add video \
+  --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined \
+  -u root \
+  --ulimit stack=-1:-1 \
+  --ulimit memlock=-1:-1 \
+  --workdir=/workspace \
+  -v /opt/hyhal:/opt/hyhal:ro \
+  -v "$WORKSPACE":/workspace \
+  REPOSITORY:TAG \
+  /bin/bash
+
+docker exec -it "$CONTAINER_NAME" bash
+```
 
 ### 3.2 激活环境并设置工作目录
 
