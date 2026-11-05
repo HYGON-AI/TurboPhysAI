@@ -215,6 +215,20 @@ def test_hidden_capture_accepts_upstream_prepare_latents_signature():
     assert captured["video"] is videos
 
 
+def test_prepare_latents_bcthw():
+    torch = pytest.importorskip("torch")
+    owner = types.SimpleNamespace(
+        vae=types.SimpleNamespace(dtype=torch.float32),
+        vae_scale_factor_temporal=1, vae_scale_factor_spatial=1,
+    )
+    with pytest.raises(ValueError, match="B,3"):
+        cosmos_forward.prepare_latents(
+            owner, video=torch.zeros(1, 4, 3, 2, 2), batch_size=1,
+            num_channels_latents=16, height=2, width=2, num_frames_in=4,
+            num_frames_out=4, dtype=torch.float32, device=torch.device("cpu"),
+        )
+
+
 def test_latent_stats_remain_fp32_when_module_is_cast_to_bfloat16():
     torch = pytest.importorskip("torch")
 

@@ -62,6 +62,12 @@ def prepare_latents(
         generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
         latents: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Prepare latents from video normalized to ``(B, C, T, H, W)``.
+
+        ``feature_extractor_forward`` owns public input-layout normalization.
+        Keeping this internal boundary BCTHW-only avoids ambiguous ``3 x 3``
+        channel/time shapes without extending the upstream method signature.
+        """
         from diffusers.utils.torch_utils import randn_tensor
 
         B = batch_size
@@ -85,19 +91,10 @@ def prepare_latents(
         if video is None:
             raise ValueError("`video` must be provided when `num_frames_in` > 0")
 
-        needs_preprocessing = not (
-            isinstance(video, torch.Tensor) and video.ndim == 5 and (video.shape[1] == 3 or video.shape[2] == 3)
-        )
-        if needs_preprocessing:
-            raise ValueError("`video` must be a 5D torch.Tensor in (B,3,T,H,W) or (B,T,3,H,W)")
+        if not isinstance(video, torch.Tensor) or video.ndim != 5 or video.shape[1] != 3:
+            raise ValueError("`video` must be a 5D torch.Tensor in (B,3,T,H,W)")
 
-        # Normalize to VAE dtype before encode
-        video_t = video.to(device=device, dtype=self.vae.dtype)
-        if video_t.shape[1] == 3:
-            video_bcthw = video_t
-        else:
-            # preprocess_video expects (B,T,C,H,W) and returns (B,C,T,H,W)
-            video_bcthw = self.video_processor.preprocess_video(video_t, height=height, width=width)
+        video_bcthw = video.to(device=device, dtype=self.vae.dtype)
 
         # Pad video in pixel space to num_frames_out BEFORE VAE encode
         # This matches the official Cosmos pipeline behavior
