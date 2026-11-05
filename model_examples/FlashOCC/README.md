@@ -106,8 +106,7 @@ bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/mod
 在 FlashOCC 根目录运行官方数据转换脚本，生成训练所需的 PKL 标注：
 
 ```bash
-cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
-python tools/create_data_bevdet.py
+cd /workspace/FlashOCC_TurboPhysAI/FlashOCC && python -c 'import runpy, sys, types; tools = types.ModuleType("tools"); tools.__path__ = ["./tools"]; sys.modules["tools"] = tools; runpy.run_path("tools/create_data_bevdet.py", run_name="__main__")'
 ```
 
 训练脚本读取以下标注文件：
