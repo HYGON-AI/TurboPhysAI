@@ -9,6 +9,7 @@ import copy
 import logging
 import torch
 from openwam.model.architectures.dual_system.mot_driver import (
+    ACTION_SEES_VIDEO,
     F,
     build_cross_modal_attention_mask,
     rearrange,
@@ -20,7 +21,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from openwam.model.architectures.dual_system.mot_driver import (
-        ACTION_SEES_VIDEO,
         ActionDiTBackbone,
         ActionState,
         BlockLoopState,

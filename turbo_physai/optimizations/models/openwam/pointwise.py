@@ -5,6 +5,7 @@
 """Compile only stateless tensor expressions, outside ZeRO/checkpoint orchestration."""
 
 from functools import lru_cache
+from types import FunctionType
 
 
 import torch
@@ -63,6 +64,15 @@ def _vae_norm_silu_value(x, gamma, bias, dim, scale):
 @lru_cache(maxsize=None)
 def _compiled_vae_norm(dim, scale, rank, apply_silu):
     normalize = _vae_norm_silu_value if apply_silu else _vae_norm_value
+    # Dynamo caches by code object. Separate callable wrappers around the same
+    # function still share its recompile budget across static channel/rank cases.
+    normalize = FunctionType(
+        normalize.__code__.replace(),
+        normalize.__globals__,
+        normalize.__name__,
+        normalize.__defaults__,
+        normalize.__closure__,
+    )
 
     import torch._inductor
 

@@ -1,0 +1,25 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Online reference script settings; preserve the existing hardware queue count.
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+environment:
+  set:
+    TORCH_BLAS_PREFER_HIPBLASLT: '1'
+    HIPBLASLT_ALLOW_TF32: '1'
+    HSA_FORCE_FINE_GRAIN_PCIE: '1'
+    TORCHINDUCTOR_COMPILE_THREADS: '1'
+    TORCHINDUCTOR_COORDINATE_DESCENT_TUNING: '0'
+    WANDB_MODE: offline
+    HYDRA_FULL_ERROR: '1'
+  unset:
+  - TORCH_LOGS
+  - TORCHDYNAMO_VERBOSE
+  - ROCBLAS_TENSILE_LIBPATH
+  - ROCBLAS_LAYER
+  - ROCBLAS_LOG_BENCH_PATH
+  - ROCBLAS_LOG_TRACE_PATH
+  - ROCBLAS_LOG_PROFILE_PATH
+process:
+  numa: false

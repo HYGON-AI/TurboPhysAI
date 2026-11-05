@@ -143,6 +143,10 @@ class LaggedMetrics:
             work.wait()
             host.copy_(gathered.mean(dim=0), non_blocking=True)
             event.record(self.stream)
+        # The collective input is allocated on the training stream, but its
+        # completion is awaited on the side stream. Protect it from allocator
+        # reuse until that wait and the metric copy have completed.
+        values.record_stream(self.stream)
         gathered.record_stream(self.stream)
 
     def flush(self):

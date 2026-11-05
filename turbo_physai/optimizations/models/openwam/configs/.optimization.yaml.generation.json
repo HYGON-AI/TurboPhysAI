@@ -17,7 +17,7 @@
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/openwam/catalog.py",
-      "sha256": "eb7ebd7ed6a59ac59caa3abbdd6fc8290e9867cb243988c6ba4d94bb6f7dba43"
+      "sha256": "79246db29340a4b04c1f3789cf212d72006623a56fd974dffeddb073a7061060"
     }
   ]
 }

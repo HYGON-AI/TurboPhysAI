@@ -259,6 +259,27 @@ class _Policy:
         return CheckpointPolicy.MUST_SAVE if save else CheckpointPolicy.PREFER_RECOMPUTE
 
 
+class _ReplayRegionMode:
+    """Preserve a checkpoint's replay position across separate eager regions."""
+
+    def __init__(self, mode):
+        self.mode = mode
+
+    def __enter__(self):
+        # Torch 2.13 clears these positions on every replay-mode entry. Our
+        # regions enter separately so compiled stages remain outside SAC.
+        # Older Torch modes consume FIFO caches and have no counter to restore.
+        counter = getattr(self.mode, "func_counter", None)
+        positions = counter.copy() if isinstance(counter, dict) else None
+        entered = self.mode.__enter__()
+        if positions:
+            self.mode.func_counter.update(positions)
+        return entered
+
+    def __exit__(self, *exc_info):
+        return self.mode.__exit__(*exc_info)
+
+
 @contextmanager
 def _checkpoint_scope(mode, phase, policy):
     token = _session.set(mode)
@@ -287,6 +308,7 @@ def context_fn(layer_id, total):
         if selected:
             policy = _Policy()
             forward, replay = create_selective_checkpoint_contexts(policy)
+            replay = _ReplayRegionMode(replay)
         else:
             forward = replay = None
             policy = None
