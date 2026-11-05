@@ -23,12 +23,6 @@ def register_device_buffers_wrapper(original, options):
             delattr(self, name)
             self.register_buffer(name, value, persistent=False)
 
-        grid_config = getattr(self, "grid_config", {})
-        axes = [grid_config.get(axis) for axis in ("x", "y", "z")]
-        if all(axis is not None for axis in axes):
-            self.grid_size_cpu = tuple(
-                (axis[1] - axis[0]) / axis[2] for axis in axes
-            )
         return result
 
     return wrapped

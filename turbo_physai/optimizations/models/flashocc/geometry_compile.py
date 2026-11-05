@@ -1,5 +1,9 @@
+# Copyright (c) OpenMMLab. All rights reserved.
 # Copyright 2026 Hygon Information Technology Co., Ltd.
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: Apache-2.0
+# Modified by Hygon.
+# Adapted from FlashOCC LSSViewTransformer.get_ego_coor:
+# https://github.com/Yzichen/FlashOCC/blob/449dc7947d6549ccb72a99d6f6d8c02f166ec0dd/projects/mmdet3d_plugin/models/necks/view_transformer.py
 
 """Compile the tensor-only geometry core of LSSViewTransformer."""
 

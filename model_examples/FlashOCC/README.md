@@ -1,6 +1,6 @@
 # FlashOCC 应用说明
 
-本文说明如何在 HCU 环境中，基于官方 FlashOCC 仓库使用 TurboPhysAI 优化。教程包括源码基线、TurboPhysAI 插件安装、外置依赖与扩展构建、数据和权重准备，以及训练启动。
+本文说明如何在 HCU 环境中，基于官方 FlashOCC 仓库使用 TurboPhysAI 优化。TurboPhysAI 的镜像获取、容器创建和源码安装方法见[安装指南](../../docs/zh/get_started/installation.md)。
 
 ## 1. 模型简介
 
@@ -8,34 +8,15 @@
 
 ## 2. 优化接入基线
 
-本接入基于官方 FlashOCC 仓库 commit `449dc7947d6549ccb72a99d6f6d8c02f166ec0dd`，TurboPhysAI 优化实现位于 [`flashocc-optimization`](https://github.com/Coulsonq/TurboPhysAI/tree/flashocc-optimization/turbo_physai/optimizations/models/flashocc)。
+本接入基于官方 FlashOCC 仓库 commit `449dc7947d6549ccb72a99d6f6d8c02f166ec0dd`，TurboPhysAI 优化实现位于 [FlashOCC 优化目录](../../turbo_physai/optimizations/models/flashocc)。
 
 启动时通过 `--optimization-config` 和 `--runtime-config` 显式指定该模型的配置；不需要修改官方 FlashOCC 源码。配置文件的作用说明见 [OptimizationConfig 文档](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig 文档](../../docs/zh/user_guide/runtime_config.md)。
 
 ## 3. 准备运行环境与源码
 
-以下命令假设在同一个容器、同一个已激活的 shell 中依次执行。镜像需提供 HCU/DTK、PyTorch 和 `mmcv1` Conda 环境。
-
 ### 3.1 创建容器
 
-宿主机需预先准备自驾基础镜像 `autonomous-driving:torch2.10-dtk26.04`，然后创建容器：
-
-```bash
-docker run -d -t \
-  -v /opt/hyhal:/opt/hyhal:ro \
-  --workdir /workspace/FlashOCC_TurboPhysAI \
-  --privileged \
-  --shm-size=128G \
-  --device=/dev/kfd \
-  --device=/dev/dri/ \
-  --network=host \
-  --device=/dev/mkfd \
-  --group-add video \
-  --name FlashOCC_TurboPhysAI \
-  --entrypoint /bin/bash \
-  autonomous-driving:torch2.10-dtk26.04 \
-  -lc 'exec sleep infinity'
-```
+按[安装指南的产品镜像说明](../../docs/zh/get_started/installation.md#使用产品镜像)获取镜像并创建容器.
 
 ### 3.2 激活环境并设置工作目录
 
@@ -60,6 +41,8 @@ git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC" checkout --detach \
 
 ### 3.4 拉取并安装 TurboPhysAI
 
+以下源码安装步骤适用于已准备好 HCU 开发环境的情况，依赖要求和安装检查见[安装指南](../../docs/zh/get_started/installation.md#从源码安装)。
+
 ```bash
 cd "/workspace/FlashOCC_TurboPhysAI"
 git clone --branch main \
@@ -75,27 +58,26 @@ turbo-physai --help
 
 ```
 
-### 3.5 准备外置 MMDetection3D 依赖并构建 HCU 扩展
+### 3.5 准备 MMDetection3D 依赖并构建 HCU 扩展
 
 ```bash
-mkdir /workspace/FlashOCC_TurboPhysAI/static_data
 mkdir -p "/workspace/FlashOCC_TurboPhysAI/runtime"
 git clone --branch v1.0.0rc4 \
   https://github.com/open-mmlab/mmdetection3d.git \
-  "/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d"
-git -C "/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d" checkout --detach \
+  "/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d"
+git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d" checkout --detach \
   c9541b0db89498fdea5cafd05b7b17f7b625b858
 
-export PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}"
 bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/scripts/build_flashocc_ops_external.sh"
 ```
 
 ## 4. 准备 nuScenes 数据并生成标注
 
-按照 [FlashOCC 官方安装文档 Step 3](https://github.com/Yzichen/FlashOCC/blob/master/doc/install.md) 下载并准备 nuScenes。将数据放到 `/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes`，至少包括以下目录：
+按照 [FlashOCC 官方安装文档 Step 3](https://github.com/Yzichen/FlashOCC/blob/master/doc/install.md) 下载并准备 nuScenes。将数据放到 `/workspace/FlashOCC_TurboPhysAI/FlashOCC/data/nuscenes`，至少包括以下目录：
 
 ```text
-/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/
+/workspace/FlashOCC_TurboPhysAI/FlashOCC/data/nuscenes/
 ├── v1.0-trainval/
 ├── sweeps/
 ├── samples/
@@ -103,45 +85,27 @@ bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/mod
 └── maps/
 ```
 
-在 `static_data` 目录运行官方数据转换脚本，生成训练所需的 PKL 标注：
+在 FlashOCC 根目录运行官方数据转换脚本，生成训练所需的 PKL 标注：
 
 ```bash
-cd "/workspace/FlashOCC_TurboPhysAI/static_data"
-
-PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/runtime/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}" \
-python - <<'PY'
-import runpy
-import sys
-import types
-
-tools = types.ModuleType("tools")
-tools.__path__ = ["/workspace/FlashOCC_TurboPhysAI/FlashOCC/tools"]
-sys.modules["tools"] = tools
-
-runpy.run_path(
-    "/workspace/FlashOCC_TurboPhysAI/FlashOCC/tools/create_data_bevdet.py",
-    run_name="__main__",
-)
-PY
+cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
+python tools/create_data_bevdet.py
 ```
 
 训练脚本读取以下标注文件：
 
 ```text
-/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/
+/workspace/FlashOCC_TurboPhysAI/FlashOCC/data/nuscenes/
 ├── bevdetv2-nuscenes_infos_train.pkl
 └── bevdetv2-nuscenes_infos_val.pkl
 ```
 
 ## 5. 准备预训练权重
 
-下载 `bevdet-r50-cbgs.pth` 到训练脚本使用的 `/workspace/FlashOCC_TurboPhysAI/static_data/ckpts`：
+从 [BEVDet 官方模型列表](https://github.com/HuangJunJie2017/BEVDet/blob/dev3.0/README.md#nuscenes-detection) 的 `BEVDet-R50-CBGS` 下载权重，并将其放到训练脚本使用的 `/workspace/FlashOCC_TurboPhysAI/static_data/ckpts/bevdet-r50-cbgs.pth`：
 
 ```bash
 mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts"
-curl -fL --retry 5 --retry-delay 3 \
-  -o "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts/bevdet-r50-cbgs.pth" \
-  https://haihub-model-bj-1251001002.cos.ap-beijing.myqcloud.com/HyperDrive/ckpt/bevdet-r50-cbgs.pth
 ```
 
 准备完成后的主要目录如下：
@@ -149,8 +113,9 @@ curl -fL --retry 5 --retry-delay 3 \
 ```text
 /workspace/FlashOCC_TurboPhysAI/
 ├── FlashOCC/
-├── runtime/
+│   ├── data/nuscenes/
 │   └── mmdetection3d/
+├── runtime/
 ├── TurboPhysAI/
 └── static_data/
 ```
@@ -162,9 +127,7 @@ FlashOCC 的优化配置和运行环境配置分别位于：
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml`
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml`
 
-当前 `runtime.yaml` 指定使用 HCU 0–7。以下命令使用单机八卡、单卡 batch size 4（全局 batch size 32）和每卡 24 个数据加载 worker。运行前请确认设备空闲、显存及共享内存充足；使用其他设备时需同步调整 RuntimeConfig 和进程数。
-
-命令通过 `--validate` 启用训练中的验证，并通过 `evaluation.start=24` 从第 24 个 epoch 开始验证。此前在 MMCV 1.x 与当前 PyTorch 组合中，多卡测试入口出现过分布式兼容错误；此训练中验证路径尚未单独验证，不能保证验证阶段成功。如遇错误，请保留完整日志并先检查最早的异常。
+以下命令通过 `--set` 指定当前容器的模型路径、设备和单机网卡，使用单机八卡、单卡 batch size 4（全局 batch size 32）和每卡 24 个数据加载 worker。其他环境需调整这些路径、设备、网卡和进程数，多机运行时不能使用 `lo` 网卡。
 
 通过 `turbo-physai run` 显式加载配置并启动训练：
 
@@ -174,25 +137,21 @@ cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
 turbo-physai run \
   --optimization-config "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml" \
   --runtime-config "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml" \
+  --set HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+  --set NCCL_SOCKET_IFNAME=lo \
+  --set GLOO_SOCKET_IFNAME=lo \
+  --set FLASHOCC_ROOT=/workspace/FlashOCC_TurboPhysAI/FlashOCC \
+  --set FLASHOCC_RUNTIME_ROOT=/workspace/FlashOCC_TurboPhysAI/runtime \
   --log-report \
   -- \
-  torchrun --nproc_per_node=8 --master_port=29500 tools/train.py \
+  torchrun --nproc_per_node=8 tools/train.py \
     ./projects/configs/flashocc/flashocc-r50.py \
     --launcher pytorch \
-    --validate \
     --work-dir "/workspace/FlashOCC_TurboPhysAI/work_dirs/flashocc_turbo_$(date +%Y%m%d_%H%M%S)" \
     --cfg-options \
       data.samples_per_gpu=4 \
       data.workers_per_gpu=24 \
-      evaluation.start=24 \
-      "data.train.data_root=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/" \
-      "data.train.ann_file=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/bevdetv2-nuscenes_infos_train.pkl" \
-      "data.val.data_root=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/" \
-      "data.val.ann_file=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/bevdetv2-nuscenes_infos_val.pkl" \
-      "data.test.data_root=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/" \
-      "data.test.ann_file=/workspace/FlashOCC_TurboPhysAI/static_data/data/nuscenes/bevdetv2-nuscenes_infos_val.pkl" \
-      "load_from=/workspace/FlashOCC_TurboPhysAI/static_data/ckpts/bevdet-r50-cbgs.pth" \
-      log_config.interval=1
+      "load_from=/workspace/FlashOCC_TurboPhysAI/static_data/ckpts/bevdet-r50-cbgs.pth"
 ```
 
 NUMA 配置、优化应用结果及其检查方法见 [快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
