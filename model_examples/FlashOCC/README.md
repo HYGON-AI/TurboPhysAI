@@ -46,7 +46,6 @@ source /opt/conda/etc/profile.d/conda.sh
 conda activate mmcv1
 export PYTHONDONTWRITEBYTECODE=1
 
-mkdir -p "/workspace/FlashOCC_TurboPhysAI"
 cd "/workspace/FlashOCC_TurboPhysAI"
 ```
 
