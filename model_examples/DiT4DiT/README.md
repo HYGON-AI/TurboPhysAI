@@ -138,46 +138,19 @@ unset MIOPEN_FIND_ENFORCE
 ### 7.2 单机双卡训练
 
 ```bash
-cd /workspace/model/DiT4DiT
-
-export WANDB_MODE=disabled
-
-turbo-physai run \
-  --model dit4dit \
-  --log-report \
-  accelerate launch \
-    --config_file DiT4DiT/config/deepseeds/deepspeed_zero2.yaml \
-    --num_processes 2 \
-    -m turbo_physai.optimizations.models.dit4dit.entry \
-    --config_yaml DiT4DiT/config/robocasa/dit4dit_robocasa_gr1.yaml \
-    --framework.name DiT4DiT \
-    --framework.cosmos25.base_model \
-      /workspace/models/Cosmos-Predict2.5-2B-diffusers \
-    --framework.action_model.action_model_type DiT-B \
-    --framework.cosmos25.extract_layer 17 \
-    --framework.cosmos25.flow_matching.time_distribution uniform \
-    --framework.cosmos25.flow_matching.high_sigma_ratio null \
-    --framework.cosmos25.flow_matching.high_sigma_min null \
-    --framework.cosmos25.conditional_frame_timestep 0.0001 \
-    --datasets.vla_data.data_root_dir \
-      /workspace/dataset/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim \
-    --datasets.vla_data.data_mix fourier_gr1_unified_1000 \
-    --datasets.vla_data.per_device_batch_size 2 \
-    --datasets.vla_data.action_video_freq_ratio 2 \
-    --trainer.freeze_modules \
-      backbone_interface.extractor.text_encoder,backbone_interface.extractor.vae \
-    --trainer.max_train_steps 200000 \
-    --trainer.save_interval 50000 \
-    --trainer.logging_frequency 10 \
-    --trainer.eval_interval 100 \
-    --trainer.learning_rate.backbone_interface 1e-5 \
-    --trainer.learning_rate.action_model 1e-4 \
-    --trainer.num_warmup_steps 5000 \
-    --trainer.gradient_accumulation_steps 4 \
-    --run_root_dir /workspace/outputs \
-    --run_id dit4dit_hcu_2card
+cd /workspace/TurboPhysAI
+bash model_examples/DiT4DiT/run_2card.sh
 ```
 
 双卡配置为 2 进程 × 每卡 batch size 2 × 梯度累积 4，global batch size 为 16；学习率沿用上游 recipe。训练入口会同步 Accelerate 与 DeepSpeed 的梯度累积配置，RuntimeConfig 自动完成 rank/NUMA 映射。
 
 优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
+
+### 7.3 单机八卡训练
+
+```bash
+cd /workspace/TurboPhysAI
+bash model_examples/DiT4DiT/run_8card.sh
+```
+
+八卡脚本使用 8 进程 × 每卡 batch size 4 × 梯度累积 2，保持上游训练的 global batch size 64；学习率 `1e-5/1e-4` 和 warmup 5000 不变。模型、数据和输出路径可分别通过 `COSMOS_MODEL_PATH`、`DATA_ROOT` 和 `RUN_ROOT` 覆盖，默认 `run_id` 为 `dit4dit_hcu_8card`。
