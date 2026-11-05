@@ -239,7 +239,7 @@ def main(cfg: DictConfig) -> None:
             encode(pending)
     if rows:
         raise RuntimeError(f"Unfinished episodes after encoding: {sorted(rows)}")
-    if enabled("text_cache"):
+    if text_store.requested():
         shard = text_store.generate(
             dataset,
             backbone,

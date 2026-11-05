@@ -38,7 +38,7 @@ from turbo_physai.engine.config.schema import (
 )
 from turbo_physai.engine.definitions.registry import default_registry
 
-BASELINE = "1204dde1b9e9c232131fc99a3f2c6b78330e7f64"
+BASELINE = "0c9ed80d80af1d0c5f4148afe65cc7f462ec3995"
 
 
 def _git(repo, *args):

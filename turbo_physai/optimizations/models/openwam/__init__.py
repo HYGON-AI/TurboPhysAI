@@ -60,41 +60,10 @@ def configure_zero(config: dict) -> None:
 
 
 def prepare_model(architecture) -> None:
-    """Prepare VAE layout and lazy compilation before DeepSpeed."""
+    """Prepare SAC and model optimizations before DeepSpeed."""
     from turbo_physai.optimizations.models.openwam.sac import prepare
 
     prepare(architecture)
-    if enabled("checkpoint_skip_layers"):
-        if type(architecture).__name__ != "DualSystemSelfAttnArchitecture":
-            raise ValueError(
-                "checkpoint_skip_layers currently requires dual_system/joint_self_attn"
-            )
-    layout = enabled("vae_channels_last")
-    compile_vae = False
-    if enabled("global_compile"):
-        from turbo_physai.optimizations.models.openwam.global_compile import (
-            compile_scope,
-        )
-
-        compile_vae = "vae" in compile_scope()
-    if not layout and not compile_vae:
-        return
-    import torch
-
-    backbone = getattr(architecture, "video_backbone", None)
-    vae = getattr(backbone, "vae", None)
-    if vae is None:
-        logger.warning("[optimizations] VAE preparation skipped: no native Wan VAE")
-        return
-    if layout:
-        torch.nn.utils.convert_conv3d_weight_memory_format(vae, torch.channels_last_3d)
-        torch.nn.utils.convert_conv2d_weight_memory_format(vae, torch.channels_last)
-    if compile_vae:
-        from turbo_physai.optimizations.models.openwam.global_compile import (
-            compile_vae_encoder,
-        )
-
-        compile_vae_encoder(vae)
 
 
 def prepare_runtime_constants(architecture) -> None:
@@ -111,15 +80,6 @@ def prepare_runtime_constants(architecture) -> None:
             value = getattr(scheduler, name, None)
             if value is not None:
                 setattr(scheduler, name, value.to(device=device))
-    vae = getattr(backbone, "vae", None)
-    if vae is not None:
-        from openwam.model.video_backbone.wan.models.vae import WanVideoVAE
-        from turbo_physai.optimizations.models.openwam.ports.vae import (
-            WanVideoVAE_prepare_scale_cache,
-        )
-
-        if isinstance(vae, WanVideoVAE):
-            WanVideoVAE_prepare_scale_cache(vae)
 
 
 def stage_training_indices(indices, device):

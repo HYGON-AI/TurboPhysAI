@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
+# Derived from OpenWAM main 0c9ed80d80af1d0c5f4148afe65cc7f462ec3995.
 # SPDX-License-Identifier: Apache-2.0
 
 """Validated numeric options supplied by Turbo Groups."""
@@ -16,14 +16,3 @@ def integer(name, default, minimum=0):
             f"OpenWAM option {name} must be an integer >= {minimum}; got {raw!r}"
         )
     return raw
-
-
-def checkpoint_skip_layers():
-    return integer("checkpoint_skip_layers", 0)
-
-
-def checkpoint_layers(total):
-    skip = checkpoint_skip_layers()
-    if skip > total:
-        raise ValueError(f"checkpoint_skip_layers={skip} exceeds model layers={total}")
-    return total - skip

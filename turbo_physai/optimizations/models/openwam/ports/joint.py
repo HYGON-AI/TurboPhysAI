@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
+# Derived from OpenWAM main 0c9ed80d80af1d0c5f4148afe65cc7f462ec3995.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
@@ -113,6 +113,7 @@ def DualSystemSelfAttnArchitecture_forward(
                 astate,
                 use_gradient_checkpointing=use_gradient_checkpointing,
                 use_gradient_checkpointing_offload=use_gradient_checkpointing_offload,
+                gradient_checkpointing_layers=self._gradient_checkpointing_layers,
             )
     else:
         vstate, astate = driver.run_joint_loop(
@@ -120,6 +121,7 @@ def DualSystemSelfAttnArchitecture_forward(
             astate,
             use_gradient_checkpointing=use_gradient_checkpointing,
             use_gradient_checkpointing_offload=use_gradient_checkpointing_offload,
+            gradient_checkpointing_layers=self._gradient_checkpointing_layers,
         )
     return vb.finalize(vstate), ab.extract_prediction(astate)
 

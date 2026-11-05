@@ -7,6 +7,8 @@ from __future__ import annotations
 import torch
 from openwam.model.architectures.base import (
     _exclude_vlm_from_state_dict,
+    _fast_input,
+    _h2d,
     np,
     os,
 )
@@ -32,9 +34,6 @@ def BaseWAMArchitecture__append_proprio_context_token(
     # Always strip the internal routing key so it doesn't leak into downstream forwards,
     # even when proprio context is globally disabled.
     pipeline_inputs = dict(pipeline_inputs)
-    from turbo_physai.optimizations.models.openwam.text import trim_text_context
-
-    pipeline_inputs = trim_text_context(pipeline_inputs)
     sample_mask = pipeline_inputs.pop("_proprio_sample_mask", None)
     from turbo_physai.optimizations.models.openwam.attention import cpu_context_mask
 
@@ -219,7 +218,12 @@ def BaseWAMArchitecture_prepare_inputs(self, batch: list[dict]) -> dict:
         if action is not None:
             if isinstance(action, np.ndarray):
                 action = torch.from_numpy(action)
-            action = action.to(dtype=_dtype, device=_device).unsqueeze(0)
+            if _fast_input():
+                # dtype converted where the blocking ``.to(dtype, device)`` converts
+                # (on the sample's device); moved to the GPU batched, below.
+                action = action.to(dtype=_dtype).unsqueeze(0)
+            else:
+                action = action.to(dtype=_dtype, device=_device).unsqueeze(0)
         all_actions.append(action)
 
         # Carry proprio whenever the sample provides it — the main-stream
@@ -229,7 +233,11 @@ def BaseWAMArchitecture_prepare_inputs(self, batch: list[dict]) -> dict:
         if proprio is not None:
             if isinstance(proprio, np.ndarray):
                 proprio = torch.from_numpy(proprio)
-            proprio = proprio.to(dtype=_dtype, device=_device)
+            proprio = (
+                proprio.to(dtype=_dtype)
+                if _fast_input()
+                else proprio.to(dtype=_dtype, device=_device)
+            )
             if proprio.ndim == 1:
                 pass
             elif proprio.ndim == 2 and proprio.shape[0] == 1:
@@ -294,7 +302,11 @@ def BaseWAMArchitecture_prepare_inputs(self, batch: list[dict]) -> dict:
         **stored,
     )
 
-    action_data = torch.cat(all_actions, dim=0) if all_actions[0] is not None else None
+    action_data = (
+        _h2d(torch.cat(all_actions, dim=0), _device)
+        if all_actions[0] is not None
+        else None
+    )
 
     inputs = {
         **preprocessed,
@@ -313,7 +325,9 @@ def BaseWAMArchitecture_prepare_inputs(self, batch: list[dict]) -> dict:
     # uses_proprioception): the main-stream proprio-context path reads
     # inputs["proprio"]. Consumers that don't need it simply ignore it.
     if all_proprios[0] is not None:
-        inputs["proprio"] = torch.stack(all_proprios, dim=0).contiguous()
+        inputs["proprio"] = _h2d(
+            torch.stack(all_proprios, dim=0).contiguous(), _device
+        )
         # Reconcile mixed 1-D (1,) / 2-D (1, D) proprio_masks before stacking:
         # promote any 1-D enable-flag to (1, D) (broadcasts the sample-level
         # flag across all dims) so a batch mixing a 2-D reader mask with a
@@ -327,11 +341,18 @@ def BaseWAMArchitecture_prepare_inputs(self, batch: list[dict]) -> dict:
                 m if m.ndim == 2 else m.reshape(m.shape[0], 1).expand(m.shape[0], pdim)
                 for m in all_proprio_masks
             ]
-        inputs["proprio_mask"] = torch.stack(all_proprio_masks, dim=0).contiguous()
+        _pm = torch.stack(all_proprio_masks, dim=0).contiguous()
+        from turbo_physai.optimizations.models.openwam.settings import (
+            enabled as _enabled,
+        )
+
+        inputs["proprio_mask"] = (
+            _pm if _enabled("padding_plan_cpu") else _h2d(_pm, _device)
+        )
 
     if all_action_masks[0] is not None:
-        inputs["action_is_pad"] = torch.stack([~m for m in all_action_masks], dim=0).to(
-            device=_device
+        inputs["action_is_pad"] = _h2d(
+            torch.stack([~m for m in all_action_masks], dim=0), _device
         )
     if all_video_masks[0] is not None:
         # ``latent[0]`` is a clean conditioning frame (and must be excluded
@@ -369,7 +390,7 @@ def BaseWAMArchitecture_prepare_inputs(self, batch: list[dict]) -> dict:
             )
             for m in all_video_masks
         ]
-        inputs["video_is_pad"] = torch.stack(latent_masks, dim=0).to(device=_device)
+        inputs["video_is_pad"] = _h2d(torch.stack(latent_masks, dim=0), _device)
 
     return inputs
 
@@ -434,12 +455,10 @@ def BaseWAMArchitecture_compute_loss(
             video_timestep_ids, vb.scheduler.timesteps.device
         )
 
-    video_timesteps = vb.scheduler.timesteps[video_timestep_ids].to(
-        dtype=_dtype, device=_device
+    video_timesteps = _h2d(
+        vb.scheduler.timesteps[video_timestep_ids], _device, _dtype
     )
-    video_sigmas = vb.scheduler.sigmas[video_timestep_ids].to(
-        dtype=_dtype, device=_device
-    )
+    video_sigmas = _h2d(vb.scheduler.sigmas[video_timestep_ids], _device, _dtype)
 
     # --- Add video noise (flow-matching: linear interp + velocity target) ---
     # Keep seeded noise tied to logical coordinates, independent of VAE layout.
@@ -478,11 +497,11 @@ def BaseWAMArchitecture_compute_loss(
                 action_timestep_ids, action_scheduler.timesteps.device
             )
 
-        action_timesteps = action_scheduler.timesteps[action_timestep_ids].to(
-            dtype=_dtype, device=_device
+        action_timesteps = _h2d(
+            action_scheduler.timesteps[action_timestep_ids], _device, _dtype
         )
-        action_sigmas = action_scheduler.sigmas[action_timestep_ids].to(
-            dtype=_dtype, device=_device
+        action_sigmas = _h2d(
+            action_scheduler.sigmas[action_timestep_ids], _device, _dtype
         )
 
         actions = actions.to(dtype=_dtype, device=_device)

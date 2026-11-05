@@ -18,21 +18,15 @@ from importlib import import_module
 
 GROUP_DEFAULTS = {
     "openwam.data": {
-        "uint8_preprocess": True,
         "vae_latent_cache": False,
         "vae_latent_cache_dir": None,
     },
     "openwam.compute": {
-        "pointwise_compile": False,
-        "rope_real": True,
         "lightop_norm": False,
         "linear_bias2d": False,
     },
     "openwam.architecture": {"constant_cache": True},
     "openwam.mot": {
-        "mot_split_attn": True,
-        "compile_mot": False,
-        "checkpoint_skip_layers": 0,
         "sac_attention": False,
         "sac_ffn_full": False,
         "sac_gemm": False,
@@ -40,19 +34,10 @@ GROUP_DEFAULTS = {
         "sac_extra_ops": "",
     },
     "openwam.text": {
-        "text_cache": True,
-        "text_cache_size": 32,
         "text_cache_dir": None,
-        "t5_prefix": True,
-        "text_trim": True,
         "padding_plan_cpu": True,
         "fa2_padding": True,
         "fa2_mask_fused": False,
-    },
-    "openwam.vae": {
-        "vae_channels_last": True,
-        "vae_pointwise_compile": False,
-        "compile_vae": False,
     },
     "openwam.training": {
         "zero_overlap": True,
@@ -144,8 +129,6 @@ def initialize(*, force=False):
         raise ValueError(
             "ZeRO scaled packing and norm overlap require zero_reduce_scatter"
         )
-    if result["text_cache_size"] < 1:
-        raise ValueError("openwam.text.text_cache_size must be positive")
     if result["hw_queues"] == 1:
         raise ValueError("openwam.training.hw_queues must be zero or >= 2")
     if result["sac_layers"] is not None and (
@@ -162,11 +145,6 @@ def initialize(*, force=False):
         raise ValueError("openwam.data.vae_latent_cache requires vae_latent_cache_dir")
     if result["fa2_mask_fused"] and not result["fa2_padding"]:
         raise ValueError("openwam.text.fa2_mask_fused requires fa2_padding")
-    scopes = [name for name in ("mot", "vae") if result["compile_" + name]]
-    result["global_compile"] = bool(scopes)
-    result["compile_scope"] = (
-        "all" if len(scopes) == 2 else (scopes[0] if scopes else "all")
-    )
     _values = result
 
 
@@ -178,7 +156,7 @@ def value(name, default=None):
 
 def enabled(name, default=False):
     item = value(name, default)
-    if name in {"checkpoint_skip_layers", "hw_queues"}:
+    if name == "hw_queues":
         return item > 0
     if not isinstance(item, bool):
         raise TypeError(f"OpenWAM option {name} is not boolean")
