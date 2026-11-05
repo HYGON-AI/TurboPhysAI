@@ -1,0 +1,51 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+
+metadata:
+  id: model.openvla.base.hcu
+  version: "0.8.0"
+  description: HCU optimization recipe for official OpenVLA
+
+model:
+  name: openvla
+
+optimization_modules:
+  - turbo_physai.optimizations.models.openvla.catalog
+
+extends: []
+
+compatibility: {}
+
+optimization_groups:
+  - id: openvla.bf16_support
+    enabled: true
+
+  - id: openvla.fsdp.prefetch
+    enabled: true
+
+  - id: openvla.compile.fsdp1
+    enabled: true
+
+  - id: openvla.adamw.fused
+    enabled: true
+
+  - id: openvla.llm.skip_fa2_unpad
+    enabled: true
+
+  - id: openvla.data.text_len_bucket
+    enabled: true
+
+  - id: openvla.dataloader.spawn
+    enabled: true
+
+  - id: openvla.gc.freeze
+    enabled: true
+
+  - id: openvla.reproducibility.data_order
+    enabled: false
+
+  - id: openvla.reproducibility.determinism
+    enabled: false
