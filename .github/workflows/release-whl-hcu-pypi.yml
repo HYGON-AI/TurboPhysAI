@@ -72,8 +72,8 @@ jobs:
       PIP_NO_CACHE_DIR: "1"
       PIP_DEFAULT_TIMEOUT: "180"
       PIP_RETRIES: "10"
-      PYPI_URL: ${{ vars.PYPI_URL || 'http://10.16.1.201:9929' }}
-      PYPI_TRUSTED_HOST: ${{ vars.PYPI_TRUSTED_HOST || '10.16.1.201' }}
+      PYPI_URL: http://12.12.12.201:9929
+      PYPI_TRUSTED_HOST: "12.12.12.201"
       DTK_PYPI_INDEX: https://pypi.sourcefind.cn/nightly/dtk${{ matrix.dtk_tag }}
       DTK_PKG_URL: http://42.228.13.241:21000/jenkins/rocm/26.04/ubuntu20.04/DTK-26.04-Ubuntu20.04.1-x86_64.tar.gz
       DTK_VERSION: dtk26041-72cu-0915
@@ -233,12 +233,11 @@ jobs:
       - name: CIUpload NIGHTLY
         if: ${{ github.event_name == 'push' }}
         env:
-          PYPI_URL: ${{ vars.PYPI_URL }}
           PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          : "${PYPI_URL:?Configure repository variable PYPI_URL}"
+          : "${PYPI_URL:?PYPI_URL is not configured}"
           : "${PYPI_PASSWORD:?Configure repository secret PYPI_PASSWORD}"
           dtk_version="$(tr -d '.[:space:]' < /opt/dtk/.info/rocm_version)"
           mapfile -t wheels < <(find dist -maxdepth 1 -type f -name 'turbo_physai-*.whl' -print)
