@@ -147,5 +147,5 @@
   "validation": "Static identity/configuration checks only; no model or HCU test.",
   "configuration": "Turbo Groups/options; legacy optimization environment switches are not used.",
   "target_identity_evidence": "Canonical AST of definitions exported from the fixed upstream baseline; no model imports or execution.",
-  "scope": "Performance optimizations only. Native training setup, logging and checkpoint teardown are delegated; no profiler, GC tracing or SAC diagnostics are migrated."
+  "scope": "Performance optimizations and trace profiling. Native training setup, logging and checkpoint teardown are delegated; GC tracing and SAC diagnostics remain native."
 }
