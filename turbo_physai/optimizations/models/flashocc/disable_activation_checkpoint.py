@@ -16,7 +16,7 @@ def disable_activation_checkpoint_wrapper(original, options):
             backbone_cfg = kwargs.get("img_backbone")
 
         if not isinstance(backbone_cfg, dict):
-            return original(self, *args, **kwargs)
+            raise TypeError("img_backbone must be a dict to disable activation checkpointing")
 
         backbone_cfg = copy.copy(backbone_cfg)
         backbone_cfg["with_cp"] = False

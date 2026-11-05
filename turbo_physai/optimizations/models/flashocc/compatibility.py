@@ -33,39 +33,16 @@ _PREBUILT_OPS = {
 _NVCC_ONLY_FLAGS = {"-allow-unsupported-compiler", "--allow-unsupported-compiler"}
 
 
-def resolve_config_base_path(
-    filename: str | os.PathLike[str],
-    model_root: str | os.PathLike[str],
-    runtime_root: str | os.PathLike[str],
-) -> Path:
-    """Use the runtime checkout only for absent mmdetection3d base files."""
-    requested = Path(filename).expanduser().resolve()
-    if requested.is_file():
-        return requested
-
-    model_dependency_root = Path(model_root).expanduser().resolve() / "mmdetection3d"
-    try:
-        relative_path = requested.relative_to(model_dependency_root)
-    except ValueError:
-        return requested
-
-    fallback = (
-        Path(runtime_root).expanduser().resolve()
-        / "mmdetection3d"
-        / relative_path
-    )
-    return fallback if fallback.is_file() else requested
-
 def order_import_roots(
     existing_paths, model_root, runtime_root, optimization_root
 ) -> list[str]:
     """Prefer official model modules while retaining runtime dependencies."""
     priority = [
-        Path(optimization_root).expanduser().resolve(),
         Path(model_root).expanduser().resolve(),
+        (Path(model_root).expanduser().resolve() / "mmdetection3d"),
         Path(runtime_root).expanduser().resolve(),
     ]
-    priority_set = set(priority)
+    priority_set = set(priority) | {Path(optimization_root).expanduser().resolve()}
     remaining = []
     for entry in existing_paths:
         resolved = Path(entry or os.curdir).expanduser().resolve()
@@ -83,16 +60,6 @@ def strip_nvcc_only_flags(options: Mapping[str, object]) -> dict[str, object]:
             flag for flag in flags if flag not in _NVCC_ONLY_FLAGS
         ]
     return cleaned
-
-
-def find_prebuilt_dvr(build_root: str | os.PathLike[str]) -> Path | None:
-    """Find a previously built HCU dvr extension without rebuilding it."""
-    root = Path(build_root)
-    preferred = root / "py310_cpu" / "dvr" / "dvr.so"
-    if preferred.is_file():
-        return preferred
-    candidates = sorted(root.glob("*/dvr/dvr.so"))
-    return candidates[-1] if candidates else None
 
 
 def resolve_dvr_compat_sources(
@@ -228,12 +195,6 @@ def _load_extension_module(module_name: str, extension_path: Path) -> ModuleType
 
 
 def _compatible_dvr_loader(original_load, args, kwargs, compat_source_root: Path):
-    import torch.utils.cpp_extension as cpp_extension
-
-    cached = find_prebuilt_dvr(cpp_extension.get_default_build_root())
-    if cached is not None:
-        return _load_extension_module("dvr", cached)
-
     compile_options = strip_nvcc_only_flags(kwargs)
     source_paths = compile_options.get("sources")
     if source_paths is None and args:
@@ -242,15 +203,6 @@ def _compatible_dvr_loader(original_load, args, kwargs, compat_source_root: Path
         raise RuntimeError("dvr compatibility build requires its source list")
 
     compat_sources = resolve_dvr_compat_sources(source_paths, compat_source_root)
-    for source in compat_sources:
-        source = Path(source)
-        if source.suffix == ".cu":
-            source_text = source.read_text(encoding="utf-8")
-            if "AT_DISPATCH_FLOATING_TYPES(sigma.scalar_type()" not in source_text:
-                raise RuntimeError(
-                    "dvr HCU fallback source must use Tensor.scalar_type(); "
-                    f"unsupported source: {source}"
-                )
     if "sources" in compile_options:
         compile_options["sources"] = compat_sources
         return original_load("dvr", **compile_options)
@@ -284,96 +236,6 @@ def install_dvr_compatibility(optimization_root: str | os.PathLike[str]) -> None
     cpp_extension.load = compatible_load
 
 
-def install_config_path_compatibility(
-    model_root: str | os.PathLike[str],
-    runtime_root: str | os.PathLike[str],
-) -> None:
-    from mmcv import Config
-
-    if getattr(Config._file2dict, "_flashocc_compat", False):
-        return
-
-    original_file2dict = Config._file2dict
-    model_path = Path(model_root).expanduser().resolve()
-    runtime_path = Path(runtime_root).expanduser().resolve()
-
-    def file2dict_with_fallback(filename, *args, **kwargs):
-        resolved = resolve_config_base_path(filename, model_path, runtime_path)
-        return original_file2dict(str(resolved), *args, **kwargs)
-
-    file2dict_with_fallback._flashocc_compat = True
-    Config._file2dict = staticmethod(file2dict_with_fallback)
-
-
-_FLASHOCC_INFO_FILES = {
-    "bevdetv2-nuscenes_infos_train.pkl",
-    "bevdetv2-nuscenes_infos_val.pkl",
-}
-
-
-def _resolve_info_path(value, data_base: Path):
-    if not isinstance(value, (str, os.PathLike)) or not value:
-        return value
-    path = Path(value).expanduser()
-    if path.is_absolute():
-        return str(path)
-    return os.path.abspath(data_base / path)
-
-
-def _resolve_nuscenes_info_paths(data, data_base: Path):
-    if not isinstance(data, dict):
-        return data
-
-    for info in data.get("infos", ()):
-        if not isinstance(info, dict):
-            continue
-        for key in ("lidar_path", "occ_path"):
-            if key in info:
-                info[key] = _resolve_info_path(info[key], data_base)
-        for camera in (info.get("cams") or {}).values():
-            if "data_path" in camera:
-                camera["data_path"] = _resolve_info_path(
-                    camera["data_path"], data_base
-                )
-        for sweep in info.get("sweeps", ()):
-            if "data_path" in sweep:
-                sweep["data_path"] = _resolve_info_path(
-                    sweep["data_path"], data_base
-                )
-    return data
-
-
-def install_relative_nuscenes_path_compatibility(
-    data_base: str | os.PathLike[str],
-) -> None:
-    """Resolve FlashOCC info PKL paths in memory without rewriting the PKL."""
-    import mmcv
-
-    if getattr(mmcv.load, "_flashocc_relative_paths", False):
-        return
-
-    original_load = mmcv.load
-    resolved_base = Path(data_base).expanduser().resolve()
-    if not resolved_base.is_dir():
-        raise FileNotFoundError(
-            f"FlashOCC data path base does not exist: {resolved_base}"
-        )
-
-    def load_with_flashocc_paths(filename, *args, **kwargs):
-        data = original_load(filename, *args, **kwargs)
-        try:
-            source = getattr(filename, "name", filename)
-            basename = Path(os.fspath(source)).name
-        except TypeError:
-            return data
-        if basename in _FLASHOCC_INFO_FILES:
-            return _resolve_nuscenes_info_paths(data, resolved_base)
-        return data
-
-    load_with_flashocc_paths._flashocc_relative_paths = True
-    mmcv.load = load_with_flashocc_paths
-
-
 def install_compatibility(
     model_root: str | os.PathLike[str],
     runtime_root: str | os.PathLike[str],
@@ -394,13 +256,6 @@ def install_compatibility(
     sys.path[:] = order_import_roots(
         sys.path, model_path, runtime_path, optimization_path
     )
-    install_config_path_compatibility(model_path, runtime_path)
-
-    data_base = os.environ.get(
-        "FLASHOCC_DATA_BASE", str(model_path.parent / "static_data")
-    )
-    install_relative_nuscenes_path_compatibility(data_base)
-
     if "encoding" not in finders:
         finder = LegacyEncodingSourceFinder(model_path)
         finder._flashocc_model_root = model_path

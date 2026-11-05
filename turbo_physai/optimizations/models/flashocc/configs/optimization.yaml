@@ -102,4 +102,4 @@ optimization_groups:
       projects.mmdet3d_plugin.models.detectors.bevdet.BEVDet.__init__:
       - ast-v1:a9d201d3a42fa4ad7d96869ebf7e50b536ffa90193e3b45f68d6e275fa6d5fcf
 optimization_modules:
-- flashocc_optimization.catalog
+- turbo_physai.optimizations.models.flashocc.catalog

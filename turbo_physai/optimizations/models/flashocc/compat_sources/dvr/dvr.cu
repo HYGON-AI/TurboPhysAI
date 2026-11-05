@@ -1,5 +1,7 @@
 // Acknowledgments: https://github.com/tarashakhurana/4d-occ-forecasting
 // Modified by Haisong Liu
+// Copyright 2026 Hygon Information Technology Co., Ltd.
+// Modified by Hygon: use Tensor.scalar_type() for Torch compatibility.
 
 #include <torch/extension.h>
 #include <stdio.h>
