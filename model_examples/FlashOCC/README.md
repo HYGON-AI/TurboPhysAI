@@ -29,12 +29,12 @@ docker run -d -t \
   --network=host \
   --device=/dev/mkfd \
   --group-add video \
-  --name flashocc_cuiqi_zijia_base_v3 \
+  --name FlashOCC_TurboPhysAI \
   --entrypoint /bin/bash \
   autonomous-driving:torch2.10-dtk26.04 \
   -lc 'exec sleep infinity'
 
-docker exec -it flashocc_cuiqi_zijia_base_v3 bash
+docker exec -it FlashOCC_TurboPhysAI bash
 ```
 
 ### 3.2 激活环境并设置工作目录
