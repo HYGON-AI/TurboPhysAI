@@ -18,6 +18,30 @@ from turbo_physai.optimizations.models.dit4dit import (
 )
 
 
+@pytest.mark.parametrize("as_numpy", [False, True])
+@pytest.mark.parametrize("fast_path", [False, True])
+@pytest.mark.parametrize("value", [0, 1, 255])
+def test_video_uint8_scale_independent_of_brightness(as_numpy, fast_path, value):
+    torch = pytest.importorskip("torch")
+    x = torch.full((6, 7, 3), value, dtype=torch.uint8)
+    actual = video_pack.to_chw_float01(
+        x.numpy() if as_numpy else x, assume_normalized_float=fast_path
+    )
+    expected = x.permute(2, 0, 1).float().contiguous() / 255.0
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("as_numpy", [False, True])
+@pytest.mark.parametrize("fast_path", [False, True])
+def test_video_normalized_float_keeps_scale(as_numpy, fast_path):
+    torch = pytest.importorskip("torch")
+    x = torch.linspace(0, 1, 126).reshape(6, 7, 3)
+    actual = video_pack.to_chw_float01(
+        x.numpy() if as_numpy else x, assume_normalized_float=fast_path
+    )
+    torch.testing.assert_close(actual, x.permute(2, 0, 1), rtol=0, atol=0)
+
+
 def _install_fake_inductor(monkeypatch, *, fallback_random=True):
     config = types.SimpleNamespace()
     if fallback_random:

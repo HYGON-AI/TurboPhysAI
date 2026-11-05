@@ -53,13 +53,19 @@ def to_chw_float01(
         x, *, assume_normalized_float: bool = False
     ) -> torch.Tensor:
         """
-        Accept PIL / numpy(HWC) / torch(CHW or HWC) and return torch float tensor in CHW, normalized to [0,1].
+        Accept PIL / numpy(HWC) / torch(CHW or HWC) and return float CHW.
+
+        uint8 inputs use [0,255] and are always divided by 255. Floating-point
+        inputs must already use [0,1]; convert byte-scale floats before calling.
+        assume_normalized_float only enables device preservation for tensors.
         """
         if isinstance(x, torch.Tensor):
             # The training dataset guarantees normalized floating-point video
             # tensors. Only that explicit path stays on the accelerator. Other
-            # callers retain the original CPU conversion and /255 behavior,
-            # including its bit-level rounding.
+            # callers retain CPU conversion. Scale is determined by dtype,
+            # never by image brightness.
+            if x.dtype != torch.uint8 and not x.is_floating_point():
+                raise TypeError("Expected uint8 or floating-point image tensor")
             device_fast_path = assume_normalized_float and x.is_floating_point()
             t = x.detach() if device_fast_path else x.detach().cpu()
             if t.ndim == 3 and t.shape[0] in (1, 3, 4):  # CHW
@@ -72,11 +78,13 @@ def to_chw_float01(
             else:
                 raise ValueError(f"Unsupported torch image shape {tuple(t.shape)}; expected CHW or HWC.")
             t = t.float()
-            if not device_fast_path and t.max() > 1.0:
+            if x.dtype == torch.uint8:
                 t = t / 255.0
             return t.contiguous()
 
         if isinstance(x, np.ndarray):
+            if x.dtype != np.uint8 and not np.issubdtype(x.dtype, np.floating):
+                raise TypeError("Expected uint8 or floating-point numpy image")
             arr = x
             if arr.ndim == 2:
                 arr = np.repeat(arr[:, :, None], 3, axis=2)
@@ -87,7 +95,7 @@ def to_chw_float01(
             if arr.shape[2] != 3:
                 raise ValueError(f"Expected RGB image, got shape={arr.shape}")
             t = torch.from_numpy(arr).permute(2, 0, 1).contiguous().float()
-            if t.max() > 1.0:
+            if x.dtype == np.uint8:
                 t = t / 255.0
             return t.contiguous()
 
