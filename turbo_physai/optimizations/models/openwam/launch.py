@@ -7,21 +7,22 @@ from __future__ import annotations
 
 import functools
 import os
-import sys
 
 from .settings import enabled, initialize
 
 
 def configure_backends():
     initialize(force=True)
-    from . import hw_queues, sac, vae_layout
+    from . import hw_queues, sac
 
     hw_queues.configure()
     sac.validate()
-    if enabled("vae_channels_last"):
-        vae_layout.validate()
-        os.environ.setdefault("PYTORCH_MIOPEN_SUGGEST_NHWC", "1")
-        os.environ.setdefault("PYTORCH_MIOPEN_SUGGEST_NDHWC", "1")
+
+    # Enforce non-cuDNN SDPA on DCU / ROCm
+    os.environ["OPENWAM_SDPA_CUDNN"] = "0"
+    os.environ.setdefault("PYTORCH_MIOPEN_SUGGEST_NHWC", "1")
+    os.environ.setdefault("PYTORCH_MIOPEN_SUGGEST_NDHWC", "1")
+
     if enabled("lightop_norm"):
         import torch
 
@@ -29,13 +30,6 @@ def configure_backends():
             from .norms import lightop_ops
 
             lightop_ops()
-    # Source dispatcher decorators ran while all settings were inactive.
-    if enabled("global_compile"):
-        for name, module in tuple(sys.modules.items()):
-            if name.startswith("turbo_physai.optimizations.models.openwam"):
-                for function in tuple(vars(module).values()):
-                    if getattr(function, "__openwam_dispatcher__", False):
-                        sac.dispatcher(function)
 
 
 def deepspeed_post_init(original, options):

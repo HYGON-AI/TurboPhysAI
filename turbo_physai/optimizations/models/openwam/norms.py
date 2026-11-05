@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
+# Derived from OpenWAM main 0c9ed80d80af1d0c5f4148afe65cc7f462ec3995.
 # SPDX-License-Identifier: Apache-2.0
 
 """Optional existing Lightop training kernels, with the native path preserved."""
@@ -35,18 +35,7 @@ def _supported(x, *parameters):
 
 
 def lightop_rms_norm(x, weight, eps):
-    if enabled("global_compile") and torch.compiler.is_compiling():
-        return None
-    from turbo_physai.optimizations.models.openwam.sac import (
-        extras_enabled,
-        native_mot_expression,
-    )
-
-    if (
-        extras_enabled()
-        and not torch.compiler.is_compiling()
-        and native_mot_expression()
-    ):
+    if torch.compiler.is_compiling():
         return None
     if not _supported(x, weight):
         return None
@@ -60,18 +49,9 @@ def lightop_rms_norm(x, weight, eps):
 
 class LayerNorm(nn.LayerNorm):
     def forward(self, x):
-        native_sac = False
-        from turbo_physai.optimizations.models.openwam.sac import (
-            extras_enabled,
-            native_mot_expression,
-        )
-
-        if extras_enabled() and not torch.compiler.is_compiling():
-            native_sac = native_mot_expression()
         if (
             enabled("lightop_norm")
-            and not native_sac
-            and not (enabled("global_compile") and torch.compiler.is_compiling())
+            and not torch.compiler.is_compiling()
             and tuple(self.normalized_shape) == (x.shape[-1],)
             and _supported(x, self.weight, self.bias)
         ):

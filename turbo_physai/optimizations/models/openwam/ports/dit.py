@@ -1,35 +1,31 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
+# Derived from OpenWAM main 0c9ed80d80af1d0c5f4148afe65cc7f462ec3995.
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
 
 import torch
-import openwam.model.video_backbone.wan.models.dit as _source
-import torch.nn as nn
+from einops import rearrange
 from openwam.model.video_backbone.wan.models.dit import (
-    CrossAttention,
-    F,
     FLASH_ATTN_2_AVAILABLE,
     FLASH_ATTN_3_AVAILABLE,
-    GateModule,
     SAGE_ATTN_AVAILABLE,
-    SelfAttention,
-    rearrange,
+    rope_apply as _rope_apply,
 )
+import openwam.model.video_backbone.wan.models.dit as _source
+import torch.nn.functional as F
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from openwam.model.video_backbone.wan.models.dit import (
         Optional,
     )
-from turbo_physai.optimizations.models.openwam import enabled, pointwise
+from turbo_physai.optimizations.models.openwam import enabled
 from turbo_physai.optimizations.models.openwam.attention import fa2_padding
 from turbo_physai.optimizations.models.openwam.linear_bias2d import video_linear
-from turbo_physai.optimizations.models.openwam.norms import LayerNorm
+from turbo_physai.optimizations.models.openwam.norms import lightop_rms_norm
 from turbo_physai.optimizations.models.openwam.sac import (
     dispatcher,
-    extras_enabled,
     run_attention,
     run_norm,
     run_projection,
@@ -98,26 +94,11 @@ def _flash_attention_impl(q, k, v, num_heads, compatibility_mode=False, attn_mas
     return x
 
 
-def modulate(x: torch.Tensor, shift: torch.Tensor, scale: torch.Tensor):
-    if enabled("pointwise_compile") or extras_enabled():
-        return pointwise.modulate(x, shift, scale)
-    return x * (1 + scale) + shift
-
-
-def rope_apply(x, freqs, num_heads):
-    x = rearrange(x, "b s (n d) -> b s n d", n=num_heads)
-    if enabled("rope_real"):
-        return pointwise.rotate(x, freqs).flatten(2)
-    x_out = torch.view_as_complex(
-        x.to(torch.float64).reshape(x.shape[0], x.shape[1], x.shape[2], -1, 2)
-    )
-    x_out = torch.view_as_real(x_out * freqs).flatten(2)
-    return x_out.to(x.dtype)
-
-
 def RMSNorm_forward(self, x):
-    if enabled("pointwise_compile") or enabled("lightop_norm"):
-        return pointwise.rms_norm(x, self.weight, self.eps)
+    if enabled("lightop_norm"):
+        fast = lightop_rms_norm(x, self.weight, self.eps)
+        if fast is not None:
+            return fast
     dtype = x.dtype
     return self.norm(x.float()).to(dtype) * self.weight
 
@@ -126,8 +107,8 @@ def SelfAttention_forward(self, x, freqs, attn_mask: Optional[torch.Tensor] = No
     q = run_norm(self.norm_q, run_projection(self.q, x))
     k = run_norm(self.norm_k, run_projection(self.k, x))
     v = run_projection(self.v, x)
-    q = rope_apply(q, freqs, self.num_heads)
-    k = rope_apply(k, freqs, self.num_heads)
+    q = _rope_apply(q, freqs, self.num_heads)
+    k = _rope_apply(k, freqs, self.num_heads)
     x = self.attn(q, k, v, attn_mask=attn_mask)
     return run_projection(self.o, x)
 
@@ -171,39 +152,6 @@ def CrossAttention_forward(
     return video_linear(self.o, x) if linear_bias2d else run_projection(self.o, x)
 
 
-def GateModule_forward(self, x, gate, residual):
-    if enabled("pointwise_compile") or extras_enabled():
-        return pointwise.gate(x, gate, residual)
-    return x + gate * residual
-
-
-def DiTBlock___init__(
-    self,
-    has_image_input: bool,
-    dim: int,
-    num_heads: int,
-    ffn_dim: int,
-    eps: float = 1e-6,
-):
-    super(_source.DiTBlock, self).__init__()
-    self.dim = dim
-    self.num_heads = num_heads
-    self.ffn_dim = ffn_dim
-
-    self.self_attn = SelfAttention(dim, num_heads, eps)
-    self.cross_attn = CrossAttention(
-        dim, num_heads, eps, has_image_input=has_image_input
-    )
-    self.norm1 = LayerNorm(dim, eps=eps, elementwise_affine=False)
-    self.norm2 = LayerNorm(dim, eps=eps, elementwise_affine=False)
-    self.norm3 = LayerNorm(dim, eps=eps)
-    self.ffn = nn.Sequential(
-        nn.Linear(dim, ffn_dim), nn.GELU(approximate="tanh"), nn.Linear(ffn_dim, dim)
-    )
-    self.modulation = nn.Parameter(torch.randn(1, 6, dim) / dim**0.5)
-    self.gate = GateModule()
-
-
 from turbo_physai.optimizations.models.openwam.settings import (
     port_wrapper as _port_wrapper,
 )
@@ -211,16 +159,6 @@ from turbo_physai.optimizations.models.openwam.settings import (
 flash_attention_wrapper = _port_wrapper(
     flash_attention,
     "openwam.model.video_backbone.wan.models.dit.flash_attention",
-    "openwam.compute",
-)
-
-modulate_wrapper = _port_wrapper(
-    modulate, "openwam.model.video_backbone.wan.models.dit.modulate", "openwam.compute"
-)
-
-rope_apply_wrapper = _port_wrapper(
-    rope_apply,
-    "openwam.model.video_backbone.wan.models.dit.rope_apply",
     "openwam.compute",
 )
 
@@ -239,17 +177,5 @@ SelfAttention_forward_wrapper = _port_wrapper(
 CrossAttention_forward_wrapper = _port_wrapper(
     CrossAttention_forward,
     "openwam.model.video_backbone.wan.models.dit.CrossAttention.forward",
-    "openwam.compute",
-)
-
-GateModule_forward_wrapper = _port_wrapper(
-    GateModule_forward,
-    "openwam.model.video_backbone.wan.models.dit.GateModule.forward",
-    "openwam.compute",
-)
-
-DiTBlock___init___wrapper = _port_wrapper(
-    DiTBlock___init__,
-    "openwam.model.video_backbone.wan.models.dit.DiTBlock.__init__",
     "openwam.compute",
 )

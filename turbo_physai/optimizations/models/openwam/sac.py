@@ -1,5 +1,5 @@
 # Modified by Hygon Information Technology Co., Ltd., 2026.
-# Derived from OpenWAM main d1ea554ba44057b766fff94c0d999fb11a217ffb.
+# Derived from OpenWAM main 0c9ed80d80af1d0c5f4148afe65cc7f462ec3995.
 # SPDX-License-Identifier: Apache-2.0
 
 """Standard PyTorch SAC policies for complete FFNs, attention and other ops.
@@ -9,8 +9,8 @@ operator regions enter those modes; unselected compiled regions keep their path.
 No activation cache, backward implementation or parameter replacement lives here.
 
 Policies apply to the trailing sac_layers of the checkpointed layers.
-Layers without checkpointing (checkpoint_skip_layers) keep their
-activations through autograd, so SAC never caches them a second time.
+Layers without checkpointing keep their activations through autograd, so SAC
+never caches them a second time.
 """
 
 from turbo_physai.optimizations.models.openwam.settings import value
@@ -29,10 +29,7 @@ from torch.utils.checkpoint import (
 )
 
 from turbo_physai.optimizations.models.openwam import enabled
-from turbo_physai.optimizations.models.openwam.runtime import (
-    checkpoint_layers,
-    integer,
-)
+from turbo_physai.optimizations.models.openwam.runtime import integer
 
 
 FLAGS = ("sac_attention", "sac_ffn_full", "sac_gemm")
@@ -40,27 +37,11 @@ logger = logging.getLogger(__name__)
 _session = ContextVar("openwam_sac_session", default=None)
 _regions = ContextVar("openwam_sac_regions", default=())
 _inside_mode = ContextVar("openwam_inside_sac_mode", default=False)
-_native_mot = ContextVar("openwam_sac_native_mot_expression", default=False)
 
 
 def dispatcher(fn):
-    """Let Dynamo inline a thin dispatcher, but never compile it as its own frame.
-
-    A graph break inside an inlined dispatcher makes Dynamo compile the
-    dispatcher separately, guarded on the callable argument. Every attention
-    callable or per-layer module then recompiles it until recompile_limit.
-    """
+    """Mark a function as an OpenWAM dispatcher."""
     fn.__openwam_dispatcher__ = True
-    if not enabled("global_compile"):
-        return fn
-    try:
-        from torch._dynamo.eval_frame import skip_code
-    except ImportError:
-        logger.warning(
-            "[optimizations] torch._dynamo skip_code is unavailable; SAC dispatchers may recompile"
-        )
-        return fn
-    skip_code(fn.__code__)
     return fn
 
 
@@ -144,31 +125,34 @@ def _extra_ops(raw):
     return frozenset(result)
 
 
-def layers(total):
+def layers(total, checkpointed=None):
     """SAC layer count; unset covers every checkpointed layer."""
-    checkpointed = checkpoint_layers(total)
+    if checkpointed is None:
+        checkpointed = total
     if value("sac_layers") is None:
         return checkpointed
     count = integer("sac_layers", checkpointed)
     if count > checkpointed:
         raise ValueError(
             f"sac_layers={count} exceeds checkpointed layers={checkpointed} "
-            f"(model layers={total}, checkpoint_skip_layers={total - checkpointed})"
+            f"(model layers={total})"
         )
     return count
 
 
-def layer_range(total):
+def layer_range(total, checkpointed=None):
     """Half-open layer range [start, stop) covered by SAC: the checkpointed tail."""
-    stop = checkpoint_layers(total)
-    return stop - layers(total), stop
+    if checkpointed is None:
+        checkpointed = total
+    stop = checkpointed
+    return stop - layers(total, checkpointed), stop
 
 
-def validate(total=None):
+def validate(total=None, checkpointed=None):
     if not active():
         return
     if total is not None:
-        layers(total)
+        layers(total, checkpointed)
         _extra_ops(value("sac_extra_ops", ""))
     elif value("sac_layers") is not None:
         integer("sac_layers", 0)
@@ -226,7 +210,6 @@ def prepare(architecture):
                     raise ValueError(
                         f"FA SAC requires registered forward op {name}, got {entry}"
                     )
-    start, stop = layer_range(backbone.num_layers)
 
 
 class _Policy:
@@ -247,7 +230,6 @@ class _Policy:
             (self.fa and attention and name in _ATTENTION_OPS)
             or (self.ffn and ffn)
             or (self.gemm and name in _GEMM_OPS)
-            # Padding plans intentionally take different paths on replay.
             # Extra policies apply to stable FFN/projection/norm/pointwise regions.
             or (not attention and name in self.extra)
         )
@@ -266,9 +248,6 @@ class _ReplayRegionMode:
         self.mode = mode
 
     def __enter__(self):
-        # Torch 2.13 clears these positions on every replay-mode entry. Our
-        # regions enter separately so compiled stages remain outside SAC.
-        # Older Torch modes consume FIFO caches and have no counter to restore.
         counter = getattr(self.mode, "func_counter", None)
         positions = counter.copy() if isinstance(counter, dict) else None
         entered = self.mode.__enter__()
@@ -299,9 +278,9 @@ def _checkpoint_scope(mode, phase, policy):
         _session.reset(token)
 
 
-def context_fn(layer_id, total):
+def context_fn(layer_id, total, checkpointed=None):
     """Create fresh standard caches for the configured checkpointed layers."""
-    start, stop = layer_range(total) if active() else (0, 0)
+    start, stop = layer_range(total, checkpointed) if active() else (0, 0)
     selected = start <= layer_id < stop
 
     def contexts():
@@ -319,10 +298,6 @@ def context_fn(layer_id, total):
     return contexts
 
 
-def native_mot_expression():
-    return _native_mot.get()
-
-
 def _invoke(region, fn, *args, **kwargs):
     mode = _session.get()
     if (
@@ -331,10 +306,6 @@ def _invoke(region, fn, *args, **kwargs):
         and not extras_enabled()
     ):
         return fn(*args, **kwargs)
-    # Norms moved out of GLOBAL keep the same native expression/backend choice.
-    scope = value("compile_scope", "all").strip().lower()
-    native = enabled("global_compile") and scope in {"mot", "all"}
-    native_token = _native_mot.set(native)
     previous = _regions.get()
     region_stack = (
         previous
@@ -346,32 +317,13 @@ def _invoke(region, fn, *args, **kwargs):
     mode_token = _inside_mode.set(inside or mode is not None)
     try:
         if mode is None or inside:
-            result = fn(*args, **kwargs)
+            return fn(*args, **kwargs)
         else:
             with mode:
-                result = fn(*args, **kwargs)
-        # Eager projection/norm outputs cross graph breaks. Preserve the text
-        # axis annotation on them; otherwise TEXT_TRIM again specializes L.
-        if (
-            native
-            and region in {"projection", "norm", "pointwise"}
-            and isinstance(result, torch.Tensor)
-        ):
-            source = next((arg for arg in args if isinstance(arg, torch.Tensor)), None)
-            if source is not None and result.ndim == source.ndim:
-                from torch._dynamo import mark_dynamic
-
-                for axis in getattr(source, "_dynamo_dynamic_indices", ()):
-                    if (
-                        result.shape[axis] == source.shape[axis]
-                        and result.shape[axis] > 1
-                    ):
-                        mark_dynamic(result, axis)
-        return result
+                return fn(*args, **kwargs)
     finally:
         _inside_mode.reset(mode_token)
         _regions.reset(region_token)
-        _native_mot.reset(native_token)
 
 
 _eager_invoke = torch.compiler.disable(_invoke)
@@ -379,8 +331,6 @@ _eager_invoke = torch.compiler.disable(_invoke)
 
 @dispatcher
 def _call(region, fn, *args, **kwargs):
-    # Always disabled: a region that reaches this frame eagerly, e.g. after a
-    # recompile-limit fallback, must not let Dynamo trace the SAC region.
     return _eager_invoke(region, fn, *args, **kwargs)
 
 

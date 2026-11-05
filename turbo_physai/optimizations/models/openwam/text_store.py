@@ -54,9 +54,8 @@ def directory():
 
 def requested():
     """Whether training reads the offline store instead of encoding with T5."""
-    if not enabled("text_cache"):
-        return False
-    if value("text_cache_dir", "").strip():
+    root = (value("text_cache_dir") or "").strip()
+    if root:
         return True
     return enabled("vae_latent_cache") and directory() is not None
 
@@ -433,7 +432,13 @@ class PromptContexts:
         lengths = torch.tensor(
             [self.lengths[prompt] for prompt in prompts], dtype=torch.long
         )
-        stop = max(1, int(lengths.max())) if enabled("text_trim") else FULL_LENGTH
+        max_len = max(1, int(lengths.max()))
+        if os.environ.get("OPENWAM_CONTEXT_TRUNC", "0") == "1":
+            stop = min(FULL_LENGTH, ((max_len + 1 + 63) // 64) * 64 - 1)
+        elif enabled("text_trim"):
+            stop = max_len
+        else:
+            stop = FULL_LENGTH
         dtype = DTYPES[self.meta["dtype"]][0]
         target = torch.device(device)
         context = torch.zeros(

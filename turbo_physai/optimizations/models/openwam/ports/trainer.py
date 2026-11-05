@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import os
+import subprocess
 import torch
 from openwam.train.openwam_trainer import (
     cfg_get,
@@ -21,6 +23,10 @@ from openwam.train.openwam_trainer import (
     save_weights,
     wire_sampler_seed,
 )
+from openwam.train.utils.grad_accumulation import scale_loss_for_backward
+from openwam.train.utils.runtime_tuning import maybe_freeze_gc
+from tqdm import tqdm
+
 from .. import prepare_model, prepare_runtime_constants
 from ..settings import enabled, port_wrapper
 
@@ -141,8 +147,6 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
                 skip_first,
             )
 
-    from turbo_physai.optimizations.models.openwam import enabled
-
     if enabled("vae_latent_cache"):
         from turbo_physai.optimizations.models.openwam.latent_cache import (
             attach,
@@ -167,12 +171,6 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
     _step_t0 = _time.monotonic()
 
     assert self.accelerator is not None, "OpenWAMTrainer requires an Accelerator"
-
-    # Per-step manual_seed makes timestep + noise sampling in compute_loss
-    # reproducible across runs and ZeRO stages: same (rank, step) -> same RNG,
-    # different ranks at the same step keep in-batch timestep diversity.
-    # Gated on _run_seed so unseeded production runs stay fully stochastic.
-    from turbo_physai.optimizations.models.openwam import enabled
 
     online_eligible = (
         enabled("online_encode") and grad_accum == 1 and int(dataloader.num_workers) > 0
@@ -210,8 +208,6 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
         )
 
         lagged = LaggedMetrics(self.accelerator)
-
-    from tqdm import tqdm
 
     def report(info, metrics):
         self.log_step(
@@ -274,7 +270,9 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
                 with self.accelerator.accumulate(self.architecture):
                     losses = self.compute_loss(batch)
                     loss = losses["total"]
-                    self.accelerator.backward(loss)
+                    self.accelerator.backward(
+                        scale_loss_for_backward(self.accelerator, loss)
+                    )
 
                     # DeepSpeed may already have queued step-end AllGather
                     # inside backward. A host scalar upload would wait for it.
@@ -331,6 +329,7 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
                     # Logged one step late so the host never waits for this step's values.
                     for ready_info, metrics in lagged.push(losses, grad_norm, info):
                         report(ready_info, metrics)
+                maybe_freeze_gc(global_step)  # OPENWAM_GC_FREEZE
 
                 # save_steps: write the weights line (+ the resumable full state when
                 # save_full_states_for_resume=true), then prune in lockstep.
@@ -367,6 +366,91 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
         self.finish_training(
             output_path, global_step, save_steps, keep_last_k, is_main, wandb_run
         )
+
+
+def _gpu_numa_cpus():
+    """Hygon / ROCm NUMA node and CPU detection with nvidia-smi fallback."""
+    from openwam.train.utils.runtime_tuning import _parse_cpulist
+
+    local = int(os.environ.get("LOCAL_RANK", "0"))
+    visible = (
+        os.environ.get("HIP_VISIBLE_DEVICES")
+        or os.environ.get("ROCR_VISIBLE_DEVICES")
+        or os.environ.get("CUDA_VISIBLE_DEVICES")
+    )
+    phys = visible.split(",")[local].strip() if visible else str(local)
+
+    node = None
+    drm_path = f"/sys/class/drm/card{phys}/device/numa_node"
+    if os.path.exists(drm_path):
+        try:
+            with open(drm_path) as f:
+                val = int(f.read().strip())
+                if val >= 0:
+                    node = val
+        except Exception:
+            pass
+
+    if node is None:
+        try:
+            out = subprocess.run(
+                ["rocm-smi", "-d", str(phys), "--showbus", "--csv"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            ).stdout
+            for line in out.splitlines():
+                if "PCI Bus" in line or "," in line:
+                    parts = [p.strip() for p in line.split(",")]
+                    for part in parts:
+                        if part.count(":") >= 1:
+                            bus_str = part.lower()
+                            if bus_str.startswith("0x"):
+                                bus_str = bus_str[2:]
+                            pci_path = f"/sys/bus/pci/devices/{bus_str}/numa_node"
+                            if os.path.exists(pci_path):
+                                with open(pci_path) as f:
+                                    val = int(f.read().strip())
+                                    if val >= 0:
+                                        node = val
+                                        break
+        except Exception:
+            pass
+
+    if node is None:
+        try:
+            out = subprocess.run(
+                ["nvidia-smi", "--query-gpu=index,uuid,pci.bus_id", "--format=csv,noheader"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            ).stdout
+            bus = None
+            for line in out.splitlines():
+                parts = [x.strip() for x in line.split(",")]
+                if len(parts) >= 3:
+                    idx, uuid, pci = parts[0], parts[1], parts[2]
+                    if phys in (idx, uuid):
+                        bus = pci
+            if bus is not None:
+                dom, rest = bus.split(":", 1)
+                sysname = f"{dom[-4:]}:{rest}".lower()
+                numa_file = f"/sys/bus/pci/devices/{sysname}/numa_node"
+                if os.path.exists(numa_file):
+                    with open(numa_file) as f:
+                        val = int(f.read().strip())
+                        if val >= 0:
+                            node = val
+        except Exception:
+            pass
+
+    if node is None or node < 0:
+        return None
+    cpulist_path = f"/sys/devices/system/node/node{node}/cpulist"
+    if not os.path.exists(cpulist_path):
+        return None
+    with open(cpulist_path) as f:
+        return node, _parse_cpulist(f.read())
 
 
 def trainer_init(original, options):
@@ -423,9 +507,13 @@ def build_dataloader(original, options):
     def wrapped(self, *args, **kwargs):
         loader = original(self, *args, **kwargs)
         if enabled("padding_plan_cpu"):
-            from ..text import collate_cpu_padding
+            from openwam.dataloader.collate import openwam_collate
+            from ..text import collate_cpu_padding, collate_cpu_padding_uint8
 
-            loader.collate_fn = collate_cpu_padding
+            if loader.collate_fn is openwam_collate:
+                loader.collate_fn = collate_cpu_padding_uint8
+            elif loader.collate_fn is None or loader.collate_fn is list:
+                loader.collate_fn = collate_cpu_padding
         return loader
 
     return wrapped
@@ -492,5 +580,11 @@ def finish_training(original, options):
 OpenWAMTrainer_train_wrapper = port_wrapper(
     OpenWAMTrainer_train,
     "openwam.train.openwam_trainer.OpenWAMTrainer.train",
+    "openwam.training",
+)
+
+_gpu_numa_cpus_wrapper = port_wrapper(
+    _gpu_numa_cpus,
+    "openwam.train.utils.runtime_tuning._gpu_numa_cpus",
     "openwam.training",
 )

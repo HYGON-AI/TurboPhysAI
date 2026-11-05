@@ -14,17 +14,14 @@ optimization_modules:
 - turbo_physai.optimizations.models.openwam.catalog
 compatibility:
   commits:
-  - 1204dde1b9e9c232131fc99a3f2c6b78330e7f64
+  - 0c9ed80d80af1d0c5f4148afe65cc7f462ec3995
 optimization_groups:
 - id: openwam.data
   options:
-    uint8_preprocess: true
     vae_latent_cache: true
     vae_latent_cache_dir: /path/to/openwam-cache
 - id: openwam.compute
   options:
-    pointwise_compile: true
-    rope_real: true
     lightop_norm: true
     linear_bias2d: true
 - id: openwam.architecture
@@ -32,9 +29,6 @@ optimization_groups:
     constant_cache: true
 - id: openwam.mot
   options:
-    mot_split_attn: true
-    compile_mot: true
-    checkpoint_skip_layers: 24
     sac_attention: false
     sac_ffn_full: true
     sac_gemm: false
@@ -42,19 +36,10 @@ optimization_groups:
     sac_extra_ops: ''
 - id: openwam.text
   options:
-    text_cache: true
-    text_cache_size: 32
     text_cache_dir: null
-    t5_prefix: true
-    text_trim: true
     padding_plan_cpu: true
     fa2_padding: true
     fa2_mask_fused: true
-- id: openwam.vae
-  options:
-    vae_channels_last: true
-    vae_pointwise_compile: true
-    compile_vae: true
 - id: openwam.training
   options:
     zero_overlap: true

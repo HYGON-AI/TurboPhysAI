@@ -1,23 +1,23 @@
 {
   "schema_version": "turbophysai/generation-record/v2",
   "generator": "turbo-physai optimization generate",
-  "model_commit": "1204dde1b9e9c232131fc99a3f2c6b78330e7f64",
+  "model_commit": "0c9ed80d80af1d0c5f4148afe65cc7f462ec3995",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "8fd3919b8de4f9e524c0d505177953c735f4653ab100f381d0d5478dcf2e16f8"
+    "sha256": "ebd48c98b1de7c520eddf0654f6c6c90417b70580d6979e0ec60af962d33432e"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "package",
       "path": "optimizations/models/openwam/configs/recipe.yaml",
-      "sha256": "b2fa50d4a4f5df12cc9c72c9b3422fd5e45f883ed77d5fa82d99e130708b3539"
+      "sha256": "34b195ab7339b7b2f999c6a6b1971f9a513dc67f45003d0b8d8ab18a03f9be53"
     },
     {
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/openwam/catalog.py",
-      "sha256": "79246db29340a4b04c1f3789cf212d72006623a56fd974dffeddb073a7061060"
+      "sha256": "9781cd46cb3d9d3df2c6591065d499c9fbe5ed9a2c5f452191a8de0631b4894d"
     }
   ]
 }
