@@ -1,0 +1,121 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.openvla.base.hcu
+  version: 0.8.0
+  description: HCU optimization recipe for official OpenVLA
+model:
+  name: openvla
+compatibility:
+  commits:
+  - c8f03f48af692657d3060c19588038c7220e9af9
+optimization_groups:
+- id: openvla.bf16_support
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      prismatic.util.torch_utils.check_bloat16_supported:
+      - source-v1:093a3ed68b6ad038882761240a6e525f39a665318c19f077b9bfaf41d81aea9b
+    ast_hashes:
+      prismatic.util.torch_utils.check_bloat16_supported:
+      - ast-v1:bffb3cfaf5cec85d6e163f7b7fc1f385104af2d46b7fd851eef73578c2c26c9c
+- id: openvla.fsdp.prefetch
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch.distributed.fsdp.FullyShardedDataParallel:
+      - source-v1:ab039001250304564a5e91118b970ce7a4d4c75f3a22773d04d904777e3b5fbf
+    ast_hashes:
+      torch.distributed.fsdp.FullyShardedDataParallel:
+      - ast-v1:e7ef3bcc599e1bdc25b7bccbf34c8d446305eeda3b8178abad723a91d289d685
+- id: openvla.compile.fsdp1
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      prismatic.training.strategies.fsdp.FSDPStrategy.run_setup:
+      - source-v1:79c3c76ef345bffe3be507b847d3f65871c8d62d8c800a8fe9e23447323da36d
+      prismatic.training.strategies.fsdp.FSDPStrategy.save_checkpoint:
+      - source-v1:f4fe324f2dda70fd17ea0c65a4015cf58dc37d715aa9b8ce1f7d38419ee8c7b4
+      timm.models.vision_transformer.VisionTransformer._intermediate_layers:
+      - source-v1:49276f75da54527ec45b4ffcad1a54e93062fbfdf69e39d5ac9a92ea8189bbe9
+    ast_hashes:
+      prismatic.training.strategies.fsdp.FSDPStrategy.run_setup:
+      - ast-v1:3334d614f6b60e577d36806093eb58cd4027e7532cd526888f9197a7794628f8
+      prismatic.training.strategies.fsdp.FSDPStrategy.save_checkpoint:
+      - ast-v1:7db45b44ff059f737d8073e2848f9f1fef42405c49884ec64cc457e91ab011a5
+      timm.models.vision_transformer.VisionTransformer._intermediate_layers:
+      - ast-v1:1fc1c09bd0f7b3ed6b3ced10f4835ca05e7ab26e49453c4f48d9115f17a161fa
+- id: openvla.adamw.fused
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch.optim.AdamW:
+      - source-v1:2ae5744ac85c373f977d4d640008ab15aaaaccf4879000048f93b32c3f7ba764
+    ast_hashes:
+      torch.optim.AdamW:
+      - ast-v1:48509352a3bb389239d1f66868832e1e1877e17109120e91b6cb6e55eb56d91e
+- id: openvla.llm.skip_fa2_unpad
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.models.llama.modeling_llama.LlamaModel._update_causal_mask:
+      - source-v1:61a7653e05e7e56ece80132fb619bac820f4943e46c79f32e5eab3bbcdb54552
+    ast_hashes:
+      transformers.models.llama.modeling_llama.LlamaModel._update_causal_mask:
+      - ast-v1:ebea41aac0346cd6e7ce2b452c0752bb21f4eed3fe0e567fe9ed5602a4efc98e
+- id: openvla.data.text_len_bucket
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch.utils.data.DataLoader.__iter__:
+      - source-v1:d4b219cd211f60a78b2ba242efefecd09f97456f91cb99539c4d782feed8f74e
+    ast_hashes:
+      torch.utils.data.DataLoader.__iter__:
+      - ast-v1:2f6895a1df02ae160a1243a708ec8693aa59425e27e64cf54aeca8ff282a30fc
+- id: openvla.dataloader.spawn
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      prismatic.vla.datasets.datasets.RLDSDataset:
+      - source-v1:db93d5cbc56d9a4207629cc6a84fddb0d991f23814e5eb3f384e8f5cf1982516
+      prismatic.vla.datasets.datasets.EpisodicRLDSDataset:
+      - source-v1:26bcea9656a8547e1e810d3770de4d8db92fc2af6bdd8b7e479e5a79d44d9d75
+      torch.utils.data.DataLoader:
+      - source-v1:a96ac635e1df52490221f61dafcbb35003db6337fa82423dc1cd91c8108494fa
+    ast_hashes:
+      prismatic.vla.datasets.datasets.RLDSDataset:
+      - ast-v1:87e080d33fba03e3f0b24095802c0a2853dc55a174a51d325f8d8b971bf9ade8
+      prismatic.vla.datasets.datasets.EpisodicRLDSDataset:
+      - ast-v1:1435c4f61646f64c321cead267b89734853af5eb186d32a8cd81624cb7a209ea
+      torch.utils.data.DataLoader:
+      - ast-v1:732236c6153407ba156f7a2e58b5bf1b52bf56ac59c5f727f903633d0af6356b
+- id: openvla.gc.freeze
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      prismatic.training.strategies.base_strategy.TrainingStrategy.run_vla_training:
+      - source-v1:0db08b36326697993fbae597026792da27067c2d9bc26800babad4e8306badfa
+    ast_hashes:
+      prismatic.training.strategies.base_strategy.TrainingStrategy.run_vla_training:
+      - ast-v1:a002574e805c6e58c9e10fd71f8aa8d0c539f45354d52e1d4dc58b7d0a13af25
+- id: openvla.reproducibility.data_order
+  enabled: false
+  options: {}
+  trust: {}
+- id: openvla.reproducibility.determinism
+  enabled: false
+  options: {}
+  trust: {}
+optimization_modules:
+- turbo_physai.optimizations.models.openvla.catalog
