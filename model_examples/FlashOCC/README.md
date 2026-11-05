@@ -144,7 +144,7 @@ FlashOCC 的优化配置和运行环境配置分别位于：
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml`
 - `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml`
 
-以下命令通过 `--set` 指定当前容器的模型路径、设备和单机网卡。默认使用单机八卡、每卡 batch size 4和每卡 24 个数据加载 worker。多机运行时需要修改NCCL_SOCKET_IFNAME和GLOO_SOCKET_IFNAME。
+以下命令通过 `--set` 指定当前容器的模型路径、设备和单机网卡。默认使用单机8卡、每卡 batch size 4和每卡 24 个数据加载 worker。多机运行时需要修改NCCL_SOCKET_IFNAME和GLOO_SOCKET_IFNAME。
 
 通过 `turbo-physai run` 显式加载配置并启动训练：
 
