@@ -1,8 +1,8 @@
-# Portions are adapted from the PointPillars HCU optimization project:
-# Source: PointPillars/mmdetection3d/mmdet3d/models/task_modules/assigners/tensorized_max_3d_iou_assigner.py
-# Revision: bd37518d0408bcea4ac879a90256ffb8b8628258
-# Project license: Apache-2.0
-# Project copyright: Copyright 2018-2019 Open-MMLab. All rights reserved.
+# The assignment behavior is based on OpenMMLab MMDetection:
+# https://github.com/open-mmlab/mmdetection
+# File: mmdet/models/task_modules/assigners/max_iou_assigner.py
+# Commit: fe3f809a0a514189baf889aa358c498d51ee36cd
+# Copyright (c) OpenMMLab. All rights reserved.
 #
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # Modified by Hygon.
