@@ -1,0 +1,33 @@
+# OpenVLA 训练依赖（HCU 镜像增量安装）
+#
+# 产品镜像已提供 DTK 版 torch / torchvision 等基础包，这里只列 OpenVLA 训练还需要补装的包。
+# 安装时带 --force-reinstall --no-deps，避免 pip 重新解析依赖、把镜像里的 DTK 版 torch 或刚装好的 HCU 版 tensorflow 换成 PyPI 版本。
+#
+# 完整安装步骤见 model_examples/OpenVLA/README.md 第 3.2 节；
+# tensorflow（HCU 版）与 dlimp 的索引/仓库与其他包不同，单独用命令安装，不在本文件里。
+
+tensorflow-datasets==4.9.3
+tensorflow-metadata==1.16.1
+protobuf==5.29.5
+wandb==0.31.0
+numpy==1.26.4
+tensorflow-graphics==2021.12.3
+transformers==4.40.1
+tokenizers<0.20
+jsonlines
+docker-pycreds
+draccus
+mergedeep
+typing_inspect
+huggingface_hub>=0.23.2,<0.26
+mypy_extensions
+etils
+importlib_resources
+dm-tree
+promise
+array-record
+toml
+OpenEXR>=1.3.2
+tensorflow-addons>=0.10.0
+trimesh>=2.37.22
+timm==0.9.16
