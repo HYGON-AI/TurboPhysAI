@@ -40,6 +40,11 @@ echo "===== DTK and build-tool environment ====="
 test -f /opt/dtk/env.sh
 # shellcheck disable=SC1091
 source /opt/dtk/env.sh
+# Native extensions link to libraries installed by the Torch wheel.
+# Resolve the active Python environment instead of assuming a site-packages path.
+torch_lib="$(python3 -c 'from pathlib import Path; import torch; print(Path(torch.__file__).parent / "lib")')"
+test -f "${torch_lib}/libc10.so"
+export LD_LIBRARY_PATH="${torch_lib}:${LD_LIBRARY_PATH:-}"
 export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0}"
 export MAX_JOBS="${MAX_JOBS:-4}"
 export ROCM_HOME="${ROCM_HOME:-${ROCM_PATH:-/opt/dtk}}"
@@ -140,9 +145,11 @@ def require_release(actual, expected, component):
     assert parsed.release == expected, f"{component}: expected {expected}, got {actual}"
 
 
-require_release(torch.__version__, (2, 7, 1), "PyTorch")
-require_release(torchvision.__version__, (0, 22, 0), "torchvision")
-require_release(triton.__version__, (3, 2, 0), "Triton")
+require_release(torch.__version__, (2, 10, 0), "PyTorch")
+require_release(torchvision.__version__, (0, 25, 0), "torchvision")
+# This DAS wheel reports 3.5.0 in the module despite its 3.6.0 metadata.
+require_release(version("triton"), (3, 6, 0), "Triton distribution")
+print("Triton module version:", triton.__version__)
 assert torch.version.hip is not None, "DAS/HCU PyTorch with HIP support is required"
 assert torch.cuda.is_available(), "HCU is not available through torch.cuda"
 assert torch.cuda.device_count() >= 1, "at least one visible HCU is required"
