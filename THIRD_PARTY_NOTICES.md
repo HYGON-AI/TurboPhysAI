@@ -87,6 +87,18 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 | `turbo_physai/optimizations/models/bevformer/training.py` | `projects/mmdet3d_plugin/bevformer/apis/train.py` | Modified |
 | `turbo_physai/optimizations/models/bevformer/tsa.py` | `projects/mmdet3d_plugin/bevformer/modules/temporal_self_attention.py` | Modified |
 
+### PointPillars / OpenMMLab MMDetection3D
+
+- Repository: <https://github.com/open-mmlab/mmdetection3d>
+- Fixed commit: `fe25f7a51d36e3702f961e198894580d83c4387b`
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/PointPillars/unique_free_sampler.py` | `mmdet3d/models/task_modules/samplers/pseudosample.py` | Modified |
+| `turbo_physai/optimizations/models/PointPillars/pillar_scatter.py` | `mmdet3d/models/middle_encoders/pillar_scatter.py` | Modified |
+| `turbo_physai/optimizations/models/PointPillars/native_limit_period.py` | `mmdet3d/structures/bbox_3d/utils.py` | Modified |
+
 ### MMCV
 
 - Repository: <https://github.com/open-mmlab/mmcv>
