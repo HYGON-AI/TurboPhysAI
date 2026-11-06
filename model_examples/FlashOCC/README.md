@@ -79,7 +79,6 @@ turbo-physai --help
 ### 3.5 准备 MMDetection3D 依赖并构建 HCU 扩展
 
 ```bash
-mkdir -p "/workspace/FlashOCC_TurboPhysAI/runtime"
 git clone --branch v1.0.0rc4 \
   https://github.com/open-mmlab/mmdetection3d.git \
   "/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d"
@@ -89,6 +88,8 @@ git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d" checkout --detac
 export PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}"
 bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/scripts/build_flashocc_ops_external.sh"
 ```
+
+构建脚本不会覆盖已有的 HCU 扩展文件。
 
 ## 4. 准备 nuScenes 数据并生成标注
 
@@ -132,7 +133,6 @@ mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts"
 ├── FlashOCC/
 │   ├── data/nuscenes/
 │   └── mmdetection3d/
-├── runtime/
 ├── TurboPhysAI/
 └── static_data/
 ```
@@ -158,7 +158,6 @@ turbo-physai run \
   --set NCCL_SOCKET_IFNAME=lo \
   --set GLOO_SOCKET_IFNAME=lo \
   --set FLASHOCC_ROOT=/workspace/FlashOCC_TurboPhysAI/FlashOCC \
-  --set FLASHOCC_RUNTIME_ROOT=/workspace/FlashOCC_TurboPhysAI/runtime \
   --log-report \
   -- \
   torchrun --nproc_per_node=8 tools/train.py \

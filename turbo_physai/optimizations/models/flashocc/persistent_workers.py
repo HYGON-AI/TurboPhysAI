@@ -14,11 +14,8 @@ def persistent_workers_wrapper(original, options):
     @functools.wraps(original)
     def wrapped(*args, **kwargs):
         bound = signature.bind(*args, **kwargs)
-        dataset = bound.arguments.get("dataset")
-        workers = bound.arguments.get("num_workers", 0)
-        if (type(dataset).__module__.startswith("projects.mmdet3d_plugin.datasets.")
-                and workers > 0):
-            bound.arguments["persistent_workers"] = True
-        return original(*bound.args, **bound.kwargs)
+        cfg = bound.arguments["cfg"]
+        cfg.data.persistent_workers = cfg.data.workers_per_gpu > 0
+        return original(*args, **kwargs)
 
     return wrapped

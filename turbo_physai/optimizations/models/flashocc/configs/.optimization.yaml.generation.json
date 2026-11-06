@@ -4,7 +4,7 @@
   "model_commit": "449dc7947d6549ccb72a99d6f6d8c02f166ec0dd",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "1f9562ec696cceaeec315bb6e1e45e33a4dc357c883099dc7b1497605f895817"
+    "sha256": "d4aa2492044b385dd39238a4264ee0c8cc3265f4108b2fdf34cbda83200fd91c"
   },
   "inputs": [
     {
@@ -17,7 +17,7 @@
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/flashocc/catalog.py",
-      "sha256": "5e51aeab918d751d6d1ab2e66085dac07965ab41d70f5eee9ad8569401b539de"
+      "sha256": "dea20c9873f5da0e7284661ba438bbfdd2e453e5da179a333f52e07bd210d49e"
     }
   ]
 }
