@@ -147,7 +147,9 @@ def require_release(actual, expected, component):
 
 require_release(torch.__version__, (2, 10, 0), "PyTorch")
 require_release(torchvision.__version__, (0, 25, 0), "torchvision")
-require_release(triton.__version__, (3, 6, 0), "Triton")
+# This DAS wheel reports 3.5.0 in the module despite its 3.6.0 metadata.
+require_release(version("triton"), (3, 6, 0), "Triton distribution")
+print("Triton module version:", triton.__version__)
 assert torch.version.hip is not None, "DAS/HCU PyTorch with HIP support is required"
 assert torch.cuda.is_available(), "HCU is not available through torch.cuda"
 assert torch.cuda.device_count() >= 1, "at least one visible HCU is required"

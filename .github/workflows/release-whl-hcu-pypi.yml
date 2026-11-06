@@ -178,12 +178,15 @@ jobs:
           python3 - <<'PY'
           import os
           import sys
+          from importlib.metadata import version
           import torch, torchvision, triton
           for name, module in (("torch", torch), ("torchvision", torchvision), ("triton", triton)):
-              actual = module.__version__
+              # The DAS Triton module reports 3.5.0; use wheel metadata.
+              actual = version(name) if name == "triton" else module.__version__
               expected = os.environ[f"{name.upper()}_VERSION"]
               assert actual.split("+", 1)[0] == expected.split("+", 1)[0], (name, actual, expected)
               print(f"{name}: {actual}")
+          print("Triton module version:", triton.__version__)
           assert sys.version_info[:2] == (3, 10), sys.version
           assert torch.version.hip, "HIP Torch is required"
           PY
