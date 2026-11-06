@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  HARBOR_SITE: harbor.sourcefind.cn:5443
+  HARBOR_SITE: 10.16.1.152:5000
   # Transitional mode: build the repository-owned CI image on each runner.
   # Keep a stable local tag so persistent runners can reuse Docker layer cache.
   TURBOPHYSAI_CI_IMAGE: turbophysai-ci:hcu-ci-local
@@ -86,7 +86,7 @@ jobs:
             echo "HARBOR_SITE is not configured." >&2
             exit 1
           fi
-          BASE_IMAGE="${HARBOR_SITE}/hcu/admin/base/dev:ubuntu22.04-mpi5.0-gcc11.4-cmake3.29-py3.10"
+          BASE_IMAGE="${HARBOR_SITE}/hcu/base/dtk:26.04-ubuntu22.04-py3.10"
           docker build --network=host \
             --build-arg "BASE_IMAGE=${BASE_IMAGE}" \
             --file docker/ci/Dockerfile \

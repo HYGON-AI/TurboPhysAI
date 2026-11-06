@@ -6,51 +6,18 @@
 # docker build --network=host -f docker/ci/Dockerfile \
 #   -t turbophysai-ci:hcu-ci-local .
 # Build from the repository root so the CI verification script can be copied.
-ARG BASE_IMAGE=harbor.sourcefind.cn:5443/hcu/admin/base/dev:ubuntu22.04-mpi5.0-gcc11.4-cmake3.29-py3.10
-ARG DTK_PKG_URL=http://42.228.13.241:21000/jenkins/rocm/26.04/ubuntu20.04/DTK-26.04-Ubuntu20.04.1-x86_64.tar.gz
-ARG DTK_VERSION=dtk26041-72cu-0915
-ARG RESOURCE_SERVER_URL=http://42.228.13.241:18000
-ARG DTK_BLAS_VERSION=26.04
-ARG DTK_BLAS_OS=ubuntu20.04
-
-FROM ${BASE_IMAGE} AS dtk_src
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG DTK_PKG_URL
-ARG RESOURCE_SERVER_URL
-ARG DTK_BLAS_VERSION
-ARG DTK_BLAS_OS
-
-RUN curl -fsSL "${DTK_PKG_URL}" | tar -xzf - -C /opt && \
-    mv /opt/dtk-* /opt/dtk && \
-    curl -fsSL --retry 3 --retry-delay 2 \
-      "${RESOURCE_SERVER_URL}/Jenkins/CI_scripts/dtk_blas_cut_installer.sh" \
-      -o /tmp/dtk_blas_cut_installer.sh && \
-    chmod +x /tmp/dtk_blas_cut_installer.sh && \
-    if ! bash /tmp/dtk_blas_cut_installer.sh \
-        --version "${DTK_BLAS_VERSION}" \
-        --os "${DTK_BLAS_OS}" \
-        --dtk-dir /opt/dtk \
-        > /tmp/dtk_blas_cut_installer.log 2>&1; then \
-        cat /tmp/dtk_blas_cut_installer.log >&2; \
-        exit 1; \
-    fi && \
-    rm -f /tmp/dtk_blas_cut_installer.sh /tmp/dtk_blas_cut_installer.log && \
-    mv /opt/dtk/lib /dtk_lib
+ARG BASE_IMAGE=10.16.1.152:5000/hcu/base/dtk:26.04-ubuntu22.04-py3.10
 
 FROM ${BASE_IMAGE} AS framework
 SHELL ["/bin/bash", "-c"]
-ARG DTK_VERSION
 ARG TARGETS_EXTRA
 ARG TARGETS_OVERRIDE
 ARG ARTIFACT_HOST=42.228.13.241
 
 ENV ROCM_PATH=/opt/dtk
-# Keep DTK libraries in a separate layer to limit individual layer size.
-COPY --from=dtk_src /dtk_lib ${ROCM_PATH}/lib
-COPY --from=dtk_src /opt/dtk ${ROCM_PATH}
+RUN test -f /opt/dtk/env.sh
 
-ENV DTK_VERSION=${DTK_VERSION} \
-    HYHAL_PATH=/opt/hyhal \
+ENV HYHAL_PATH=/opt/hyhal \
     DTKROOT=${ROCM_PATH} \
     AMDGPU_TARGETS=${TARGETS_OVERRIDE:-"gfx906;gfx926;gfx928;gfx936;gfx938${TARGETS_EXTRA}"} \
     HIP_PATH=${ROCM_PATH}/hip \
@@ -97,7 +64,7 @@ ARG HIPDNN_WHL_URL=https://hygon-thpcbench-1251001002.cos.ap-shanghai.myqcloud.c
 RUN /usr/bin/python3 -m pip install --no-cache-dir --no-deps "${HIPDNN_WHL_URL}"
 
 RUN printf '%s\n' 'source /opt/dtk/env.sh' >> /root/.bashrc && \
-    printf 'dtk    : %s\n' "${DTK_VERSION}" > /etc/image.info
+    printf 'dtk    : %s\n' "$(cat /opt/dtk/.info/rocm_version)" > /etc/image.info
 
 # Import checks run without requiring an HCU device during image construction.
 RUN source /opt/dtk/env.sh && \

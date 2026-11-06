@@ -30,7 +30,7 @@ jobs:
       matrix:
         include:
           # Match docker/ci/Dockerfile's supplied Torch 2.10 framework.
-          - harbor_site: harbor.sourcefind.cn:5443
+          - harbor_site: 10.16.1.152:5000
             dtk_version: "26.04"
             dtk_tag: "2604"
             py_version: "3.10"
@@ -46,8 +46,8 @@ jobs:
       run:
         shell: bash
     container:
-      # Same admin base as docker/ci/Dockerfile; install the framework below.
-      image: ${{ matrix.harbor_site }}/hcu/admin/base/dev:ubuntu22.04-mpi5.0-gcc11.4-cmake3.29-py${{ matrix.py_version }}
+      # Reuse the DTK already installed in the same base as the test CI.
+      image: ${{ matrix.harbor_site }}/hcu/base/dtk:${{ matrix.dtk_version }}-ubuntu22.04-py${{ matrix.py_version }}
       options: >-
         --user root
         --device=/dev/kfd --device=/dev/dri
@@ -75,11 +75,6 @@ jobs:
       PYPI_URL: http://12.12.12.201:9929
       PYPI_TRUSTED_HOST: "12.12.12.201"
       DTK_PYPI_INDEX: https://pypi.sourcefind.cn/nightly/dtk${{ matrix.dtk_tag }}
-      DTK_PKG_URL: http://42.228.13.241:21000/jenkins/rocm/26.04/ubuntu20.04/DTK-26.04-Ubuntu20.04.1-x86_64.tar.gz
-      DTK_VERSION: dtk26041-72cu-0915
-      RESOURCE_SERVER_URL: http://42.228.13.241:18000
-      DTK_BLAS_VERSION: ${{ matrix.dtk_version }}
-      DTK_BLAS_OS: ubuntu20.04
       DTK_LLVM_URL: http://42.228.13.241:18000/ai_cc/Nightly/dtk_llvm-1.0.0%2Bdtk2604.2609201512.gf72f9e-x86_64.run
       TORCH_VERSION: ${{ matrix.torch_version }}
       TORCHVISION_VERSION: ${{ matrix.torchvision_version }}
@@ -109,22 +104,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Install matching DTK and compiler
+      - name: Configure existing DTK and install compiler
         run: |
           set -eo pipefail
-          # Match the DTK/BLAS and compiler installation in docker/ci/Dockerfile.
-          curl -fsSL "${DTK_PKG_URL}" | tar -xzf - -C /opt
-          mv /opt/dtk-* /opt/dtk
-          curl -fsSL --retry 3 --retry-delay 2 \
-            "${RESOURCE_SERVER_URL}/Jenkins/CI_scripts/dtk_blas_cut_installer.sh" \
-            -o /tmp/dtk_blas_cut_installer.sh
-          if ! bash /tmp/dtk_blas_cut_installer.sh \
-              --version "${DTK_BLAS_VERSION}" --os "${DTK_BLAS_OS}" \
-              --dtk-dir /opt/dtk > /tmp/dtk_blas_cut_installer.log 2>&1; then
-            cat /tmp/dtk_blas_cut_installer.log >&2
-            exit 1
-          fi
-          rm -f /tmp/dtk_blas_cut_installer.sh /tmp/dtk_blas_cut_installer.log
+          # The base image already supplies DTK and its runtime libraries.
+          test -f /opt/dtk/env.sh
           if [[ ! -e /opt/hyhal && -d /opt/dtk/.hyhal ]]; then
             cp -a /opt/dtk/.hyhal /opt/hyhal
           fi
