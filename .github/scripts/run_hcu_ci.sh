@@ -40,6 +40,11 @@ echo "===== DTK and build-tool environment ====="
 test -f /opt/dtk/env.sh
 # shellcheck disable=SC1091
 source /opt/dtk/env.sh
+# Native extensions link to libraries installed by the Torch wheel.
+# Resolve the active Python environment instead of assuming a site-packages path.
+torch_lib="$(python3 -c 'from pathlib import Path; import torch; print(Path(torch.__file__).parent / "lib")')"
+test -f "${torch_lib}/libc10.so"
+export LD_LIBRARY_PATH="${torch_lib}:${LD_LIBRARY_PATH:-}"
 export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0}"
 export MAX_JOBS="${MAX_JOBS:-4}"
 export ROCM_HOME="${ROCM_HOME:-${ROCM_PATH:-/opt/dtk}}"
