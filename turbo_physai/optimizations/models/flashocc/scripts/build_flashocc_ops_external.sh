@@ -19,6 +19,18 @@ for op in bev_pool bev_pool_v2 nearest_assign; do
         exit 2
     fi
 done
+BUILD_SRC=""
+BUILD_TMP=""
+cleanup_build_dirs() {
+    if [[ -n "$BUILD_SRC" ]]; then
+        rm -rf -- "$BUILD_SRC"
+    fi
+    if [[ -n "$BUILD_TMP" ]]; then
+        rm -rf -- "$BUILD_TMP"
+    fi
+}
+trap cleanup_build_dirs EXIT
+
 BUILD_SRC=$(mktemp -d /tmp/flashocc-ops-src.XXXXXX)
 BUILD_TMP=$(mktemp -d /tmp/flashocc-ops-build.XXXXXX)
 PROJECTS="$FLASHOCC_ROOT/projects"
