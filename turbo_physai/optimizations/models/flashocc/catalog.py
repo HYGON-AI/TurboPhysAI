@@ -96,7 +96,7 @@ PIN_MEMORY = group(
 PERSISTENT_WORKERS = group(
     "flashocc.loader.persistent_workers",
     wrap(
-        target="torch.utils.data.DataLoader.__init__",
+        target="mmdet3d.apis.train.train_detector",
         replacement=(
             "turbo_physai.optimizations.models.flashocc.persistent_workers."
             "persistent_workers_wrapper"

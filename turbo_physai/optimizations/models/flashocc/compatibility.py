@@ -16,31 +16,16 @@ from types import ModuleType
 from typing import Callable, Mapping
 
 
-_PREBUILT_OPS = {
-    "projects.mmdet3d_plugin.ops.bev_pool.bev_pool_ext": (
-        "bev_pool",
-        "bev_pool_ext",
-    ),
-    "projects.mmdet3d_plugin.ops.bev_pool_v2.bev_pool_v2_ext": (
-        "bev_pool_v2",
-        "bev_pool_v2_ext",
-    ),
-    "projects.mmdet3d_plugin.ops.nearest_assign.nearest_assign_ext": (
-        "nearest_assign",
-        "nearest_assign_ext",
-    ),
-}
 _NVCC_ONLY_FLAGS = {"-allow-unsupported-compiler", "--allow-unsupported-compiler"}
 
 
 def order_import_roots(
-    existing_paths, model_root, runtime_root, optimization_root
+    existing_paths, model_root, optimization_root
 ) -> list[str]:
     """Prefer official model modules while retaining runtime dependencies."""
     priority = [
         Path(model_root).expanduser().resolve(),
         (Path(model_root).expanduser().resolve() / "mmdetection3d"),
-        Path(runtime_root).expanduser().resolve(),
     ]
     priority_set = set(priority) | {Path(optimization_root).expanduser().resolve()}
     remaining = []
@@ -79,23 +64,6 @@ def resolve_dvr_compat_sources(
                 )
         resolved.append(str(source.resolve()))
     return resolved
-
-
-class PrebuiltExtensionFinder(importlib.abc.MetaPathFinder):
-    """Resolve selected official-package imports to compatible prebuilt HCU ops."""
-
-    _flashocc_finder_kind = "prebuilt"
-
-    def __init__(self, module_files: Mapping[str, str | os.PathLike[str]]) -> None:
-        self.module_files = {
-            name: Path(path) for name, path in module_files.items()
-        }
-
-    def find_spec(self, fullname: str, path=None, target=None):
-        extension_path = self.module_files.get(fullname)
-        if extension_path is None or not extension_path.is_file():
-            return None
-        return importlib.util.spec_from_file_location(fullname, extension_path)
 
 
 class _GB18030SourceLoader(importlib.machinery.SourceFileLoader):
@@ -174,26 +142,6 @@ class LazyDvrModule:
         return getattr(self._module, name)
 
 
-def _extension_files(runtime_root: Path) -> dict[str, Path]:
-    ops_root = runtime_root / "projects" / "mmdet3d_plugin" / "ops"
-    result = {}
-    for module_name, (package_dir, extension_name) in _PREBUILT_OPS.items():
-        candidates = sorted((ops_root / package_dir).glob(f"{extension_name}*.so"))
-        if candidates:
-            result[module_name] = candidates[-1]
-    return result
-
-
-def _load_extension_module(module_name: str, extension_path: Path) -> ModuleType:
-    spec = importlib.util.spec_from_file_location(module_name, extension_path)
-    if spec is None or not isinstance(spec.loader, importlib.machinery.ExtensionFileLoader):
-        raise ImportError(f"cannot load HCU extension {module_name} from {extension_path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
 def _compatible_dvr_loader(original_load, args, kwargs, compat_source_root: Path):
     compile_options = strip_nvcc_only_flags(kwargs)
     source_paths = compile_options.get("sources")
@@ -238,33 +186,21 @@ def install_dvr_compatibility(optimization_root: str | os.PathLike[str]) -> None
 
 def install_compatibility(
     model_root: str | os.PathLike[str],
-    runtime_root: str | os.PathLike[str],
 ) -> None:
     model_path = Path(model_root).expanduser().resolve()
-    runtime_path = Path(runtime_root).expanduser().resolve()
     optimization_path = Path(__file__).resolve().parent
-    finders = {
-        getattr(finder, "_flashocc_finder_kind", None): finder
-        for finder in sys.meta_path
-        if getattr(finder, "_flashocc_finder_kind", None) in ("encoding", "prebuilt")
-    }
-    for finder in finders.values():
-        if (finder._flashocc_model_root, finder._flashocc_runtime_root) != (
-            model_path, runtime_path
-        ):
+    finders = [
+        finder for finder in sys.meta_path
+        if getattr(finder, "_flashocc_finder_kind", None) == "encoding"
+    ]
+    for finder in finders:
+        if finder.model_root != model_path:
             raise RuntimeError("FlashOCC compatibility is already installed with different roots")
     sys.path[:] = order_import_roots(
-        sys.path, model_path, runtime_path, optimization_path
+        sys.path, model_path, optimization_path
     )
-    if "encoding" not in finders:
+    if not finders:
         finder = LegacyEncodingSourceFinder(model_path)
-        finder._flashocc_model_root = model_path
-        finder._flashocc_runtime_root = runtime_path
-        sys.meta_path.insert(0, finder)
-    if "prebuilt" not in finders:
-        finder = PrebuiltExtensionFinder(_extension_files(runtime_path))
-        finder._flashocc_model_root = model_path
-        finder._flashocc_runtime_root = runtime_path
         sys.meta_path.insert(0, finder)
     install_dvr_compatibility(optimization_path)
 
@@ -274,8 +210,7 @@ def install_for_turbo_run() -> bool:
     if os.environ.get("TURBO_PHYSAI_BOOTSTRAP") != "1":
         return False
     model_root = os.environ.get("FLASHOCC_ROOT")
-    runtime_root = os.environ.get("FLASHOCC_RUNTIME_ROOT")
-    if not model_root or not runtime_root:
-        raise RuntimeError("FlashOCC compatibility roots are not configured")
-    install_compatibility(model_root, runtime_root)
+    if not model_root:
+        raise RuntimeError("FlashOCC model root is not configured")
+    install_compatibility(model_root)
     return True
