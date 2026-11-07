@@ -5,8 +5,8 @@
 """Step 1 of the VAE latent store: encode every RoboTwin training window once.
 
 Use the same dataloader/model overrides and Turbo Group options as training.
-Set openwam.data.options.vae_latent_cache_dir in the OptimizationConfig, then
-run through Turbo from the unmodified OpenWAM repository::
+Use optimization.cache-build.yaml and set openwam.data.vae_latent_cache_dir
+through --option. Run through Turbo from the OpenWAM repository root::
 
     turbo-physai run --optimization-config /path/to/cache-config.yaml \\
         torchrun --nproc_per_node=8 --module \\
@@ -18,9 +18,10 @@ episode (atomic rename), so an interrupted run resumes by skipping finished
 files. Step 2 is the normal training command with
 vae_latent_cache=1 and the same vae_latent_cache_dir.
 
-With text_cache=1, also encode all possible training prompts with
-the frozen T5. text_cache_dir defaults to the latent directory's
-``text`` subdirectory. Step 2 uses the same flag/directory and keeps T5 on CPU.
+The cache-build configuration also sets openwam.text.text_cache_dir to encode
+all possible training prompts with frozen T5. When changing the latent directory,
+set text_cache_dir to its ``text`` subdirectory as well. Training reads that
+subdirectory when vae_latent_cache is enabled and keeps T5 on CPU.
 Rerunning with complete v2 text files builds ``text/index.json`` without T5
 encoding. Rank lengths are gathered on CPU and the complete index is published
 atomically, so training need not scan the individual text files at startup.
@@ -125,7 +126,6 @@ def main(cfg: DictConfig) -> None:
     from openwam.model.video_backbone.wan import encode as wan_encode
     from turbo_physai.optimizations.models.openwam import (
         configure_backends,
-        enabled,
         prepare_runtime_constants,
         text_store,
     )

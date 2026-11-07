@@ -3,7 +3,8 @@
 ## 环境准备
 
 ### 拉取镜像及创建容器
-```
+
+```bash
 docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10
 
 docker run -it --network=host --name=openwam_hcu --privileged --device=/dev/kfd --device=/dev/dri --ipc=host --shm-size=512G --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -u root --ulimit stack=-1:-1 --ulimit memlock=-1:-1  -v /opt/hyhal:/opt/hyhal:ro  harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10
@@ -12,7 +13,7 @@ docker run -it --network=host --name=openwam_hcu --privileged --device=/dev/kfd 
 ### 克隆代码
 
 ```bash
-git clone --branch main https://github.com/HYGON-AI/TurboPhysAI.git
+git clone --branch feat/openwam https://github.com/iMountTai/TurboPhysAI.git
 git clone https://github.com/OpenWAM-Official/OpenWAM.git
 cd OpenWAM
 git switch -c turbo-baseline 0c9ed80d80af1d0c5f4148afe65cc7f462ec3995
@@ -43,18 +44,7 @@ cd ../OpenWAM
 | RoboTwin 2.0 clean50 数据根目录 | `assets/benchmark_data/robotwin2.0/dataset` |
 | Foundation checkpoint | `assets/openwam_ckpt/openwam_alpha/OpenWAM-Alpha-Pretrain-Foundation-Model` |
 
-数据目录应保留官方结构，例如：
-
-```text
-dataset/
-└── blocks_ranking_size/
-    └── aloha-agilex_clean_50/
-        └── data/
-            ├── episode0.hdf5
-            └── ...
-```
-
-`dataloader.dataset_dir` 指向上面的 `dataset` 目录，`dataloader.variant=clean_50` 选择 clean50 数据。归一化统计由 reader 自动查找或生成，无需提前创建 `outputs/hcu_alpha_20260930` 目录。仅需复用已有统计文件时，才追加 `+dataloader.normalization_stats_path=/path/to/stats.npy`。
+`dataloader.dataset_dir` 指向数据集根目录，`dataloader.variant=clean_50` 选择 clean50 数据。归一化统计由 reader 自动查找或生成，复用已有文件时可追加 `+dataloader.normalization_stats_path=/path/to/stats.npy`。
 
 固定基线默认使用 `dual_system/joint_self_attn`、`separate_action_dit` 和 `wan22_ti2v_5b`，启动命令无需重复指定这些模型配置。
 
@@ -79,76 +69,29 @@ turbo-physai run --model openwam --log-report \
     project.wandb.project=null project.seed=42
 ```
 
-按实际卡数调整 `HIP_VISIBLE_DEVICES` 和 `--nproc_per_node`。`save_steps=0` 不保存周期或最终权重。输出目录另设为 `outputs/hcu_openwam_turbo`，便于与原运行记录区分。注意追加 `training.speed_preset=null` 避免使用官方针对 CUDA 的 cuDNN SDPA 预设。
-
-### 抓取 Trace (Profiling)
-如需在训练过程中抓取 PyTorch 算子与通信 Trace 进行性能对比分析，添加环境变量即可自动触发：
-- `enable_profiling=1`（或 `true`）：仅对 rank 0 进行采样（默认采样第 15 步），自动输出压缩 Trace 到 `<output_path>/profiler_traces/rank0_trace.json.gz`。
-- `enable_profiling=all`：对所有 rank 进行采样。
-- `OPENWAM_PROFILE_LIGHT=1`：可选，开启轻量采样模式（关闭 call stack 和 tensor shapes 记录以减少 profiling 开销）。
-内置 DCU 专用的 trace sanitize 清洗逻辑，确保 GPU Stream 0 与 CPU 背景线程严格隔离。
+按实际卡数调整 `HIP_VISIBLE_DEVICES` 和 `--nproc_per_node`。保留 `training.speed_preset=null`，让 Turbo 的 RuntimeConfig 决定启动环境。`training.gradient_checkpointing_layers=N` 对前 N 层启用激活重算，默认 `null` 表示全部层，`0` 表示关闭。
 
 ## 优化配置
 
-`turbo-physai run --model openwam` 默认加载基础优化；上面的命令显式选择随包在线优化配置，启用编译、SAC 和通信重叠等选项。
+在线训练和缓存训练共用 [optimization.online.yaml](../../turbo_physai/optimizations/models/openwam/configs/optimization.online.yaml) 与 [runtime.online.yaml](../../turbo_physai/optimizations/models/openwam/configs/runtime.online.yaml)。缓存训练通过 `--option` 开启 VAE/T5 缓存并关闭在线编码预取。
 
-| 配方 | 用途 |
-| --- | --- |
-| [recipe.yaml](../../turbo_physai/optimizations/models/openwam/configs/recipe.yaml) | 默认基础优化 |
-| [recipe.online.yaml](../../turbo_physai/optimizations/models/openwam/configs/recipe.online.yaml) | 在线编码、编译、SAC、通信重叠等优化 |
+优化项由 Turbo Group 的 `options` 控制，定义见 [recipe.online.yaml](../../turbo_physai/optimizations/models/openwam/configs/recipe.online.yaml)。临时调整使用 `--option GROUP.KEY=VALUE`，环境变量使用 `--set KEY=VALUE`。修改 recipe 后需通过 `turbo-physai optimization generate` 重新生成配置，recipe 不能直接传给 `--optimization-config`。生成的 YAML 与同目录隐藏文件 `.optimization*.yaml.generation.json` 一起保留。
 
-官方 PR #58 原生支持了分层激活重算 `training.gradient_checkpointing_layers`（`null` 重算全部层；非负整数 N 表示前 N 层重算，例如 `training.gradient_checkpointing_layers=24`；`0` 表示全不重算），原 `checkpoint_skip_layers` 已被官方配置取代。
+训练组合要求原生 Wan22Ti2v VAE38/T5、ZeRO-2、梯度累积为 1、DataLoader workers 大于 0，并开启 gradient checkpointing、关闭 checkpoint offload 和 CPU optimizer offload。HCU 多卡正确性和性能需在目标环境验证。
 
-需要保存自定义配方时，复制 recipe 后编辑，再生成配置。recipe 不能直接传给 `--optimization-config`。
-
-```bash
-mkdir -p ../openwam-configs
-cp ../TurboPhysAI/turbo_physai/optimizations/models/openwam/configs/recipe.online.yaml \
-  ../openwam-configs/recipe.custom.yaml
-# 编辑 ../openwam-configs/recipe.custom.yaml 后执行：
-turbo-physai optimization generate \
-  --recipe ../openwam-configs/recipe.custom.yaml \
-  --repo . --commit 0c9ed80d80af1d0c5f4148afe65cc7f462ec3995 \
-  --output ../openwam-configs/optimization.custom.yaml
-```
-
-启动时将 `--optimization-config` 改为 `../openwam-configs/optimization.custom.yaml`，其余参数沿用在线训练命令。
-
-仅在修改 recipe 时需要生成配置，生成时 OpenWAM 工作区需保持干净。生成的 YAML 与同目录下的 `.generation.json` 凭据需一起保留；重复生成时添加 `--force`。
-
-在线和缓存优化组合要求原生 Wan22Ti2v VAE38/T5、ZeRO-2、无 CPU optimizer offload、梯度累积为 1、DataLoader workers 大于 0，开启 gradient checkpointing 且关闭 checkpoint offload。Turbo 路径尚待 HCU 多卡正确性和性能验证。
-
-BF16 训练的 ZeRO-2 owner 归约默认使用 BF16 通信，保留已有的显式 `communication_data_type` 设置。
-
-在线和缓存命令均使用 [runtime.online.yaml](../../turbo_physai/optimizations/models/openwam/configs/runtime.online.yaml)，包含针对 DCU 优化的环境变量（如 `OPENWAM_SDPA_CUDNN=0`，`OPENWAM_FAST_INPUT=1`，`OPENWAM_FAST_CAT=1`，`OPENWAM_COMPILE_BLOCKS=1` 等）；需要在目标环境启用 16 个硬件队列时，可在启动前设置 `GPU_MAX_HW_QUEUES=16`。hipBLASLt 库包及配套数据需由目标环境提供；ZeRO-2 overlap 的 HIP BLASLt workspace 默认为 32 MiB，保留用户显式设置的 `CUBLASLT_WORKSPACE_SIZE` 或 `HIPBLASLT_WORKSPACE_SIZE`。
-
-## 优化分组
-
-模型优化通过 Turbo Group 和 `options` 控制，启动环境由 RuntimeConfig 配置，不读取 `OPENWAM_OPT_*`。
-
-| Group | 内容 | 主要 options |
-| --- | --- | --- |
-| `openwam.data` | RoboTwin 任务筛选和离线 latent 读取 | `vae_latent_cache`, `vae_latent_cache_dir` |
-| `openwam.compute` | DCU Norm、投影、SAC 算子边界 | `lightop_norm`, `linear_bias2d` |
-| `openwam.architecture` | 文本/本体感知 mask 接入、训练常量、latent 输入和连续 checkpoint 张量 | `constant_cache` |
-| `openwam.mot` | 选择性重算（SAC） | `sac_attention`, `sac_ffn_full`, `sac_gemm`, `sac_layers`, `sac_extra_ops` |
-| `openwam.text` | 离线 T5 缓存、FA2 padding plan 与 varlen cross-attention | `text_cache_dir`, `padding_plan_cpu`, `fa2_padding`, `fa2_mask_fused` |
-| `openwam.training` | ZeRO 参数、ReduceScatter、在线编码/deferred gather、fused AdamW、Host 异步性能路径与 DCU NUMA 绑定 | `zero_overlap`, `zero_reduce_scatter`, `zero_scaled_pack`, `zero_norm_overlap`, `online_encode`, `deferred_gather`, `fused_adamw`, `host_async`, `hw_queues` |
-
-官方 PR #58 原生支持了 VAE 全视频段编码及 channels-last、MoT Triton fast cat/split、Triton fused RoPE、MoT 块编译以及在线 text cache 等通用优化，相应冗余代码已精简，重点保留 Hygon DCU 专属加速特性。
+BF16 owner 归约默认使用 BF16 通信。HIP BLASLt workspace 默认为 32 MiB，保留显式设置的 `communication_data_type`、`CUBLASLT_WORKSPACE_SIZE` 和 `HIPBLASLT_WORKSPACE_SIZE`。
 
 ## 离线缓存
 
-沿用在线训练的两份配置。`optimization.online.yaml` 默认关闭 VAE/T5 缓存，使用时通过 `--option` 指定开关和目录，无需重新生成配置。以下将缓存写入 `assets/openwam_latents_clean_50`，T5 缓存位于其中的 `text` 子目录。
+缓存生成使用 `optimization.cache-build.yaml`，训练使用 `optimization.online.yaml` 加缓存参数。默认 VAE 缓存在 `assets/openwam_latents_clean_50`，T5 缓存位于其中的 `text` 子目录。更换缓存根目录时，生成命令通过 `--option` 同时设置 `openwam.data.vae_latent_cache_dir` 和 `openwam.text.text_cache_dir`，训练命令只需设置 `openwam.data.vae_latent_cache_dir`，T5 会读取其 `text` 子目录。
 
 ### 生成缓存
 
 ```bash
 HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 turbo-physai run --model openwam \
-  --optimization-config ../TurboPhysAI/turbo_physai/optimizations/models/openwam/configs/optimization.online.yaml \
+  --optimization-config ../TurboPhysAI/turbo_physai/optimizations/models/openwam/configs/optimization.cache-build.yaml \
   --runtime-config ../TurboPhysAI/turbo_physai/optimizations/models/openwam/configs/runtime.online.yaml \
-  --option openwam.data.vae_latent_cache_dir=assets/openwam_latents_clean_50 \
   torchrun --nproc_per_node=8 --module \
     turbo_physai.optimizations.models.openwam.cache_vae_latents \
     training.speed_preset=null \
@@ -170,9 +113,12 @@ turbo-physai run --model openwam --log-report \
   --runtime-config ../TurboPhysAI/turbo_physai/optimizations/models/openwam/configs/runtime.online.yaml \
   --option openwam.data.vae_latent_cache=true \
   --option openwam.data.vae_latent_cache_dir=assets/openwam_latents_clean_50 \
+  --option openwam.training.online_encode=false \
+  --set TORCHINDUCTOR_COORDINATE_DESCENT_TUNING=1 \
   torchrun --nproc_per_node=8 scripts/train.py \
     training.speed_preset=null \
     dataloader=robotwin \
+    training.gradient_checkpointing_layers=2 \
     dataloader.dataset_dir=assets/benchmark_data/robotwin2.0/dataset \
     dataloader.variant=clean_50 '+dataloader.tasks=[blocks_ranking_size]' \
     training.finetune_ckpt_path=assets/openwam_ckpt/openwam_alpha/OpenWAM-Alpha-Pretrain-Foundation-Model \

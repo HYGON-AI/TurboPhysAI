@@ -13,10 +13,13 @@ from .settings import enabled, initialize
 
 def configure_backends():
     initialize(force=True)
-    from . import hw_queues, sac
+    from . import sac
 
-    hw_queues.configure()
     sac.validate()
+    if enabled("vae_channels_last"):
+        from .vae_layout import validate
+
+        validate()
 
     # Enforce non-cuDNN SDPA on DCU / ROCm
     os.environ["OPENWAM_SDPA_CUDNN"] = "0"

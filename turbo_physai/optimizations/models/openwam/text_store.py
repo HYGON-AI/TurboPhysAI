@@ -5,11 +5,9 @@
 """Offline frozen T5 contexts, generated alongside the RoboTwin VAE store.
 
 Generation writes to text_cache_dir, or else to the ``text``
-subdirectory of vae_latent_cache_dir. Training with
-text_cache reads this store when text_cache_dir is set, or
-when vae_latent_cache is enabled with its directory. A latent
-directory left in the environment of a run without the latent cache does not
-select it; the original bounded online text cache remains available.
+subdirectory of vae_latent_cache_dir. Training reads this store when
+text_cache_dir is set, or when vae_latent_cache is enabled with its directory.
+Setting only vae_latent_cache_dir leaves the online text cache active.
 Only valid token rows are saved, independently of TEXT_TRIM; readers restore
 zero padding to the batch maximum or the full 512-token length. Version 1
 stores must be removed and regenerated before using this format.
@@ -320,7 +318,9 @@ def _finished(root, prompt, meta):
 
 def generate(dataset, backbone, *, device, batch_size, rank=0, world=1):
     """Validate/encode each rank's unique prompts and return lengths for index publication."""
-    from turbo_physai.optimizations.models.openwam.ports.encode import _encode_text
+    from turbo_physai.optimizations.models.openwam.ports.encode import (
+        _encode_text_uncached,
+    )
 
     root = directory()
     if root is None:
@@ -360,7 +360,7 @@ def generate(dataset, backbone, *, device, batch_size, rank=0, world=1):
     with torch.no_grad():
         for start in range(0, len(mine), batch_size):
             batch = mine[start : start + batch_size]
-            context, lengths = _encode_text(
+            context, lengths = _encode_text_uncached(
                 batch,
                 tokenizer=backbone._tokenizer,
                 text_encoder=encoder,
@@ -433,12 +433,7 @@ class PromptContexts:
             [self.lengths[prompt] for prompt in prompts], dtype=torch.long
         )
         max_len = max(1, int(lengths.max()))
-        if os.environ.get("OPENWAM_CONTEXT_TRUNC", "0") == "1":
-            stop = min(FULL_LENGTH, ((max_len + 1 + 63) // 64) * 64 - 1)
-        elif enabled("text_trim"):
-            stop = max_len
-        else:
-            stop = FULL_LENGTH
+        stop = max_len if os.environ.get("OPENWAM_CONTEXT_TRUNC", "0") == "1" else FULL_LENGTH
         dtype = DTYPES[self.meta["dtype"]][0]
         target = torch.device(device)
         context = torch.zeros(
@@ -447,22 +442,21 @@ class PromptContexts:
             pin_memory=target.type == "cuda",
         )
         for index, prompt in enumerate(prompts):
-            array = self.maps.pop(prompt, None)
-            if array is None:
+            cached = self.maps.pop(prompt, None)
+            if cached is None:
                 try:
                     array = _array(self.root, prompt, self.meta, self.lengths[prompt])
                 except (OSError, ValueError, EOFError) as exc:
                     raise ValueError(
                         f"T5 text cache missing/incomplete for {prompt!r}; rerun step 1 ({self.root})"
                     ) from exc
-            self.maps[prompt] = array
+                raw = torch.from_numpy(np.array(array, copy=True))
+                cached = raw.view(torch.bfloat16) if dtype == torch.bfloat16 else raw
+            self.maps[prompt] = cached
             while len(self.maps) > 64:
                 self.maps.popitem(last=False)
             length = self.lengths[prompt]
-            value = torch.from_numpy(np.array(array, copy=True))
-            context[index, :length].copy_(
-                value.view(torch.bfloat16) if dtype == torch.bfloat16 else value
-            )
+            context[index, :length].copy_(cached)
         # Lengths intentionally stay on CPU, as in the padding-plan path.
         return context.to(device=target, non_blocking=True), lengths
 
@@ -481,7 +475,9 @@ def attach(dataset, backbone):
     path = os.path.join(root, "meta.json")
     if not os.path.isfile(path):
         raise FileNotFoundError(
-            f"T5 text cache has no meta.json; run step 1 with text_cache=True ({root})"
+            f"T5 text cache has no meta.json at {root}; generate it with "
+            "optimization.cache-build.yaml and set "
+            f"--option openwam.text.text_cache_dir={root}"
         )
     with open(path, encoding="utf-8") as handle:
         meta = json.load(handle)["signature"]

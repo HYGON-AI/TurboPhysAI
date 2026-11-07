@@ -6,8 +6,7 @@ kind: OptimizationConfig
 metadata:
   id: model.openwam.hcu.cached
   version: 0.1.0
-  description: 'OpenWAM cached report combination: OPT-02 through 13; configure the
-    cache directory'
+  description: OpenWAM HCU training with offline VAE and T5 caches
 model:
   name: OpenWAM
 optimization_modules:
@@ -19,11 +18,17 @@ optimization_groups:
 - id: openwam.data
   options:
     vae_latent_cache: true
-    vae_latent_cache_dir: /path/to/openwam-cache
+    vae_latent_cache_dir: assets/openwam_latents_clean_50
 - id: openwam.compute
   options:
     lightop_norm: true
     linear_bias2d: true
+    global_compile: true
+    global_compile_scope: all
+    pointwise_compile: true
+    rope_real: true
+    vae_channels_last: true
+    vae_pointwise_compile: true
 - id: openwam.architecture
   options:
     constant_cache: true
@@ -34,6 +39,7 @@ optimization_groups:
     sac_gemm: false
     sac_layers: null
     sac_extra_ops: ''
+    mot_split_attention: true
 - id: openwam.text
   options:
     text_cache_dir: null
@@ -44,10 +50,9 @@ optimization_groups:
   options:
     zero_overlap: true
     zero_reduce_scatter: true
-    online_encode: true
+    online_encode: false
     deferred_gather: true
     fused_adamw: true
     host_async: true
-    hw_queues: 16
-    zero_scaled_pack: false
-    zero_norm_overlap: false
+    zero_scaled_pack: true
+    zero_norm_overlap: true
