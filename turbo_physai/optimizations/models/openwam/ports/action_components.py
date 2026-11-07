@@ -7,14 +7,13 @@ from __future__ import annotations
 import torch
 
 from turbo_physai.optimizations.models.openwam import enabled
-from turbo_physai.optimizations.models.openwam.norms import lightop_rms_norm
 
 
 def RMSNorm_forward(self, x: torch.Tensor) -> torch.Tensor:
-    if enabled("lightop_norm"):
-        fast = lightop_rms_norm(x, self.weight, self.eps)
-        if fast is not None:
-            return fast
+    if enabled("pointwise_compile") or enabled("lightop_norm"):
+        from turbo_physai.optimizations.models.openwam import pointwise
+
+        return pointwise.rms_norm(x, self.weight, self.eps)
     dtype = x.dtype
     normed = x.float() * torch.rsqrt(
         x.float().pow(2).mean(dim=-1, keepdim=True) + self.eps

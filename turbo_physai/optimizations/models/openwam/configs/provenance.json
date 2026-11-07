@@ -1,19 +1,24 @@
 {
   "source_repository": "https://github.com/iMountTai/OpenWAM",
   "source_branch": "main",
-  "source_commit": "0c9ed80d80af1d0c5f4148afe65cc7f462ec3995",
-  "previous_source_commit": "1204dde1b9e9c232131fc99a3f2c6b78330e7f64",
+  "source_commit": "0ca62ddbc3052252351aa28df88af1607f77381d",
+  "previous_source_commit": "0c9ed80d80af1d0c5f4148afe65cc7f462ec3995",
   "latest_increment": {
+    "scope": "Restore HCU MoT and VAE compile paths, channels-last VAE, real RoPE, structured attention, exact text truncation, staged T5 inputs and asynchronous resume transfers.",
     "source_files": [
-      "openwam/model/kernels/vae_fast.py",
+      "openwam/optimizations/global_compile.py",
+      "openwam/optimizations/pointwise.py",
+      "openwam/optimizations/vae_layout.py",
+      "openwam/optimizations/attention.py",
+      "openwam/optimizations/text_store.py",
       "openwam/model/kernels/fused_blocks.py",
-      "openwam/model/kernels/joint_cat.py",
       "openwam/model/kernels/rope_triton.py",
-      "openwam/train/utils/runtime_tuning.py",
-      "openwam/model/architectures/dual_system/mot_driver.py",
-      "openwam/model/video_backbone/wan_backbone.py"
-    ],
-    "scope": "Align with PR #58: native VAE compile/CL/fullclip, fused blocks compile, Triton joint cat/split, fused RoPE, partial checkpointing, online text cache, and NUMA node binding for ROCm/Hygon."
+      "openwam/model/video_backbone/wan/encode.py",
+      "openwam/model/video_backbone/wan/models/vae.py",
+      "openwam/train/openwam_trainer.py",
+      "presets/hcu_fast.env",
+      "presets/hcu_fast_cache.env"
+    ]
   },
   "baseline_commit": "0c9ed80d80af1d0c5f4148afe65cc7f462ec3995",
   "license": "Apache-2.0",
@@ -23,7 +28,6 @@
     "attention.py",
     "deferred_gather.py",
     "host_async.py",
-    "hw_queues.py",
     "latent_cache.py",
     "linear_bias2d.py",
     "norms.py",
@@ -35,7 +39,10 @@
     "zero.py",
     "zero_fused.py",
     "zero_kernels.py",
-    "zero_norm.py"
+    "zero_norm.py",
+    "global_compile.py",
+    "pointwise.py",
+    "vae_layout.py"
   ],
   "ports": [
     {
@@ -65,7 +72,10 @@
         "BridgeCrossAttention._attend",
         "CrossAttnActionDiTBlock.forward",
         "SelfAttnActionDiTBlock.forward",
-        "act_post"
+        "SelfAttnActionDiTBlock.gate",
+        "ActionSelfAttention.forward",
+        "ActionDiT.pre_attn_at_layer_for_compile",
+        "ActionDiT.post_attn_at_layer_for_compile"
       ]
     },
     {
@@ -98,6 +108,9 @@
       "symbols": [
         "DualSystemMoTDriver._mixed_attention",
         "DualSystemMoTDriver._mixed_attention_impl",
+        "DualSystemMoTDriver._build_attention_mask",
+        "DualSystemMoTDriver.step",
+        "DualSystemMoTDriver._step_impl",
         "DualSystemMoTDriver._step_checkpointed",
         "DualSystemMoTDriver.run_joint_loop"
       ]
@@ -106,7 +119,9 @@
       "local_file": "ports/encode.py",
       "source_file": "openwam/model/video_backbone/wan/encode.py",
       "symbols": [
-        "encode_text"
+        "encode_text",
+        "_encode_text_uncached",
+        "prepare_text_cached"
       ]
     },
     {
@@ -117,16 +132,43 @@
         "_flash_attention_impl",
         "RMSNorm.forward",
         "SelfAttention.forward",
-        "CrossAttention.forward"
+        "CrossAttention.forward",
+        "modulate",
+        "rope_apply",
+        "precompute_freqs_cis",
+        "precompute_freqs_cis_3d",
+        "GateModule.forward",
+        "DiTBlock.__init__"
       ]
     },
     {
       "local_file": "ports/wan.py",
       "source_file": "openwam/model/video_backbone/wan_backbone.py",
       "symbols": [
-        "masked_mha",
-        "wan_post",
+        "_truncate_padded_context",
         "WanBase.preprocess_input_for_train"
+      ]
+    },
+    {
+      "local_file": "ports/fused.py",
+      "source_file": "openwam/model/kernels/fused_blocks.py",
+      "symbols": ["wan_post", "act_post", "_standard_forward", "_wan_forward_supported"]
+    },
+    {
+      "local_file": "ports/vae.py",
+      "source_file": "openwam/model/video_backbone/wan/models/vae.py",
+      "symbols": [
+        "CausalConv3d.forward",
+        "RMS_norm.forward",
+        "Resample.forward",
+        "ResidualBlock.forward",
+        "Encoder3d.forward",
+        "Encoder3d_38.forward",
+        "Decoder3d.forward",
+        "Decoder3d_38.forward",
+        "WanVideoVAE.batch_encode",
+        "WanVideoVAE.single_encode",
+        "VideoVAE38_.encode"
       ]
     },
     {

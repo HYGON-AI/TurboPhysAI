@@ -24,9 +24,16 @@ GROUP_DEFAULTS = {
     "openwam.compute": {
         "lightop_norm": False,
         "linear_bias2d": False,
+        "global_compile": False,
+        "global_compile_scope": "all",
+        "pointwise_compile": False,
+        "rope_real": False,
+        "vae_pointwise_compile": False,
+        "vae_channels_last": False,
     },
     "openwam.architecture": {"constant_cache": True},
     "openwam.mot": {
+        "mot_split_attention": False,
         "sac_attention": False,
         "sac_ffn_full": False,
         "sac_gemm": False,
@@ -48,7 +55,6 @@ GROUP_DEFAULTS = {
         "deferred_gather": False,
         "fused_adamw": False,
         "host_async": False,
-        "hw_queues": 0,
     },
 }
 
@@ -129,8 +135,8 @@ def initialize(*, force=False):
         raise ValueError(
             "ZeRO scaled packing and norm overlap require zero_reduce_scatter"
         )
-    if result["hw_queues"] == 1:
-        raise ValueError("openwam.training.hw_queues must be zero or >= 2")
+    if result["global_compile_scope"] not in ("all", "mot", "vae"):
+        raise ValueError("openwam.compute.global_compile_scope must be all, mot or vae")
     if result["sac_layers"] is not None and (
         isinstance(result["sac_layers"], bool)
         or not isinstance(result["sac_layers"], int)
@@ -156,8 +162,6 @@ def value(name, default=None):
 
 def enabled(name, default=False):
     item = value(name, default)
-    if name == "hw_queues":
-        return item > 0
     if not isinstance(item, bool):
         raise TypeError(f"OpenWAM option {name} is not boolean")
     return item

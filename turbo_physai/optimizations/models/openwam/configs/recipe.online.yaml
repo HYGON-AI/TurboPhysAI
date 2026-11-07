@@ -23,6 +23,12 @@ optimization_groups:
   options:
     lightop_norm: true
     linear_bias2d: true
+    global_compile: true
+    global_compile_scope: all
+    pointwise_compile: true
+    rope_real: true
+    vae_channels_last: true
+    vae_pointwise_compile: true
 - id: openwam.architecture
   options:
     constant_cache: true
@@ -33,6 +39,7 @@ optimization_groups:
     sac_gemm: false
     sac_layers: null
     sac_extra_ops: ''
+    mot_split_attention: true
 - id: openwam.text
   options:
     text_cache_dir: null
@@ -47,6 +54,5 @@ optimization_groups:
     deferred_gather: true
     fused_adamw: true
     host_async: true
-    hw_queues: 0
     zero_scaled_pack: true
     zero_norm_overlap: true

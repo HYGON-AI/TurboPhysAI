@@ -18,11 +18,17 @@ optimization_groups:
 - id: openwam.data
   options:
     vae_latent_cache: false
-    vae_latent_cache_dir: /path/to/openwam-cache
+    vae_latent_cache_dir: assets/openwam_latents_clean_50
 - id: openwam.compute
   options:
     lightop_norm: true
     linear_bias2d: true
+    global_compile: true
+    global_compile_scope: vae
+    pointwise_compile: true
+    rope_real: true
+    vae_channels_last: true
+    vae_pointwise_compile: true
 - id: openwam.architecture
   options:
     constant_cache: true
@@ -35,7 +41,7 @@ optimization_groups:
     sac_extra_ops: ''
 - id: openwam.text
   options:
-    text_cache_dir: null
+    text_cache_dir: assets/openwam_latents_clean_50/text
     padding_plan_cpu: true
     fa2_padding: true
     fa2_mask_fused: true
@@ -47,6 +53,5 @@ optimization_groups:
     deferred_gather: false
     fused_adamw: false
     host_async: false
-    hw_queues: 16
     zero_scaled_pack: false
     zero_norm_overlap: false

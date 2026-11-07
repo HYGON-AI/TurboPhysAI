@@ -47,6 +47,5 @@ optimization_groups:
     deferred_gather: false
     fused_adamw: false
     host_async: false
-    hw_queues: 0
     zero_scaled_pack: false
     zero_norm_overlap: false

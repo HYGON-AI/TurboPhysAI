@@ -361,6 +361,9 @@ def OpenWAMTrainer_train(self, num_epochs: int = None, max_steps: int = None):
                 from accelerate import skip_first_batches
 
                 epoch_iter = skip_first_batches(dataloader, skip_first)
+                # Accelerate's rebuilt loader may drop the asynchronous transfer setting.
+                if getattr(dataloader, "_non_blocking", False) and hasattr(epoch_iter, "_non_blocking"):
+                    epoch_iter._non_blocking = True
             else:
                 epoch_iter = dataloader
             if online is not None:
@@ -635,6 +638,8 @@ def build_dataloader(original, options):
 def prepare_accelerate(original, options):
     @functools.wraps(original)
     def wrapped(self, *args, **kwargs):
+        if enabled("host_async"):
+            self.accelerator.dataloader_config.non_blocking = True
         result = original(self, *args, **kwargs)
         arch = self.accelerator.unwrap_model(self.architecture)
         if enabled("vae_latent_cache"):

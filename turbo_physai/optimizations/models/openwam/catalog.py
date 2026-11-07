@@ -26,6 +26,113 @@ DATA = group(
 COMPUTE = group(
     "openwam.compute",
     wrap(
+        "openwam.model.action_backbone.separate_action_dit.ActionDiT.post_attn_at_layer_for_compile",
+        "turbo_physai.optimizations.models.openwam.ports.action.ActionDiT_post_attn_at_layer_for_compile_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.modulate",
+        "turbo_physai.optimizations.models.openwam.ports.dit.modulate_wrapper",
+        aliases=("openwam.model.video_backbone.wan_backbone.modulate",),
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.rope_apply",
+        "turbo_physai.optimizations.models.openwam.ports.dit.rope_apply_wrapper",
+        aliases=("openwam.model.video_backbone.wan_backbone.rope_apply",),
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.precompute_freqs_cis",
+        "turbo_physai.optimizations.models.openwam.ports.dit.precompute_freqs_cis_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.precompute_freqs_cis_3d",
+        "turbo_physai.optimizations.models.openwam.ports.dit.precompute_freqs_cis_3d_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.GateModule.forward",
+        "turbo_physai.optimizations.models.openwam.ports.dit.GateModule_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.dit.DiTBlock.__init__",
+        "turbo_physai.optimizations.models.openwam.ports.dit.dit_block_init_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.separate_action_dit.SelfAttnActionDiTBlock.gate",
+        "turbo_physai.optimizations.models.openwam.ports.action.SelfAttnActionDiTBlock_gate_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.separate_action_dit.ActionSelfAttention.forward",
+        "turbo_physai.optimizations.models.openwam.ports.action.ActionSelfAttention_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.separate_action_dit.ActionDiT.pre_attn_at_layer_for_compile",
+        "turbo_physai.optimizations.models.openwam.ports.action.ActionDiT_pre_attn_at_layer_for_compile_wrapper",
+    ),
+    wrap(
+        "openwam.model.action_backbone.components.rope_apply_1d",
+        "turbo_physai.optimizations.models.openwam.ports.action.rope_apply_1d_wrapper",
+        aliases=(
+            "openwam.model.action_backbone.separate_action_dit.rope_apply_1d",
+            "openwam.model.architectures.dual_system.idm.rope_apply_1d",
+        ),
+    ),
+    wrap(
+        "openwam.model.kernels.rope_triton.rope_apply_auto",
+        "turbo_physai.optimizations.models.openwam.ports.dit.rope_apply_auto_wrapper",
+        aliases=("openwam.model.video_backbone.wan_backbone.rope_apply_auto",),
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.CausalConv3d.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.CausalConv3d_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.RMS_norm.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.RMS_norm_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Resample.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Resample_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.ResidualBlock.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.ResidualBlock_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Encoder3d.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Encoder3d_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Encoder3d_38.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Encoder3d_38_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Decoder3d.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Decoder3d_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.Decoder3d_38.forward",
+        "turbo_physai.optimizations.models.openwam.ports.vae.Decoder3d_38_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.WanVideoVAE.batch_encode",
+        "turbo_physai.optimizations.models.openwam.ports.vae.WanVideoVAE_batch_encode_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.WanVideoVAE.single_encode",
+        "turbo_physai.optimizations.models.openwam.ports.vae.WanVideoVAE_single_encode_wrapper",
+    ),
+    wrap(
+        "openwam.model.video_backbone.wan.models.vae.VideoVAE38_.encode",
+        "turbo_physai.optimizations.models.openwam.ports.vae.VideoVAE38__encode_wrapper",
+    ),
+    wrap(
+        "openwam.model.kernels.fused_blocks._standard_forward",
+        "turbo_physai.optimizations.models.openwam.ports.fused._standard_forward_wrapper",
+    ),
+    wrap(
+        "openwam.model.kernels.fused_blocks._wan_forward_supported",
+        "turbo_physai.optimizations.models.openwam.ports.fused._wan_forward_supported_wrapper",
+    ),
+    wrap(
         "openwam.model.action_backbone.components.RMSNorm.forward",
         "turbo_physai.optimizations.models.openwam.ports.action_components.RMSNorm_forward_wrapper",
     ),
@@ -43,7 +150,7 @@ COMPUTE = group(
     ),
     wrap(
         "openwam.model.kernels.fused_blocks.act_post",
-        "turbo_physai.optimizations.models.openwam.ports.action.act_post_wrapper",
+        "turbo_physai.optimizations.models.openwam.ports.fused.act_post_wrapper",
     ),
     wrap(
         "openwam.model.video_backbone.wan.models.dit.flash_attention",
@@ -70,7 +177,7 @@ COMPUTE = group(
     ),
     wrap(
         "openwam.model.kernels.fused_blocks.wan_post",
-        "turbo_physai.optimizations.models.openwam.ports.wan.wan_post_wrapper",
+        "turbo_physai.optimizations.models.openwam.ports.fused.wan_post_wrapper",
     ),
     wrap(
         "openwam.model.video_backbone.wan_backbone.WanBase.preprocess_input_for_train",
@@ -108,6 +215,18 @@ ARCHITECTURE = group(
 
 MOT = group(
     "openwam.mot",
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._build_attention_mask",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver__build_attention_mask_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._step_impl",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver__step_impl_wrapper",
+    ),
+    wrap(
+        "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver.step",
+        "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver_step_wrapper",
+    ),
     wrap(
         "openwam.model.architectures.dual_system.mot_driver.DualSystemMoTDriver._mixed_attention",
         "turbo_physai.optimizations.models.openwam.ports.mot.DualSystemMoTDriver__mixed_attention_wrapper",
