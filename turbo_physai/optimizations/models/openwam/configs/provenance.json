@@ -1,0 +1,193 @@
+{
+  "source_repository": "https://github.com/iMountTai/OpenWAM",
+  "source_branch": "main",
+  "source_commit": "0ca62ddbc3052252351aa28df88af1607f77381d",
+  "previous_source_commit": "0c9ed80d80af1d0c5f4148afe65cc7f462ec3995",
+  "latest_increment": {
+    "scope": "Restore HCU MoT and VAE compile paths, channels-last VAE, real RoPE, structured attention, exact text truncation, staged T5 inputs and asynchronous resume transfers.",
+    "source_files": [
+      "openwam/optimizations/global_compile.py",
+      "openwam/optimizations/pointwise.py",
+      "openwam/optimizations/vae_layout.py",
+      "openwam/optimizations/attention.py",
+      "openwam/optimizations/text_store.py",
+      "openwam/model/kernels/fused_blocks.py",
+      "openwam/model/kernels/rope_triton.py",
+      "openwam/model/video_backbone/wan/encode.py",
+      "openwam/model/video_backbone/wan/models/vae.py",
+      "openwam/train/openwam_trainer.py",
+      "presets/hcu_fast.env",
+      "presets/hcu_fast_cache.env"
+    ]
+  },
+  "baseline_commit": "0c9ed80d80af1d0c5f4148afe65cc7f462ec3995",
+  "license": "Apache-2.0",
+  "optimization_modules": [
+    "__init__.py",
+    "_fa2_varlen.py",
+    "attention.py",
+    "deferred_gather.py",
+    "host_async.py",
+    "latent_cache.py",
+    "linear_bias2d.py",
+    "norms.py",
+    "online_encode.py",
+    "runtime.py",
+    "sac.py",
+    "text.py",
+    "text_store.py",
+    "zero.py",
+    "zero_fused.py",
+    "zero_kernels.py",
+    "zero_norm.py",
+    "global_compile.py",
+    "pointwise.py",
+    "vae_layout.py"
+  ],
+  "ports": [
+    {
+      "local_file": "ports/data.py",
+      "source_file": "openwam/dataloader/robotwin.py",
+      "symbols": [
+        "_prompt_choices",
+        "_training_prompts",
+        "_resolve_prompt",
+        "RoboTwinDataset._build_sample",
+        "MultiTaskRoboTwinDataset.from_config"
+      ]
+    },
+    {
+      "local_file": "ports/action_components.py",
+      "source_file": "openwam/model/action_backbone/components.py",
+      "symbols": [
+        "RMSNorm.forward"
+      ]
+    },
+    {
+      "local_file": "ports/action.py",
+      "source_file": "openwam/model/action_backbone/separate_action_dit.py",
+      "symbols": [
+        "_modulate",
+        "BridgeCrossAttention.forward",
+        "BridgeCrossAttention._attend",
+        "CrossAttnActionDiTBlock.forward",
+        "SelfAttnActionDiTBlock.forward",
+        "SelfAttnActionDiTBlock.gate",
+        "ActionSelfAttention.forward",
+        "ActionDiT.pre_attn_at_layer_for_compile",
+        "ActionDiT.post_attn_at_layer_for_compile"
+      ]
+    },
+    {
+      "local_file": "ports/architecture.py",
+      "source_file": "openwam/model/architectures/base.py",
+      "symbols": [
+        "BaseWAMArchitecture._append_proprio_context_token",
+        "BaseWAMArchitecture.save_checkpoint",
+        "BaseWAMArchitecture.prepare_inputs",
+        "BaseWAMArchitecture.compute_loss"
+      ]
+    },
+    {
+      "local_file": "ports/idm.py",
+      "source_file": "openwam/model/architectures/dual_system/idm.py",
+      "symbols": [
+        "DualSystemIDMArchitecture.compute_loss"
+      ]
+    },
+    {
+      "local_file": "ports/joint.py",
+      "source_file": "openwam/model/architectures/dual_system/joint_self_attn.py",
+      "symbols": [
+        "DualSystemSelfAttnArchitecture.forward"
+      ]
+    },
+    {
+      "local_file": "ports/mot.py",
+      "source_file": "openwam/model/architectures/dual_system/mot_driver.py",
+      "symbols": [
+        "DualSystemMoTDriver._mixed_attention",
+        "DualSystemMoTDriver._mixed_attention_impl",
+        "DualSystemMoTDriver._build_attention_mask",
+        "DualSystemMoTDriver.step",
+        "DualSystemMoTDriver._step_impl",
+        "DualSystemMoTDriver._step_checkpointed",
+        "DualSystemMoTDriver.run_joint_loop"
+      ]
+    },
+    {
+      "local_file": "ports/encode.py",
+      "source_file": "openwam/model/video_backbone/wan/encode.py",
+      "symbols": [
+        "encode_text",
+        "_encode_text_uncached",
+        "prepare_text_cached"
+      ]
+    },
+    {
+      "local_file": "ports/dit.py",
+      "source_file": "openwam/model/video_backbone/wan/models/dit.py",
+      "symbols": [
+        "flash_attention",
+        "_flash_attention_impl",
+        "RMSNorm.forward",
+        "SelfAttention.forward",
+        "CrossAttention.forward",
+        "modulate",
+        "rope_apply",
+        "precompute_freqs_cis",
+        "precompute_freqs_cis_3d",
+        "GateModule.forward",
+        "DiTBlock.__init__"
+      ]
+    },
+    {
+      "local_file": "ports/wan.py",
+      "source_file": "openwam/model/video_backbone/wan_backbone.py",
+      "symbols": [
+        "_truncate_padded_context",
+        "WanBase.preprocess_input_for_train"
+      ]
+    },
+    {
+      "local_file": "ports/fused.py",
+      "source_file": "openwam/model/kernels/fused_blocks.py",
+      "symbols": ["wan_post", "act_post", "_standard_forward", "_wan_forward_supported"]
+    },
+    {
+      "local_file": "ports/vae.py",
+      "source_file": "openwam/model/video_backbone/wan/models/vae.py",
+      "symbols": [
+        "CausalConv3d.forward",
+        "RMS_norm.forward",
+        "Resample.forward",
+        "ResidualBlock.forward",
+        "Encoder3d.forward",
+        "Encoder3d_38.forward",
+        "Decoder3d.forward",
+        "Decoder3d_38.forward",
+        "WanVideoVAE.batch_encode",
+        "WanVideoVAE.single_encode",
+        "VideoVAE38_.encode"
+      ]
+    },
+    {
+      "local_file": "ports/trainer.py",
+      "source_file": "openwam/train/openwam_trainer.py",
+      "symbols": [
+        "OpenWAMTrainer.__init__",
+        "OpenWAMTrainer.train",
+        "OpenWAMTrainer.build_optimizer",
+        "OpenWAMTrainer.build_dataloader",
+        "OpenWAMTrainer.prepare_accelerate",
+        "OpenWAMTrainer.compute_loss",
+        "OpenWAMTrainer.finish_training",
+        "_gpu_numa_cpus"
+      ]
+    }
+  ],
+  "validation": "Static identity/configuration checks only; no model or HCU test.",
+  "configuration": "Turbo Groups/options; legacy optimization environment switches are not used.",
+  "target_identity_evidence": "Canonical AST of definitions exported from the fixed upstream baseline; no model imports or execution.",
+  "scope": "Performance optimizations and trace profiling. Native training setup, logging and checkpoint teardown are delegated; GC tracing and SAC diagnostics remain native."
+}

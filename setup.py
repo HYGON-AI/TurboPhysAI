@@ -433,6 +433,7 @@ setup(
             "optimizations/common/configs/.*.generation.json",
             "optimizations/common/*/configs/.*.generation.json",
             "optimizations/models/*/configs/.*.generation.json",
+            "optimizations/models/openwam/configs/*.json",
             # _sitedir is deliberately not a package: it must contribute
             # sitecustomize.py to PYTHONPATH without being importable itself.
             "bootstrap/_sitedir/sitecustomize.py",

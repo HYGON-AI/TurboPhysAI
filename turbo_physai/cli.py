@@ -17,6 +17,7 @@ from .engine.config.loader import (
     load_optimization_config,
 )
 from .runtime import load_runtime_config, prepare_environment
+from .engine.config.overrides import apply_option_overrides, parse_option_overrides
 
 _PACKAGED_MODEL_ROOT = PACKAGED_OPTIMIZATION_ROOT / "models"
 
@@ -112,6 +113,13 @@ def _parser() -> argparse.ArgumentParser:
         help="disable a comma-separated Group list in the current run",
     )
     run.add_argument("--set", action="append", default=[], metavar="NAME=VALUE")
+    run.add_argument(
+        "--option",
+        action="append",
+        default=[],
+        metavar="GROUP_ID.KEY=VALUE",
+        help="override a Group option for this run; JSON values or plain strings",
+    )
     run.add_argument(
         "--disable-numa", action="store_true", help="disable configured NUMA binding"
     )
@@ -325,6 +333,14 @@ def main(argv=None) -> int:
                 disable_groups,
                 command,
             )
+            option_overrides = parse_option_overrides(args.option)
+            if option_overrides:
+                apply_option_overrides(
+                    load_optimization_config(
+                        optimization_config_path, import_modules=False
+                    ),
+                    option_overrides,
+                )
             isolated = isolation_flags(command)
             if isolated:
                 raise TurboPhysAIError(
@@ -338,6 +354,7 @@ def main(argv=None) -> int:
                 log_report=args.log_report,
                 force_groups=tuple(force_groups),
                 disable_groups=tuple(disable_groups),
+                option_overrides=option_overrides,
             )
 
             return _run_training_command(command, environment)

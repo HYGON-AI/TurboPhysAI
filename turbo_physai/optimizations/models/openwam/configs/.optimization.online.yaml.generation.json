@@ -1,0 +1,23 @@
+{
+  "schema_version": "turbophysai/generation-record/v2",
+  "generator": "turbo-physai optimization generate",
+  "model_commit": "0c9ed80d80af1d0c5f4148afe65cc7f462ec3995",
+  "config": {
+    "path": "optimization.online.yaml",
+    "sha256": "1d079e413cc69b8b96f55058c7b05a195aa869d7cd0d7f86102f481d6e889225"
+  },
+  "inputs": [
+    {
+      "role": "recipe",
+      "base": "package",
+      "path": "optimizations/models/openwam/configs/recipe.online.yaml",
+      "sha256": "38c99d7bd9c14897ea117504ddec853790f63a29869f5568487464afaa5156fc"
+    },
+    {
+      "role": "catalog",
+      "base": "package",
+      "path": "optimizations/models/openwam/catalog.py",
+      "sha256": "731f862ff859a903658c3f0286edf4e7e7d4c8998af4980ad05feca1f1151e6e"
+    }
+  ]
+}
