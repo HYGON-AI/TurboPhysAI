@@ -14,4 +14,6 @@ TurboPhysAI 不强制模型仓库停留在优化接入基线（[可以在优化�
 | BEVFusion |   BEVFusion   |    —    | `326653dc06e0938edf1aae7d01efcd158ba83de5` | [BEVFusion](../../../model_examples/BEVFusion/README.md) |
 |  OpenVLA  |   OpenVLA-7B   | DINOv2+SigLIP | `c8f03f48af692657d3060c19588038c7220e9af9` | [OpenVLA](../../../model_examples/OpenVLA/README.md) |
 
+| LingBot-VA | LingBot-VA LIBERO | Wan2.2 video-action | `7c6ffa9bfc4b83582cafc860fab4c82cc7deeeeb` | [LingBot-VA](../../../model_examples/LingBot-VA/README.md) |
+
 **自动驾驶**、**具身智能**和**世界模型**等方向的模型适配工作持续推进中，请关注后续更新。

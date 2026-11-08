@@ -1,0 +1,17 @@
+# HCU 镜像已提供 PyTorch、Triton、FlashAttention、einops、tqdm、msgpack 和 Pillow。
+# 本文件只补装 LingBot-VA 训练及权重/数据下载所需依赖。
+diffusers==0.36.0
+transformers==4.55.4
+accelerate==1.15.0
+easydict==1.13
+numpy==1.26.4
+imageio==2.38.0
+websockets==16.1.1
+opencv-python-headless==4.11.0.86
+matplotlib==3.10.9
+ftfy==6.3.1
+safetensors==0.8.0
+lerobot==0.3.3
+scipy==1.15.3
+wandb==0.31.0
+huggingface-hub==0.36.2

@@ -1,0 +1,8 @@
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+environment:
+  set:
+    TOKENIZERS_PARALLELISM: "false"
+  unset: []
+process:
+  numa: true

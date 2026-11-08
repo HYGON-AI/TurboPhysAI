@@ -137,6 +137,22 @@ The complete Pillow 12.3.0 license text is in [third_party/licenses/Pillow-MIT-C
 
 The complete Boost Software License 1.0 text is in [third_party/licenses/Boost-1.0.txt](third_party/licenses/Boost-1.0.txt). The source file retains Louis Delacroix's original copyright and license notice.
 
+### LingBot-VA
+
+- Repository: <https://github.com/Robbyant/lingbot-va>
+- Fixed commit: `7c6ffa9bfc4b83582cafc860fab4c82cc7deeeeb`
+- License: Apache-2.0; see [`third_party/licenses/LingBot-VA-Apache-2.0.txt`](third_party/licenses/LingBot-VA-Apache-2.0.txt).
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/lingbot_va/timestep.py` | `wan_va/modules/model.py` (`WanTransformer3DModel._time_embed`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_va/rotary.py` | `wan_va/modules/model.py` (`WanAttention.forward`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_va/pointwise.py` | `wan_va/modules/model.py` (`WanTransformerBlock.forward`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_va/fsdp.py` | `wan_va/distributed/fsdp.py` | Modified |
+| `turbo_physai/optimizations/models/lingbot_va/train_sync.py` | `wan_va/train.py` (`Trainer.train`) | Modified |
+
+The Group catalog, compatibility checks, and guarded Flex template adapter are TurboPhysAI integration code. The Flex assets retain their separate source/architecture notices where present.
+
 ## Provenance policy for future additions
 
 Before public release, every newly introduced third-party or mixed-source file must be resolved to an upstream path and 40-character commit and added here.

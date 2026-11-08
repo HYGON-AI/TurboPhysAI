@@ -1,0 +1,23 @@
+{
+  "schema_version": "turbophysai/generation-record/v2",
+  "generator": "turbo-physai optimization generate",
+  "model_commit": "7c6ffa9bfc4b83582cafc860fab4c82cc7deeeeb",
+  "config": {
+    "path": "optimization.yaml",
+    "sha256": "5c9ddca72a0b2dc58f0000f7a4691b5e82d5e6adfe963c0983aa98954bb2b8b6"
+  },
+  "inputs": [
+    {
+      "role": "recipe",
+      "base": "package",
+      "path": "optimizations/models/lingbot_va/configs/recipe.yaml",
+      "sha256": "e9f70e435fcb34b5be8bf0f508bc3b0f748d2624b6c8cddb95c367bc81be3093"
+    },
+    {
+      "role": "catalog",
+      "base": "package",
+      "path": "optimizations/models/lingbot_va/catalog.py",
+      "sha256": "5b50ab7d08b48c0c6b0a3d3fb920e19f4af59d81b59ac324edecd1e43262821c"
+    }
+  ]
+}
