@@ -1,0 +1,149 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+name: Release WHL HCU PyPI
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+# Serialize publishing independently from HCU tests.
+concurrency:
+  group: turbophysai-hcu-publish
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    name: Publish HCU wheel
+    runs-on: hygon-build
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Match docker/ci/Dockerfile's supplied Torch 2.10 framework.
+          - harbor_site: 10.16.1.152:5000
+            dtk_version: "26.04"
+            dtk_tag: "2604"
+            py_version: "3.10"
+            torch_version: 2.10.0+das.opt1.dtk2604.2608131652.g28498c
+            torchvision_version: 0.25.0+das185.dtk2604.torch2100.2608130858.gdcd044
+            triton_version: 3.6.0+das185.dtk2604.torch2100.2608131719.gb796b1
+            flash_attn_version: 2.8.4+dtk2604.torch2100.2609231125.g11f180
+            apex_version: 1.7.0+dtk2604.torch2100.2609201739.g9783d4
+            torchaudio_version: 2.10.0+das.opt1.dtk2604.torch2100.2609021532.gdf6f74
+            lightop_url: "https://pypi.sourcefind.cn/das_release/das1.8.5/+f/4a3/1521919e4c764/lightop-0.6.0+das.dtk2604.torch2100.2608121706.g09a4f3-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl#sha256=4a31521919e4c76405e8dcb5035b55cdc92b2ad6dc5e9f2e72373510835df159"
+            hipdnn_url: "https://hygon-thpcbench-1251001002.cos.ap-shanghai.myqcloud.com/hygon/whl/hipdnn-1.0.1+dtk2604-cp310-cp310-linux_x86_64.whl#sha256=57d0e61cb381bbb244f45140b0dac9775bfc47e33c0eef2acc87627b1b8ea8ec"
+    defaults:
+      run:
+        shell: bash
+    container:
+      # Reuse the DTK already installed in the same base as the test CI.
+      # Set HCU_CI_BASE_IMAGE to an approved image@sha256:digest when available.
+      image: ${{ vars.HCU_CI_BASE_IMAGE || format('{0}/hcu/base/dtk:{1}-ubuntu22.04-py{2}', matrix.harbor_site, matrix.dtk_version, matrix.py_version) }}
+    env:
+      LANG: C.UTF-8
+      PYTHONNOUSERSITE: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      TORCH_CUDA_ARCH_LIST: "9.0"
+      PIP_INDEX_URL: ${{ vars.HCU_PIP_INDEX_URL || 'https://pypi.tuna.tsinghua.edu.cn/simple' }}
+      PIP_TRUSTED_HOST: ${{ vars.HCU_PIP_TRUSTED_HOST || 'pypi.tuna.tsinghua.edu.cn' }}
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_NO_CACHE_DIR: "1"
+      PIP_DEFAULT_TIMEOUT: "180"
+      PIP_RETRIES: "10"
+      PYPI_URL: http://12.12.12.201:9929
+      PYPI_TRUSTED_HOST: "12.12.12.201"
+      DTK_PYPI_INDEX: https://pypi.sourcefind.cn/nightly/dtk${{ matrix.dtk_tag }}
+      DTK_TAG: ${{ matrix.dtk_tag }}
+      DTK_LLVM_URL: http://42.228.13.241:18000/ai_cc/Nightly/dtk_llvm-1.0.0%2Bdtk2604.2609201512.gf72f9e-x86_64.run
+      TORCH_VERSION: ${{ matrix.torch_version }}
+      TORCHVISION_VERSION: ${{ matrix.torchvision_version }}
+      TRITON_VERSION: ${{ matrix.triton_version }}
+      FLASH_ATTN_VERSION: ${{ matrix.flash_attn_version }}
+      APEX_VERSION: ${{ matrix.apex_version }}
+      TORCHAUDIO_VERSION: ${{ matrix.torchaudio_version }}
+      LIGHTOP_WHL_URL: ${{ matrix.lightop_url }}
+      HIPDNN_WHL_URL: ${{ matrix.hipdnn_url }}
+
+    steps:
+      - name: Install original CI system dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          # Same Ubuntu/Debian DTK base-image assumption as docker/ci/Dockerfile.
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake curl git libnuma-dev \
+            ninja-build python3-dev python3-tk
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Check out the release commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare HCU build environment
+        run: |
+          set -euo pipefail
+          bash .github/scripts/setup_hcu_environment.sh --release-tools 2>&1 | tee setup-hcu.log
+
+      - name: Build wheel
+        run: |
+          set -eo pipefail
+          source /opt/dtk/env.sh
+          set -u
+          export ROCM_HOME="${ROCM_HOME:-${ROCM_PATH:-/opt/dtk}}"
+          unset PYTHONPATH
+          repo_root="$(pwd)"
+          build_root="$(mktemp -d /tmp/turbophysai-build.XXXXXX)"
+          trap 'rm -rf -- "${build_root}"' EXIT
+          # Reuse run_hcu_ci.sh's isolated-source wheel build, without tests.
+          cp -a "${repo_root}/." "${build_root}/"
+          mkdir -p "${repo_root}/dist"
+          python3 -m pip wheel \
+            --no-build-isolation --no-deps \
+            --wheel-dir "${repo_root}/dist" "${build_root}"
+
+      - name: Select raw HCU wheel
+        run: |
+          set -eo pipefail
+          set -u
+          mapfile -t wheels < <(find dist -maxdepth 1 -type f -name 'turbo_physai-*.whl' -print)
+          [[ "${#wheels[@]}" -eq 1 ]] || { echo 'Expected exactly one raw wheel' >&2; exit 1; }
+          echo "Using HCU-specific Linux wheel: ${wheels[0]}"
+
+      - name: CIUpload NIGHTLY
+        if: ${{ github.event_name == 'push' }}
+        env:
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          : "${PYPI_URL:?PYPI_URL is not configured}"
+          : "${PYPI_PASSWORD:?Configure repository secret PYPI_PASSWORD}"
+          dtk_version="$(tr -d '.[:space:]' < /opt/dtk/.info/rocm_version)"
+          mapfile -t wheels < <(find dist -maxdepth 1 -type f -name 'turbo_physai-*.whl' -print)
+          [[ "${#wheels[@]}" -eq 1 ]] || { echo 'Expected exactly one raw HCU Linux wheel' >&2; exit 1; }
+          CIUpload NIGHTLY \
+            --devpi_url "${PYPI_URL}" --password "${PYPI_PASSWORD}" \
+            --dtk_version "${dtk_version}" -f "${wheels[0]}" --record
+
+      - name: Upload release build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hcu-wheel-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/*.whl
+            setup-hcu.log
+          if-no-files-found: ignore
+          retention-days: 7

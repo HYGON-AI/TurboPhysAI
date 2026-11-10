@@ -17,202 +17,168 @@ on:
 permissions:
   contents: read
 
-# The HCU runner and its Docker daemon share a physical device. Serialize all
-# executions, including executions from different branches and event types.
+# Cancel superseded runs of the same PR; different refs use separate ARC resources.
 concurrency:
-  group: turbophysai-hcu-single-device
-  cancel-in-progress: false
-
-env:
-  # Transitional mode: build the repository-owned CI image on each runner.
-  # Keep a stable local tag so persistent runners can reuse Docker layer cache.
-  TURBOPHYSAI_CI_IMAGE: turbophysai-ci:hcu-ci-local
-  TURBOPHYSAI_CI_ARTIFACT_RETENTION_DAYS: "14"
+  group: turbophysai-hcu-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  wheel-and-tests:
-    name: Build wheel and run the complete single-HCU suite
+  wheel-build:
+    name: Build HCU wheel
     # Never execute an untrusted fork directly on an internal self-hosted
     # runner. A maintainer can approve it by moving the commit to a trusted
     # branch and starting workflow_dispatch from that branch.
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
-    runs-on:
-      group: ci-general
-      labels: [self-hosted, ci, nmz1]
+    runs-on: hygon-build
     timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    container:
+      # Set HCU_CI_BASE_IMAGE to an approved image@sha256:digest when available.
+      image: ${{ vars.HCU_CI_BASE_IMAGE || '10.16.1.152:5000/hcu/base/dtk:26.04-ubuntu22.04-py3.10' }}
     env:
-      HIP_VISIBLE_DEVICES: "0"
-      MAX_JOBS: "4"
       TURBOPHYSAI_DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}
-      PIP_INDEX_URL: ${{ vars.HCU_PIP_INDEX_URL }}
-      PIP_TRUSTED_HOST: ${{ vars.HCU_PIP_TRUSTED_HOST }}
+      PIP_INDEX_URL: ${{ vars.HCU_PIP_INDEX_URL || 'https://pypi.tuna.tsinghua.edu.cn/simple' }}
+      PIP_TRUSTED_HOST: ${{ vars.HCU_PIP_TRUSTED_HOST || 'pypi.tuna.tsinghua.edu.cn' }}
+      PYTHONNOUSERSITE: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      LANG: C.UTF-8
+      TORCH_CUDA_ARCH_LIST: "9.0"
 
     steps:
+      - name: Install CI system dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake curl git libnuma-dev \
+            ninja-build python3-dev python3-tk
+          rm -rf /var/lib/apt/lists/*
+
       - name: Check out the tested commit
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Prepare artifact directory
-        shell: bash
         run: |
           set -euo pipefail
-          runner_work_root="$(cd -- "${RUNNER_TEMP}/.." && pwd)"
-          public_root="${runner_work_root}/ci/public/TurboPhysAI"
-          artifact_dir="${public_root}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          artifact_dir="/ci_public/${GITHUB_REPOSITORY#*/}/runs/${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}/build"
           mkdir -p "${artifact_dir}"
-          echo "TURBOPHYSAI_CI_PUBLIC_ROOT=${public_root}" >> "${GITHUB_ENV}"
           echo "TURBOPHYSAI_CI_ARTIFACT_DIR=${artifact_dir}" >> "${GITHUB_ENV}"
-          echo "TURBOPHYSAI_CI_CONTAINER=turbophysai-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_ENV}"
-          echo "Local CI artifacts: ${artifact_dir}"
+          echo "CI artifacts: ${artifact_dir}"
 
-      - name: Validate HCU runner and Docker
-        shell: bash
+      - name: Prepare HCU build environment
         run: |
           set -euo pipefail
-          test -e /dev/kfd
-          test -e /dev/dri
-          test -d /opt/hyhal
-          docker version
+          bash .github/scripts/setup_hcu_environment.sh 2>&1 | tee "${TURBOPHYSAI_CI_ARTIFACT_DIR}/setup.log"
 
-      - name: Build the repository-specified CI image
+      - name: Build wheel without an HCU
+        run: bash .github/scripts/run_hcu_ci.sh --build-only
+
+      - name: Upload wheel for the test job
+        uses: actions/upload-artifact@v4
+        with:
+          name: hcu-wheel-${{ github.run_id }}
+          path: ${{ env.TURBOPHYSAI_CI_ARTIFACT_DIR }}/dist/*.whl
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+      - name: Upload CI artifacts
+        if: ${{ always() && env.TURBOPHYSAI_CI_ARTIFACT_DIR != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: hcu-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.TURBOPHYSAI_CI_ARTIFACT_DIR }}/
+          if-no-files-found: warn
+          retention-days: 7
+
+  wheel-and-tests:
+    needs: wheel-build
+    name: Test HCU wheel
+    # Never execute an untrusted fork directly on an internal self-hosted
+    # runner. A maintainer can approve it by moving the commit to a trusted
+    # branch and starting workflow_dispatch from that branch.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: hygon-bw1100-1card
+    timeout-minutes: 120
+    defaults:
+      run:
         shell: bash
+    container:
+      # Set HCU_CI_BASE_IMAGE to an approved image@sha256:digest when available.
+      image: ${{ vars.HCU_CI_BASE_IMAGE || '10.16.1.152:5000/hcu/base/dtk:26.04-ubuntu22.04-py3.10' }}
+    env:
+      TURBOPHYSAI_DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}
+      PIP_INDEX_URL: ${{ vars.HCU_PIP_INDEX_URL || 'https://pypi.tuna.tsinghua.edu.cn/simple' }}
+      PIP_TRUSTED_HOST: ${{ vars.HCU_PIP_TRUSTED_HOST || 'pypi.tuna.tsinghua.edu.cn' }}
+      PYTHONNOUSERSITE: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      LANG: C.UTF-8
+      TORCH_CUDA_ARCH_LIST: "9.0"
+
+    steps:
+      - name: Install CI system dependencies
         env:
-          L0_IMAGE: ${{ vars.IMAGE_URL }}
+          DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
-          if [[ -z "${L0_IMAGE:-}" ]]; then
-            echo "Required repository variable IMAGE_URL is not configured." >&2
-            exit 1
-          fi
-          docker build \
-            --build-arg "L0_IMAGE=${L0_IMAGE}" \
-            --file docker/ci/Dockerfile \
-            --tag "${TURBOPHYSAI_CI_IMAGE}" \
-            .
-          docker image inspect "${TURBOPHYSAI_CI_IMAGE}" \
-            --format 'image_id={{.Id}} repo_digests={{json .RepoDigests}}' | \
-            tee "${TURBOPHYSAI_CI_ARTIFACT_DIR}/image-metadata.txt"
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake curl git libnuma-dev \
+            ninja-build python3-dev python3-tk
+          rm -rf /var/lib/apt/lists/*
 
-      - name: Build, install, import-check, and test in the HCU container
-        shell: bash
+      - name: Check out the tested commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare artifact directory
         run: |
           set -euo pipefail
+          artifact_dir="/ci_public/${GITHUB_REPOSITORY#*/}/runs/${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}/tests"
+          mkdir -p "${artifact_dir}"
+          echo "TURBOPHYSAI_CI_ARTIFACT_DIR=${artifact_dir}" >> "${GITHUB_ENV}"
+          echo "CI artifacts: ${artifact_dir}"
 
-          device_args=(--device=/dev/kfd --device=/dev/dri)
-          if [[ -e /dev/mkfd ]]; then
-            device_args+=(--device=/dev/mkfd)
-          fi
+      - name: Download the wheel from the build job
+        uses: actions/download-artifact@v4
+        with:
+          name: hcu-wheel-${{ github.run_id }}
+          path: ${{ github.workspace }}/ci-wheel
 
-          pip_args=()
-          if [[ -n "${PIP_INDEX_URL:-}" ]]; then
-            pip_args+=(-e PIP_INDEX_URL)
-          fi
-          if [[ -n "${PIP_TRUSTED_HOST:-}" ]]; then
-            pip_args+=(-e PIP_TRUSTED_HOST)
-          fi
+      - name: Prepare HCU test environment
+        run: |
+          set -euo pipefail
+          bash .github/scripts/setup_hcu_environment.sh 2>&1 | tee "${TURBOPHYSAI_CI_ARTIFACT_DIR}/setup.log"
 
-          docker run --rm \
-            --name "${TURBOPHYSAI_CI_CONTAINER}" \
-            --privileged \
-            --network=host \
-            --ipc=host \
-            --shm-size=64g \
-            --group-add=video \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            --ulimit stack=-1:-1 \
-            --ulimit memlock=-1:-1 \
-            --user root \
-            "${device_args[@]}" \
-            "${pip_args[@]}" \
-            -e CI=true \
-            -e GITHUB_SHA \
-            -e GITHUB_REF_NAME \
-            -e GITHUB_REF_TYPE \
-            -e HIP_VISIBLE_DEVICES \
-            -e MAX_JOBS \
-            -e TURBOPHYSAI_DIFF_BASE \
-            -e TURBOPHYSAI_HOST_UID="$(id -u)" \
-            -e TURBOPHYSAI_HOST_GID="$(id -g)" \
-            -e TURBOPHYSAI_CI_IMAGE \
-            -e TURBOPHYSAI_CI_ARTIFACT_DIR \
-            -v /opt/hyhal:/opt/hyhal:ro \
-            -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
-            -v "${TURBOPHYSAI_CI_ARTIFACT_DIR}:${TURBOPHYSAI_CI_ARTIFACT_DIR}" \
-            -w "${GITHUB_WORKSPACE}" \
-            "${TURBOPHYSAI_CI_IMAGE}" \
-            bash .github/scripts/run_hcu_ci.sh
+      - name: Install, import-check, and test the built wheel
+        run: bash .github/scripts/run_hcu_ci.sh --test-only "${GITHUB_WORKSPACE}/ci-wheel"
 
-      - name: Remove an interrupted test container
+      - name: Report CI results
         if: always()
-        shell: bash
         run: |
-          docker rm -f "${TURBOPHYSAI_CI_CONTAINER}" >/dev/null 2>&1 || true
-
-      - name: Report locally stored CI artifacts
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          artifact_dir="${TURBOPHYSAI_CI_ARTIFACT_DIR:-}"
-          if [[ -z "${artifact_dir}" || ! -d "${artifact_dir}" ]]; then
-            echo "::warning::The local CI artifact directory was not created."
-            exit 0
+          summary="${TURBOPHYSAI_CI_ARTIFACT_DIR:-}/coverage/summary.md"
+          if [[ -f "${summary}" ]]; then
+            cat "${summary}" >> "${GITHUB_STEP_SUMMARY}"
           fi
 
-          echo "::notice title=Local CI artifacts::${artifact_dir}"
-          if [[ -f "${artifact_dir}/coverage/summary.md" ]]; then
-            cat "${artifact_dir}/coverage/summary.md" >> "${GITHUB_STEP_SUMMARY}"
-          fi
-          {
-            echo "### Local CI artifacts"
-            echo
-            echo "Runner-local path: \`${artifact_dir}\`"
-            echo
-            echo '```text'
-            find "${artifact_dir}" -maxdepth 2 -type f \
-              -printf '%P\t%s bytes\n' | sort
-            echo '```'
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-      - name: Clean expired local CI artifacts
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          retention_days="${TURBOPHYSAI_CI_ARTIFACT_RETENTION_DAYS}"
-          if [[ ! "${retention_days}" =~ ^[0-9]+$ ]] || (( retention_days < 1 )); then
-            echo "Invalid local artifact retention: ${retention_days}" >&2
-            exit 1
-          fi
-
-          runner_work_root="$(cd -- "${RUNNER_TEMP}/.." && pwd)"
-          expected_root="${runner_work_root}/ci/public/TurboPhysAI"
-          public_root="${TURBOPHYSAI_CI_PUBLIC_ROOT:-${expected_root}}"
-          if [[ "${public_root}" != "${expected_root}" ]]; then
-            echo "Refusing to clean unexpected path: ${public_root}" >&2
-            exit 1
-          fi
-          if [[ ! -d "${public_root}" ]]; then
-            echo "Local CI artifact root does not exist: ${public_root}"
-            exit 0
-          fi
-
-          deleted=0
-          while IFS= read -r -d '' expired_dir; do
-            if [[ "${expired_dir}" == "${TURBOPHYSAI_CI_ARTIFACT_DIR:-}" ]]; then
-              continue
-            fi
-            echo "Removing expired local CI artifacts: ${expired_dir}"
-            rm -rf -- "${expired_dir}"
-            deleted=$((deleted + 1))
-          done < <(
-            find "${public_root}" \
-              -mindepth 1 -maxdepth 1 -type d \
-              -mtime "+${retention_days}" -print0
-          )
-          echo "Removed ${deleted} local CI artifact directorie(s) older than ${retention_days} days."
+      - name: Upload CI artifacts
+        if: ${{ always() && env.TURBOPHYSAI_CI_ARTIFACT_DIR != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: hcu-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.TURBOPHYSAI_CI_ARTIFACT_DIR }}/
+          if-no-files-found: warn
+          retention-days: 7

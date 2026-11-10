@@ -15,12 +15,11 @@ from pkg_resources import packaging
 from get_version import get_version, get_dtk_version
 
 
-def _get_pytorch_version_int():
-    version=torch.__version__.split('.') # '2.9.0'
-    return int(version[0])*100+int(version[1])*10+int(version[2])
+def _get_pytorch_version():
+    return packaging.version.Version(torch.__version__).release[:3]
 
 dtk_version = get_dtk_version(ROCM_HOME)
-torch_version = _get_pytorch_version_int()
+torch_version = _get_pytorch_version()
 
 
 def _find_rocm_home() -> Optional[str]:
@@ -269,7 +268,7 @@ class BuildReleaseExtension(BuildExtension):
                     break
             extension = next(extension_iter, None)
 
-        if torch_version < 290:
+        if torch_version < (2, 9, 0):
             for extension in self.extensions:
                 if isinstance(extension.extra_compile_args, dict):
                     for ext in ['cxx', 'nvcc']:
