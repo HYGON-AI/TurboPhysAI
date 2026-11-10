@@ -8,6 +8,7 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+from datetime import datetime, timezone
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension, ROCM_HOME
 from setuptools import find_packages, setup
 from setuptools.command.build_ext import build_ext
@@ -402,7 +403,7 @@ def get_extensions():
 
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 def get_sha(pytorch_root: Union[str, Path]) -> str:
     try:
@@ -413,9 +414,31 @@ def get_sha(pytorch_root: Union[str, Path]) -> str:
         return "Unknown"
 
 
-sha = get_sha(BASE_DIR)
-if not os.getenv("BUILD_WITHOUT_SHA"):
-    VERSION += "+git" + sha[:7]
+def get_package_version(base_version: str, sha: str) -> str:
+    local_parts = [
+        "dtk" + str(dtk_version),
+        "torch" + "".join(str(part) for part in torch_version),
+    ]
+    workflow = os.getenv("GITHUB_WORKFLOW_REF", "").split("@", 1)[0]
+    run_number = os.getenv("GITHUB_RUN_NUMBER")
+    if (os.getenv("GITHUB_ACTIONS") == "true" and run_number
+            and workflow.endswith("/.github/workflows/release-whl-hcu-pypi.yml")):
+        # Keep the build timestamp stable across packaging phases.
+        # The Actions number only identifies the untracked timestamp cache.
+        stamp_file = Path(BASE_DIR) / "build" / f"nightly-time-{int(run_number)}"
+        if stamp_file.is_file():
+            build_time = stamp_file.read_text(encoding="ascii").strip()
+        else:
+            build_time = datetime.now(timezone.utc).strftime("%y%m%d%H%M")
+            stamp_file.parent.mkdir(parents=True, exist_ok=True)
+            stamp_file.write_text(build_time, encoding="ascii")
+        local_parts.append(build_time)
+    if not os.getenv("BUILD_WITHOUT_SHA"):
+        local_parts.append("g" + sha[:7])
+    return base_version + ("+" + ".".join(local_parts) if local_parts else "")
+
+
+VERSION = get_package_version(VERSION, get_sha(BASE_DIR))
 
 
 setup(
