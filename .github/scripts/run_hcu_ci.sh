@@ -4,20 +4,38 @@
 
 set -euo pipefail
 
+# Default remains the combined local workflow. ARC runs the two phases separately.
+mode=all
+wheel_dir=""
+case "${1:-}" in
+  "") [[ $# -eq 0 ]] || exit 2 ;;
+  --build-only) [[ $# -eq 1 ]] || exit 2; mode=build ;;
+  --test-only)
+    [[ $# -eq 2 ]] || { echo "Usage: $0 --test-only WHEEL_DIR" >&2; exit 2; }
+    mode=test
+    wheel_dir="$(cd -- "$2" && pwd)"
+    ;;
+  *) echo "Usage: $0 [--build-only | --test-only WHEEL_DIR]" >&2; exit 2 ;;
+esac
+
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 artifact_dir="${TURBOPHYSAI_CI_ARTIFACT_DIR:-${repo_root}/ci-artifacts}"
 verify_dir="$(mktemp -d /tmp/turbophysai-verify.XXXXXX)"
 test_dir="$(mktemp -d /tmp/turbophysai-test.XXXXXX)"
 build_root="$(mktemp -d /tmp/turbophysai-build.XXXXXX)"
 
-mkdir -p "${artifact_dir}/dist"
+wheel_dir="${wheel_dir:-${artifact_dir}/dist}"
+mkdir -p "${artifact_dir}"
+if [[ "${mode}" != "test" ]]; then
+  mkdir -p "${wheel_dir}"
+fi
 log_file="${artifact_dir}/turbophysai-ci.log"
 exec > >(tee "${log_file}") 2>&1
 
 cleanup() {
   status=$?
   rm -rf -- "${verify_dir}" "${test_dir}" "${build_root}"
-  if [[ "${TURBOPHYSAI_HOST_UID:-}" =~ ^[0-9]+$ && \
+  if [[ "${HCU_CI_IN_K8S:-0}" != "1" && "${TURBOPHYSAI_HOST_UID:-}" =~ ^[0-9]+$ && \
         "${TURBOPHYSAI_HOST_GID:-}" =~ ^[0-9]+$ ]]; then
     chown -R "${TURBOPHYSAI_HOST_UID}:${TURBOPHYSAI_HOST_GID}" "${artifact_dir}" 2>/dev/null || true
   fi
@@ -34,7 +52,9 @@ echo "workflow_ref_name=${GITHUB_REF_NAME:-unset}"
 echo "workflow_ref_type=${GITHUB_REF_TYPE:-unset}"
 echo "container_image=${TURBOPHYSAI_CI_IMAGE:-unset}"
 git -c safe.directory="${repo_root}" -C "${repo_root}" rev-parse HEAD
-git config --global --add safe.directory "${repo_root}"
+if [[ "${HCU_CI_IN_K8S:-0}" != "1" ]]; then
+  git config --global --add safe.directory "${repo_root}"
+fi
 
 echo "===== DTK and build-tool environment ====="
 test -f /opt/dtk/env.sh
@@ -60,12 +80,15 @@ ninja --version
 gcc --version | head -n 1
 git --version
 
-if command -v hy-smi >/dev/null 2>&1; then
-  hy-smi
-elif command -v rocm-smi >/dev/null 2>&1; then
-  rocm-smi
-else
-  echo "No hy-smi or rocm-smi command is available; torch will report the HCU model."
+if [[ "${mode}" != "build" ]]; then
+  if command -v hy-smi >/dev/null 2>&1; then
+    hy-smi
+  elif command -v rocm-smi >/dev/null 2>&1; then
+    rocm-smi
+  else
+    echo "No hy-smi or rocm-smi command is available; torch will report the HCU model."
+  fi
+
 fi
 
 echo "===== Verify the CI image does not preinstall TurboPhysAI ====="
@@ -87,23 +110,33 @@ print("setuptools:", setuptools.__version__)
 print("wheel:", wheel.__version__)
 PY
 
-echo "===== Build wheel from the tested checkout ====="
-# Build in a disposable exact copy. Native-extension builds may create HIPify
-# outputs and egg-info files; keeping them out of the mounted checkout avoids
-# cross-run contamination on a persistent self-hosted runner.
-cp -a "${repo_root}/." "${build_root}/"
-git config --global --add safe.directory "${build_root}"
-python3 -m pip wheel \
-  --no-build-isolation \
-  --no-deps \
-  --wheel-dir "${artifact_dir}/dist" \
-  "${build_root}" 2>&1 | tee "${artifact_dir}/build.log"
+if [[ "${mode}" != "test" ]]; then
+  echo "===== Build wheel from the tested checkout ====="
+  # Build in a disposable exact copy. Native-extension builds may create HIPify
+  # outputs and egg-info files; keeping them out of the mounted checkout avoids
+  # cross-run contamination on a persistent self-hosted runner.
+  cp -a "${repo_root}/." "${build_root}/"
+  if [[ "${HCU_CI_IN_K8S:-0}" != "1" ]]; then
+    git config --global --add safe.directory "${build_root}"
+  fi
+  python3 -m pip wheel \
+    --no-build-isolation \
+    --no-deps \
+    --wheel-dir "${wheel_dir}" \
+    "${build_root}" 2>&1 | tee "${artifact_dir}/build.log"
 
-mapfile -t wheels < <(find "${artifact_dir}/dist" -maxdepth 1 -type f -name 'turbo_physai-*.whl' -print)
+fi
+
+mapfile -t wheels < <(find "${wheel_dir}" -maxdepth 1 -type f -name 'turbo_physai-*.whl' -print)
 if [[ "${#wheels[@]}" -ne 1 ]]; then
   echo "Expected exactly one TurboPhysAI wheel, found ${#wheels[@]}" >&2
   printf 'wheel=%s\n' "${wheels[@]:-}"
   exit 1
+fi
+
+if [[ "${mode}" == "build" ]]; then
+  echo "Built wheel: ${wheels[0]}"
+  exit 0
 fi
 
 python3 -m pip install --force-reinstall --no-deps "${wheels[0]}"

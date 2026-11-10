@@ -13,17 +13,15 @@ permissions:
   pull-requests: read
   checks: read
 
-# Share the physical HCU with the existing hcu-ci.yml workflow.
+# Serialize publishing independently from HCU tests.
 concurrency:
-  group: turbophysai-hcu-single-device
+  group: turbophysai-hcu-publish
   cancel-in-progress: false
 
 jobs:
   build-and-publish:
     name: Publish HCU wheel
-    runs-on:
-      group: ci-general
-      labels: [self-hosted, ci, nmz1]
+    runs-on: hygon-build
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -47,21 +45,9 @@ jobs:
         shell: bash
     container:
       # Reuse the DTK already installed in the same base as the test CI.
-      image: ${{ matrix.harbor_site }}/hcu/base/dtk:${{ matrix.dtk_version }}-ubuntu22.04-py${{ matrix.py_version }}
-      options: >-
-        --user root
-        --device=/dev/kfd --device=/dev/dri
-        --group-add=video
-        -v /opt/hyhal:/opt/hyhal:ro
-        --shm-size=64g
-        --cap-add=SYS_PTRACE
-        --security-opt seccomp=unconfined
-        --privileged
-        --ulimit stack=-1:-1
-        --ulimit memlock=-1:-1
+      # Set HCU_CI_BASE_IMAGE to an approved image@sha256:digest when available.
+      image: ${{ vars.HCU_CI_BASE_IMAGE || format('{0}/hcu/base/dtk:{1}-ubuntu22.04-py{2}', matrix.harbor_site, matrix.dtk_version, matrix.py_version) }}
     env:
-      HIP_VISIBLE_DEVICES: "0"
-      MAX_JOBS: "4"
       LANG: C.UTF-8
       PYTHONNOUSERSITE: "1"
       PYTHONDONTWRITEBYTECODE: "1"
@@ -75,6 +61,7 @@ jobs:
       PYPI_URL: http://12.12.12.201:9929
       PYPI_TRUSTED_HOST: "12.12.12.201"
       DTK_PYPI_INDEX: https://pypi.sourcefind.cn/nightly/dtk${{ matrix.dtk_tag }}
+      DTK_TAG: ${{ matrix.dtk_tag }}
       DTK_LLVM_URL: http://42.228.13.241:18000/ai_cc/Nightly/dtk_llvm-1.0.0%2Bdtk2604.2609201512.gf72f9e-x86_64.run
       TORCH_VERSION: ${{ matrix.torch_version }}
       TORCHVISION_VERSION: ${{ matrix.torchvision_version }}
@@ -104,92 +91,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Configure existing DTK and install compiler
+      - name: Prepare HCU build environment
         run: |
-          set -eo pipefail
-          # The base image already supplies DTK and its runtime libraries.
-          test -f /opt/dtk/env.sh
-          if [[ ! -e /opt/hyhal && -d /opt/dtk/.hyhal ]]; then
-            cp -a /opt/dtk/.hyhal /opt/hyhal
-          fi
-          printf '%s\n' /opt/dtk/.hyhal/rocm_smi/lib /opt/dtk/.hyhal/lib \
-            > /etc/ld.so.conf.d/hcu-framework.conf
-          ldconfig
-          export ROCM_PATH=/opt/dtk DTKROOT=/opt/dtk HIP_PATH=/opt/dtk/hip
-          export HYHAL_PATH=/opt/hyhal MIOPEN_FIND_MODE=3
-          export AMDGPU_TARGETS='gfx906;gfx926;gfx928;gfx936;gfx938'
-          export CMAKE_PREFIX_PATH="/opt/hyhal:${CMAKE_PREFIX_PATH:-}"
-          export PATH="/opt/dtk/bin:/opt/dtk/llvm/bin:/opt/dtk/hip/bin:/opt/dtk/hip/bin/hipify:/opt/hyhal/bin:/opt/dtk/opencl/bin:${PATH}"
-          export LD_LIBRARY_PATH="/opt/dtk/dcc/gcvm/lib:/opt/dtk/hip/lib:/opt/dtk/llvm/lib:/opt/dtk/lib:/opt/dtk/lib64:/opt/hyhal/lib:/opt/hyhal/lib64:/opt/dtk/dushmem/lib:/opt/dtk/opencl/lib:${LD_LIBRARY_PATH:-}"
-          export LIBRARY_PATH="/opt/hyhal/lib:/opt/dtk/opencl/lib:/opt/dtk/dushmem/lib:${LIBRARY_PATH:-}"
-          export C_INCLUDE_PATH="/opt/dtk/dcc/gcvm/include:/opt/dtk/include:/opt/hyhal/include:/opt/dtk/llvm/include:/opt/dtk/opencl/include:${C_INCLUDE_PATH:-}"
-          export CPLUS_INCLUDE_PATH="/opt/dtk/dcc/gcvm/include:/opt/dtk/include:/opt/hyhal/include:/opt/dtk/llvm/include:/opt/dtk/dushmem/include:/opt/dtk/opencl/include:${CPLUS_INCLUDE_PATH:-}"
-          source /opt/dtk/env.sh
-          curl -fsSL "${DTK_LLVM_URL}" -o /tmp/magi-dtk-llvm.run
-          # The installer may stop reading yes early; retain its exit status.
-          (set +o pipefail; yes | bash /tmp/magi-dtk-llvm.run)
-          rm -f /tmp/magi-dtk-llvm.run
-          for key in ROCM_PATH DTKROOT HIP_PATH HYHAL_PATH MIOPEN_FIND_MODE \
-              AMDGPU_TARGETS CMAKE_PREFIX_PATH LD_LIBRARY_PATH LIBRARY_PATH \
-              C_INCLUDE_PATH CPLUS_INCLUDE_PATH; do
-            printf '%s=%s\n' "${key}" "${!key}" >> "${GITHUB_ENV}"
-          done
-          printf '%s\n' "${PATH//:/$'\n'}" >> "${GITHUB_PATH}"
-
-      - name: Install original CI Python dependencies and release tools
-        run: |
-          set -eo pipefail
-          source /opt/dtk/env.sh
-          set -u
-          # Preserve docker/ci/Dockerfile's full dependency setup.
-          # Installing test dependencies does not execute the test suite.
-          python3 -m pip config set global.index-url "${PIP_INDEX_URL}"
-          python3 -m pip config set global.trusted-host "${PIP_TRUSTED_HOST}"
-          python3 -m pip install --upgrade "setuptools==80.9.0" wheel "pip<26"
-          export LD_LIBRARY_PATH="/opt/dtk/.hyhal/rocm_smi/lib:${LD_LIBRARY_PATH:-}"
-          /usr/bin/python3 -m pip install --no-cache-dir \
-            cmake==3.29.2 \
-            "torch==${TORCH_VERSION}" \
-            "torchvision==${TORCHVISION_VERSION}" \
-            "triton==${TRITON_VERSION}" \
-            "flash-attn==${FLASH_ATTN_VERSION}" \
-            "apex==${APEX_VERSION}" \
-            "torchaudio==${TORCHAUDIO_VERSION}" \
-            --index-url "${DTK_PYPI_INDEX}"
-          /usr/bin/python3 -m pip install --no-deps "${LIGHTOP_WHL_URL}" "${HIPDNN_WHL_URL}"
-          /usr/bin/python3 -m pip install \
-            pytest coverage "numpy==1.23.5" "scipy>=1.9.0" PyYAML packaging \
-            "Pillow==12.3.0"
-          # Preserve the dependency installation done before the wheel build in
-          # run_hcu_ci.sh, including its coverage pin. Do not run that script.
-          python3 -m pip install -r requirements-test.txt
-          # ciupload is hosted on the internal DTK nightly index.
-          python3 -m pip install --no-cache-dir \
-            --index-url "${PYPI_URL}/nightly/dtk${{ matrix.dtk_tag }}/+simple/" \
-            --trusted-host "${PYPI_TRUSTED_HOST}" \
-            ciupload
-          torch_lib="$(python3 -c 'import torch; from pathlib import Path; print(Path(torch.__file__).parent / "lib")')"
-          echo "LD_LIBRARY_PATH=${torch_lib}:${LD_LIBRARY_PATH:-}" >> "${GITHUB_ENV}"
-
-      - name: Check build environment versions
-        run: |
-          set -eo pipefail
-          source /opt/dtk/env.sh
-          python3 - <<'PY'
-          import os
-          import sys
-          from importlib.metadata import version
-          import torch, torchvision, triton
-          for name, module in (("torch", torch), ("torchvision", torchvision), ("triton", triton)):
-              # The DAS Triton module reports 3.5.0; use wheel metadata.
-              actual = version(name) if name == "triton" else module.__version__
-              expected = os.environ[f"{name.upper()}_VERSION"]
-              assert actual.split("+", 1)[0] == expected.split("+", 1)[0], (name, actual, expected)
-              print(f"{name}: {actual}")
-          print("Triton module version:", triton.__version__)
-          assert sys.version_info[:2] == (3, 10), sys.version
-          assert torch.version.hip, "HIP Torch is required"
-          PY
+          set -euo pipefail
+          bash .github/scripts/setup_hcu_environment.sh --release-tools 2>&1 | tee setup-hcu.log
 
       - name: Build wheel
         run: |
@@ -203,7 +108,6 @@ jobs:
           trap 'rm -rf -- "${build_root}"' EXIT
           # Reuse run_hcu_ci.sh's isolated-source wheel build, without tests.
           cp -a "${repo_root}/." "${build_root}/"
-          git config --global --add safe.directory "${build_root}"
           mkdir -p "${repo_root}/dist"
           python3 -m pip wheel \
             --no-build-isolation --no-deps \
@@ -233,9 +137,13 @@ jobs:
             --devpi_url "${PYPI_URL}" --password "${PYPI_PASSWORD}" \
             --dtk_version "${dtk_version}" -f "${wheels[0]}" --record
 
-      - name: Clean generated wheel directories
+      - name: Upload release build artifacts
         if: always()
-        run: |
-          # Only generated workspace files; the runner manages container cleanup.
-          cd "${GITHUB_WORKSPACE}"
-          rm -rf -- dist output
+        uses: actions/upload-artifact@v4
+        with:
+          name: hcu-wheel-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/*.whl
+            setup-hcu.log
+          if-no-files-found: ignore
+          retention-days: 7
