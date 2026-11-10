@@ -1,6 +1,6 @@
 # LingBot-VA 应用说明
 
-本文说明如何在产品镜像中，基于官方 LingBot-VA 仓库应用 TurboPhysAI 的 HCU 优化。基于官方。
+本文说明如何在产品镜像中，基于 LingBot-VA 官方仓库接入 TurboPhysAI 的 HCU 优化并启动训练。
 
 ## 1. 模型简介
 
