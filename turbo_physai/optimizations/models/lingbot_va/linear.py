@@ -5,7 +5,9 @@ import torch
 from torch import nn
 
 _PATTERN = re.compile(r'blocks\.\d+\.(?:attn[12]\.to_[qkv]|attn[12]\.to_out\.0|ffn\.net\.0\.proj|ffn\.net\.2)$')
-_ROOTS = {'patch_embedding_mlp', 'action_embedder', 'proj_out', 'action_proj_out'}
+# Keep action_embedder on the original nn.Linear path: its addmm fusion changes
+# BF16 rounding relative to the model's matmul-then-bias computation.
+_ROOTS = {'patch_embedding_mlp', 'proj_out', 'action_proj_out'}
 
 def linear_forward(self, input):
     flat = input.reshape(-1, input.shape[-1])

@@ -122,7 +122,7 @@ test -f "$MODEL_ROOT/transformer/config.json"
 
 ## 8. 通过 turbo-physai run 启动训练
 
-`--model lingbot_va` 自动加载随包交付的九组 OptimizationConfig 和 NUMA RuntimeConfig。启动时使用 `turbo-physai run`，以便 Group 配置应用到训练进程及编译 worker。
+`--model lingbot_va` 自动加载随包交付的九组 OptimizationConfig 和 NUMA RuntimeConfig。启动时使用 `turbo-physai run`，以便 Group 配置应用到训练进程及编译 worker。`linear_addmm` 保持启用，但 `action_embedder` 保留原始 `nn.Linear` 路径以避免 BF16 舍入顺序差异；其它白名单线性层仍使用融合实现。
 
 ### 8.1 单机八卡训练
 
