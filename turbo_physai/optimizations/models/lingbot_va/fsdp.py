@@ -20,7 +20,7 @@ def checkpoint_factory(original, options):
     def apply_ac(model):
         if tail>len(model.blocks):raise ValueError('tail_layers exceeds block count')
         for i in range(len(model.blocks)-tail):
-            kwargs={'preserve_rng_state':True}
+            kwargs={'preserve_rng_state':False}
             if i % interval == 0:
                 kwargs['context_fn']=functools.partial(create_selective_checkpoint_contexts,save_matmul)
             model.blocks[i]=checkpoint_wrapper(model.blocks[i],**kwargs)
