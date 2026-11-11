@@ -115,6 +115,14 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--disable-numa", action="store_true", help="disable configured NUMA binding"
     )
+    run.add_argument(
+        "--accuracy",
+        action="store_true",
+        help=(
+            "apply accuracy-only OptimizationGroups (data order and determinism "
+            "fixes); off by default so performance runs keep the fast path"
+        ),
+    )
     run.add_argument("command", nargs=argparse.REMAINDER, help="training command")
     return parser
 
@@ -338,6 +346,7 @@ def main(argv=None) -> int:
                 log_report=args.log_report,
                 force_groups=tuple(force_groups),
                 disable_groups=tuple(disable_groups),
+                accuracy_mode=args.accuracy,
             )
 
             return _run_training_command(command, environment)
