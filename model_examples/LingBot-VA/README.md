@@ -1,6 +1,6 @@
 # LingBot-VA 应用说明
 
-本文说明如何在产品镜像中，基于 LingBot-VA 官方仓库接入 TurboPhysAI 的 HCU 优化并启动训练。
+本文说明如何在 VLA 配套镜像中，基于 LingBot-VA 官方仓库接入 TurboPhysAI 的 HCU 优化并启动训练。
 
 ## 1. 模型简介
 
@@ -10,40 +10,28 @@
 
 TurboPhysAI 的 LingBot-VA 优化基于官方仓库 commit `7c6ffa9bfc4b83582cafc860fab4c82cc7deeeeb` 接入。优化接入基线的使用建议见[模型支持清单](../../docs/zh/models/support_list.md)。
 
-## 3. 下载并启动基础镜像
+## 3. 构建训练环境
+
+### 3.1 创建容器并安装 TurboPhysAI
+
+请先按照[安装指南](https://github.com/HYGON-AI/TurboPhysAI/blob/main/docs/zh/get_started/installation.md#使用配套镜像)，使用 VLA 配套镜像创建容器并安装 TurboPhysAI。下文命令均在容器内执行。
+
+### 3.2 安装 LingBot-VA 训练依赖
+
+镜像已提供 HCU 版 PyTorch、Triton 和 FlashAttention。将本目录的 [requirements.txt](requirements.txt) 和 [run_8card.sh](run_8card.sh) 保存到宿主机工作目录的 `lingbot-va-tools/`，容器内对应 `/workspace/lingbot-va-tools/`。
 
 ```bash
-export BASE_IMAGE=harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10-20260929
-docker pull "$BASE_IMAGE"
-
-export WORKSPACE="$HOME/work/lingbot-va-workspace"
-mkdir -p "$WORKSPACE"
-docker run -dit \
-  --name lingbot-va \
-  --network=host \
-  --privileged \
-  --device=/dev/kfd \
-  --device=/dev/dri \
-  --ipc=host \
-  --shm-size=512G \
-  --group-add video \
-  --cap-add=SYS_PTRACE \
-  --security-opt seccomp=unconfined \
-  --ulimit stack=-1:-1 \
-  --ulimit memlock=-1:-1 \
-  -v /opt/hyhal:/opt/hyhal:ro \
-  -v "$WORKSPACE":/workspace \
-  -w /workspace \
-  "$BASE_IMAGE" \
-  sleep infinity
-docker exec -it lingbot-va bash
+cd /workspace/lingbot-va-tools
+python3 -m pip install --no-deps -r requirements.txt
+python3 -m pip check
 ```
+
+使用 `--no-deps`，避免依赖解析替换镜像中的 HCU 基础包。
 
 ## 4. 准备模型源码
 
 ```bash
 cd /workspace
-git clone https://github.com/HYGON-AI/TurboPhysAI.git
 mkdir -p model
 git clone https://github.com/Robbyant/lingbot-va.git model/lingbot-va
 cd model/lingbot-va
@@ -51,21 +39,7 @@ git checkout --detach 7c6ffa9bfc4b83582cafc860fab4c82cc7deeeeb
 git status --short
 ```
 
-## 5. 安装模型源码依赖
-
-使用 Python 3.10、DTK 26.04 的 HCU 环境。镜像中的 PyTorch、Triton 和 DTK 版 FlashAttention 必须保留，不能安装上游 CUDA 依赖覆盖它们。
-
-```bash
-cd /workspace/TurboPhysAI
-MAX_JOBS=8 python3 setup.py bdist_wheel
-python3 -m pip install --no-deps dist/turbo_physai-*.whl
-python3 -m pip install --no-deps -r model_examples/LingBot-VA/requirements.txt
-python3 -m pip check
-```
-
-已验证的软件版本见本目录的 `requirements.txt`；HCU 基础栈为 PyTorch `2.10.0+das.opt1.dtk2604.2608131652.g28498c`、Triton `3.6.0+das185.dtk2604.torch2100.2608131719.gb796b1`、FlashAttention `2.8.4+dtk2604.torch2100.2609231125.g11f180`。
-
-## 6. 准备 LIBERO 数据
+## 5. 准备 LIBERO 数据
 
 下载官方 LIBERO-Long LeRobot 数据集：
 
@@ -91,7 +65,7 @@ test -f "$DATA_ROOT/empty_emb.pt"
 
 数据目录应包含 `empty_emb.pt`、LeRobot 元数据、视频及对应的 `latents/`。
 
-## 7. 准备预训练权重
+## 6. 准备预训练权重
 
 下载 LingBot-VA base 权重：
 
@@ -120,17 +94,17 @@ PYCODE
 test -f "$MODEL_ROOT/transformer/config.json"
 ```
 
-## 8. 通过 turbo-physai run 启动训练
+## 7. 通过 turbo-physai run 启动训练
 
 `--model lingbot_va` 自动加载随包交付的九组 OptimizationConfig 和 NUMA RuntimeConfig。启动时使用 `turbo-physai run`，以便 Group 配置应用到训练进程及编译 worker。`linear_addmm` 保持启用，但 `action_embedder` 保留原始 `nn.Linear` 路径以避免 BF16 舍入顺序差异；其它白名单线性层仍使用融合实现。
 
-### 8.1 单机八卡训练
+### 7.1 单机八卡训练
 
 ```bash
-cd /workspace/TurboPhysAI
+cd /workspace/lingbot-va-tools
 export LINGBOT_VA_ROOT=/workspace/model/lingbot-va
 export RUN_ROOT=/workspace/runs/lingbot-va
-bash model_examples/LingBot-VA/run_8card.sh
+bash run_8card.sh
 ```
 
 优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
