@@ -16,8 +16,6 @@ TurboPhysAI 的 OpenPI 优化基于官方仓库 commit `215abfb217dbac7d5f127328
 
 ## 4. 准备模型源码及示例文件
 
-下文命令均在容器内执行。OpenPI 相关依赖在后续步骤安装。
-
 ### 4.1 准备官方 OpenPI 源码
 
 ```bash
