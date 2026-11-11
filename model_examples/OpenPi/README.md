@@ -42,9 +42,7 @@ cd /workspace/openpi_TurboPhysAI/openpi
 
 ### 4.2 获取 OpenPI 示例文件
 
-克隆 TurboPhysAI 仓库，用于获取 `model_examples/OpenPi` 下的依赖清单、归一化统计文件和权重下载脚本；训练使用已安装的 TurboPhysAI 包。
-
-OpenPI 合入上游 `main` 前，请改为克隆包含这些示例文件的分支。
+克隆 TurboPhysAI 仓库，用于获取 `model_examples/OpenPi` 下的依赖清单、归一化统计文件和权重下载脚本。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
