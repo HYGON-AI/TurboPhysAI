@@ -31,7 +31,7 @@ ENV C_INCLUDE_PATH=${ROCM_PATH}/include:${HYHAL_PATH}/include:${ROCM_PATH}/llvm/
 ENV C_INCLUDE_PATH=${ROCM_PATH}/dcc/gcvm/include:${C_INCLUDE_PATH}
 ENV CPLUS_INCLUDE_PATH=${ROCM_PATH}/dcc/gcvm/include:${ROCM_PATH}/include:${HYHAL_PATH}/include:${ROCM_PATH}/llvm/include:${ROCM_PATH}/dushmem/include:${ROCM_PATH}/opencl/include${CPLUS_INCLUDE_PATH:+:${CPLUS_INCLUDE_PATH}}
 
-# Match the runtime library setup used by the autonomous-driving product image.
+# Match the runtime library setup used by the autonomous-driving companion image.
 RUN if [[ ! -e /opt/hyhal && -d /opt/dtk/.hyhal ]]; then \
         cp -a /opt/dtk/.hyhal /opt/hyhal; \
     fi && \

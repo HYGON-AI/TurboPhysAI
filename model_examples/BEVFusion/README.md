@@ -1,6 +1,6 @@
 # BEVFusion 应用说明
 
-本文说明如何在产品镜像中，基于官方 BEVFusion 仓库应用 TurboPhysAI 的 HCU 优化。镜像获取和容器创建方法参见[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)。
+本文说明如何基于官方 BEVFusion 仓库应用 TurboPhysAI 的 HCU 优化。请先按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用自动驾驶配套镜像创建容器并安装 TurboPhysAI。
 
 ## 1. 模型简介
 
@@ -21,15 +21,15 @@ git checkout --detach 326653dc06e0938edf1aae7d01efcd158ba83de5
 mkdir -p anno_pkls ckpts runs
 ```
 
-也可以将准备好的官方 BEVFusion 仓库放入宿主机工作目录的 `model/BEVFusion`。下文命令均在容器内的 `/workspace/model/BEVFusion` 执行。产品镜像提供 TurboPhysAI、HCU 运行环境和 BEVFusion 训练环境，不包含模型源码及其源码扩展。
+也可以将准备好的官方 BEVFusion 仓库放入宿主机工作目录的 `model/BEVFusion`。下文命令均在容器内的 `/workspace/model/BEVFusion` 执行。
 
 ## 4. 安装模型源码扩展
 
-BEVFusion 仓库包含训练所需的 MMDetection3D 源码和原生扩展。首次使用挂载的模型仓库时，在镜像提供的 BEVFusion Conda 环境中完成安装：
+BEVFusion 仓库包含训练所需的 MMDetection3D 源码和原生扩展。首次使用挂载的模型仓库时，在 `mmcv1` 环境中完成安装：
 
 ```bash
 source /opt/conda/etc/profile.d/conda.sh
-conda activate bevfusion
+conda activate mmcv1
 cd /workspace/model/BEVFusion
 python -m pip install -e . --no-build-isolation --no-deps
 ```
@@ -79,7 +79,7 @@ ln -sf ../pretrained/lidar-only-det.pth \
 
 ```bash
 source /opt/conda/etc/profile.d/conda.sh
-conda activate bevfusion
+conda activate mmcv1
 cd /workspace/model/BEVFusion
 
 turbo-physai run \
