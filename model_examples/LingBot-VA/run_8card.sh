@@ -24,4 +24,5 @@ exec turbo-physai run \
   --model lingbot_va \
   --log-report \
   torchrun --standalone --nnodes=1 --nproc-per-node=8 \
-    -m train --config-name libero_train --save-root "$RUN_ROOT"
+    -m turbo_physai.optimizations.models.lingbot_va.entrypoint \
+    --config-name libero_train --save-root "$RUN_ROOT"
