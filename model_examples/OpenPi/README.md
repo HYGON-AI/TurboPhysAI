@@ -14,6 +14,8 @@ TurboPhysAI 的 OpenPI 优化基于官方仓库 commit `215abfb217dbac7d5f127328
 
 按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用 VLA、DiT 和世界模型配套镜像创建容器并安装 TurboPhysAI。下文命令均在容器内执行。
 
+下文中安装 OpenPI 和 Python 依赖、下载与转换权重、计算归一化统计，以及通过 `torch.distributed.run` 启动训练，均使用 `/usr/bin/python3`。请确保 `turbo-physai` 和 `hf` 命令也属于该 Python 环境。
+
 ## 4. 准备模型源码及示例文件
 
 下文命令均在容器内执行。基础镜像保留原有 Torch、TorchVision、FlashAttention 和 Triton，Python 依赖在后续步骤安装。
