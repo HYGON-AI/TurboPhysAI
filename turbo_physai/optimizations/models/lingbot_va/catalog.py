@@ -33,7 +33,9 @@ SYNC = group('lingbot_va.train_sync',
     compatibility_check='turbo_physai.optimizations.models.lingbot_va.compatibility.baseline')
 
 FLEX_TEMPLATE=group('lingbot_va.flex_template_backend',
-    wrap('turbo_physai.optimizations.models.lingbot_va.attention.flex_call','turbo_physai.optimizations.models.lingbot_va.group_backend.backend_wrapper'),
+    wrap('turbo_physai.optimizations.models.lingbot_va.attention.flex_call',
+         'turbo_physai.optimizations.models.lingbot_va.group_backend.backend_wrapper',
+         runtime_condition='turbo_physai.optimizations.models.lingbot_va.group_backend.supported'),
     wrap('torch._inductor.select_algorithm.TritonTemplate.maybe_append_choice','turbo_physai.optimizations.models.lingbot_va.group_backend.template_wrapper'),
     wrap('torch._inductor.runtime.triton_heuristics.CachingAutotuner._create_compile_options','turbo_physai.optimizations.models.lingbot_va.group_backend.compile_options_wrapper'),
     depends_on=('lingbot_va.attention_backend',),

@@ -42,7 +42,7 @@ def compatible(context):
         return CompatibilityResult(False,reason=str(error))
     return CompatibilityResult(True,expected={'backend_revision':REVISION},actual={'backend_revision':REVISION},reason='Pinned backend and original model verified')
 
-def supported(q,k,v):
+def supported(q,k,v,*,block_mask,kernel_options):
     import torch
     if not torch.version.hip or any(t.device.type!='cuda' or t.dtype!=torch.bfloat16 or t.ndim!=4 for t in (q,k,v)):
         return False
@@ -56,25 +56,17 @@ def backend_wrapper(original,options):
     if set(options)-{'fast_bf16'}:raise ValueError('Unknown Flex backend option')
     fast=options.get('fast_bf16',False)
     if type(fast) is not bool:raise ValueError('fast_bf16 must be bool')
-    validate_backend()
-    reported=set()
     @functools.wraps(original)
     def call(q,k,v,*,block_mask,kernel_options):
         if any(key in kernel_options for key in ('LINGBOT_VA_TEMPLATE_OPT','LINGBOT_VA_BACKEND_REV','LINGBOT_FAST_BF16')):
             raise ValueError('Backend selector options are owned by the Group')
-        enabled=supported(q,k,v)
-        if enabled not in reported:
-            print('LINGBOT_FLEX_BACKEND '+json.dumps({'revision':REVISION,'selected':'optimized' if enabled else 'original','reason':'supported input' if enabled else 'outside input/architecture allowlist','fast_bf16':fast if enabled else False}),flush=True)
-            reported.add(enabled)
         config=dict(kernel_options)
-        if enabled:
-            config.update(LINGBOT_VA_TEMPLATE_OPT=True,LINGBOT_VA_BACKEND_REV=REVISION,LINGBOT_FAST_BF16=fast)
+        config.update(LINGBOT_VA_TEMPLATE_OPT=True,LINGBOT_VA_BACKEND_REV=REVISION,LINGBOT_FAST_BF16=fast)
         return original(q,k,v,block_mask=block_mask,kernel_options=config)
     return call
 
 
 def template_wrapper(original,options):
-    validate_backend()
     @functools.wraps(original)
     def call(self,*args,**kwargs):
         if self.name not in ('flex_attention','flex_attention_backward') or not kwargs.get('LINGBOT_VA_TEMPLATE_OPT',False):
@@ -98,7 +90,6 @@ def template_wrapper(original,options):
 
 
 def compile_options_wrapper(original,options):
-    validate_backend()
     @functools.wraps(original)
     def call(self,*args,**kwargs):
         result=original(self,*args,**kwargs)
