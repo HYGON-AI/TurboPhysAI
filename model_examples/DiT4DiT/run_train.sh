@@ -12,6 +12,7 @@ RUN_ID="${RUN_ID:-dit4dit_hcu_${NUM_PROCESSES}card}"
 MAX_TRAIN_STEPS="${MAX_TRAIN_STEPS:-200000}"
 
 cd "$DIT4DIT_ROOT"
+export PYTHONPATH="$DIT4DIT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
 export WANDB_MODE="${WANDB_MODE:-disabled}"
 
 turbo-physai run \
