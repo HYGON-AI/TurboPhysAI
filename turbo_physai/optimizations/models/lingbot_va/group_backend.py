@@ -57,9 +57,6 @@ def backend_wrapper(original,options):
     fast=options.get('fast_bf16',False)
     if type(fast) is not bool:raise ValueError('fast_bf16 must be bool')
     validate_backend()
-    # Cache location is configured before process start, never changed by a Group.
-    for key in ('TORCHINDUCTOR_CACHE_DIR','TRITON_CACHE_DIR'):
-        if not os.environ.get(key):raise RuntimeError(key+' must use an explicit experiment cache')
     reported=set()
     @functools.wraps(original)
     def call(q,k,v,*,block_mask,kernel_options):
