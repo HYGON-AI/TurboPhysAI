@@ -2,7 +2,6 @@
 import functools
 import hashlib
 import json
-import os
 from pathlib import Path
 
 REVISION=3796128826
@@ -84,7 +83,6 @@ def template_wrapper(original,options):
             kw['USE_GFX936_BWD_TUNING']=tuned
             kw.pop('HIP_BACKEND_KPACK',None)
             if tuned:kw.update(waves_per_eu=4,HIP_BACKEND_KPACK=2)
-        print('LINGBOT_TEMPLATE_SELECTED '+json.dumps({'template':selected.name,'pid':os.getpid(),'revision':REVISION}),flush=True)
         return original(selected,*args,**kw)
     return call
 
@@ -96,6 +94,5 @@ def compile_options_wrapper(original,options):
         config=self.inductor_meta.get('config_args',{})
         if config.get('LINGBOT_VA_BACKEND_REV')==REVISION and config.get('HIP_BACKEND_KPACK') is not None:
             result=dict(result);result['kpack']=config['HIP_BACKEND_KPACK']
-            print('LINGBOT_COMPILE_OPTIONS '+json.dumps({'pid':os.getpid(),'kpack':result['kpack'],'revision':REVISION}),flush=True)
         return result
     return call
