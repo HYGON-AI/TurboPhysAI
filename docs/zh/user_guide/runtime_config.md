@@ -28,6 +28,8 @@ process:
 | `kind` | 配置类型，固定为 `RuntimeConfig` |
 | `environment.unset` | 从启动环境中删除指定变量 |
 | `environment.set` | 设置环境变量；非字符串值在加载时转换为字符串 |
+| `environment.accuracy.unset` | 仅在 `turbo-physai run --accuracy` 时删除指定变量 |
+| `environment.accuracy.set` | 仅在 `turbo-physai run --accuracy` 时设置环境变量 |
 | `process.numa` | 是否启用 NUMA 绑定；默认为 `true` |
 
 ## 2. 环境变量
@@ -37,7 +39,11 @@ Runner 按以下顺序构造训练命令环境：
 1. 继承当前 Shell 环境；
 2. 删除 `environment.unset` 中的变量；
 3. 写入 `environment.set`；
-4. 写入命令行 `--set` 指定的变量。
+4. `--accuracy` 时删除 `environment.accuracy.unset` 中的变量；
+5. `--accuracy` 时写入 `environment.accuracy.set`；
+6. 写入命令行 `--set` 指定的变量。
+
+`environment.accuracy.set` / `.unset` 的语义与外层同名字段一致，不带 `--accuracy` 时整段忽略。
 
 同名变量以后写入的值为准。例如：
 

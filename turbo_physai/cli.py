@@ -157,7 +157,9 @@ def _group_ids(values, option):
     return result
 
 
-def _validate_run_groups(optimization_config_path, force_groups, disable_groups, command):
+def _validate_run_groups(
+    optimization_config_path, force_groups, disable_groups, command, accuracy_mode
+):
     config = load_optimization_config(
         optimization_config_path,
         import_modules=False,
@@ -188,6 +190,19 @@ def _validate_run_groups(optimization_config_path, force_groups, disable_groups,
             raise TurboPhysAIError(
                 f"{option} must reference enabled Optimization Groups: "
                 + ", ".join(disabled)
+            )
+
+    if not accuracy_mode:
+        accuracy_only = {
+            entry.id for entry in config.optimization_groups if entry.accuracy_only
+        }
+        invalid = [
+            group_id for group_id in force_groups if group_id in accuracy_only
+        ]
+        if invalid:
+            raise TurboPhysAIError(
+                "--force-group cannot enable accuracy-only Optimization Groups "
+                "without --accuracy: " + ", ".join(invalid)
             )
 
     overlap = sorted(set(force_groups) & set(disable_groups))
@@ -313,6 +328,7 @@ def main(argv=None) -> int:
                 runtime,
                 overrides=_assignments(args.set, "--set"),
                 numa_auto_override=False if args.disable_numa else None,
+                accuracy_mode=args.accuracy,
             )
             if runtime_path is None:
                 environment.pop("TURBO_PHYSAI_RUNTIME_CONFIG_PATH", None)
@@ -332,6 +348,7 @@ def main(argv=None) -> int:
                 force_groups,
                 disable_groups,
                 command,
+                args.accuracy,
             )
             isolated = isolation_flags(command)
             if isolated:

@@ -150,7 +150,7 @@ def bootstrap_environment(
     log_report: bool = False,
     force_groups: Sequence[str] = (),
     disable_groups: Sequence[str] = (),
-    accuracy_mode: bool = True,
+    accuracy_mode: bool = False,
 ) -> dict[str, str]:
     """Add the variables that make a descendant interpreter self-activate."""
 

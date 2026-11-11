@@ -125,7 +125,7 @@ rolled_back = 0
 not_started = 0
 ```
 
-`skipped` 可以大于 0，表示部分 Group 不参与本次执行。常见原因包括配置中的 `enabled: false`、通过 `--disable-group` 临时禁用，以及所依赖的 Group 被禁用。具体原因见 `Preparation` 中对应 Group 的 `reason`；预期执行的 Group 应全部计入 `applied`。
+`skipped` 可以大于 0，表示部分 Group 不参与本次执行。常见原因包括配置中的 `enabled: false`、通过 `--disable-group` 临时禁用、所依赖的 Group 被禁用，以及未带 `--accuracy` 时被跳过的 `accuracy_only` Group（`reason` 为 `accuracy_only_group`）。具体原因见 `Preparation` 中对应 Group 的 `reason`；预期执行的 Group 应全部计入 `applied`。
 
 ## 7. 异常和回滚
 

@@ -1,6 +1,10 @@
 """accuracy_only Group 开关：精度验证专用 Group 只在该模式下应用。"""
 
+import os
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from turbo_physai.bootstrap import ACCURACY_MODE, bootstrap_environment
 from turbo_physai.engine import _apply_group_overrides
@@ -11,7 +15,8 @@ from turbo_physai.engine.contracts import (
     OptimizationConfigMetadata,
     OptimizationGroupConfig,
 )
-from turbo_physai.engine.errors import OptimizationConfigError
+from turbo_physai.engine.errors import OptimizationConfigError, TurboPhysAIError
+from turbo_physai.runtime import RuntimeConfig, load_runtime_config, prepare_environment
 
 
 class _EmptyRegistry:
@@ -69,6 +74,13 @@ class AccuracyOnlyGroupTest(unittest.TestCase):
 
     def test_accuracy_only_defaults_to_false(self):
         self.assertFalse(OptimizationGroupConfig("demo.speed").accuracy_only)
+
+    def test_default_mode_skips_accuracy_only_group(self):
+        effective, _, reasons = _apply_group_overrides(
+            self.config, self.registry, (), ()
+        )
+        self.assertEqual(_enabled(effective), {"demo.speed"})
+        self.assertEqual(reasons["demo.order"], "accuracy_only_group")
 
 
 class AccuracyOnlySchemaTest(unittest.TestCase):
@@ -135,6 +147,91 @@ class AccuracyModeEnvironmentTest(unittest.TestCase):
             ACCURACY_MODE,
             bootstrap_environment({}, optimization_config="c", accuracy_mode=False),
         )
+        self.assertNotIn(ACCURACY_MODE, bootstrap_environment({}, optimization_config="c"))
+
+
+class AccuracyRuntimeEnvironmentTest(unittest.TestCase):
+    def _runtime(self):
+        return RuntimeConfig(
+            {"BASE": "1"},
+            (),
+            {},
+            {},
+            True,
+            {"ACCURACY_ONLY": "yes"},
+            ("BASE",),
+        )
+
+    def test_load_runtime_config_reads_accuracy_section(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "runtime.yaml"
+            path.write_text(
+                "schema_version: turbophysai/runtime-config/v1\n"
+                "kind: RuntimeConfig\n"
+                "environment:\n"
+                "  set:\n"
+                "    BASE: '1'\n"
+                "  accuracy:\n"
+                "    set:\n"
+                "      ACCURACY_ONLY: 'yes'\n"
+                "    unset:\n"
+                "      - BASE\n",
+                encoding="utf-8",
+            )
+            runtime = load_runtime_config(path)
+        self.assertEqual(dict(runtime.accuracy_set), {"ACCURACY_ONLY": "yes"})
+        self.assertEqual(runtime.accuracy_unset, ("BASE",))
+
+    def test_accuracy_environment_applies_in_accuracy_mode(self):
+        with patch.dict(os.environ, {"BASE": "shell"}, clear=True):
+            env = prepare_environment(self._runtime(), accuracy_mode=True)
+        self.assertEqual(env["ACCURACY_ONLY"], "yes")
+        self.assertNotIn("BASE", env)
+
+    def test_accuracy_environment_is_ignored_by_default(self):
+        with patch.dict(os.environ, {"BASE": "shell"}, clear=True):
+            env = prepare_environment(self._runtime())
+        self.assertEqual(env["BASE"], "1")
+        self.assertNotIn("ACCURACY_ONLY", env)
+
+    def test_command_line_set_wins_over_accuracy_section(self):
+        with patch.dict(os.environ, {"BASE": "shell"}, clear=True):
+            env = prepare_environment(
+                self._runtime(),
+                accuracy_mode=True,
+                overrides={"ACCURACY_ONLY": "cli"},
+            )
+        self.assertEqual(env["ACCURACY_ONLY"], "cli")
+
+
+class AccuracyOnlyCliValidationTest(unittest.TestCase):
+    def _write_config(self, folder):
+        path = Path(folder) / "optimization.yaml"
+        path.write_text(
+            "schema_version: turbophysai/optimization-config/v1\n"
+            "kind: OptimizationConfig\n"
+            "metadata:\n"
+            "  id: demo\n"
+            "  version: '1'\n"
+            "optimization_groups:\n"
+            "  - id: demo.order\n"
+            "    accuracy_only: true\n",
+            encoding="utf-8",
+        )
+        return path
+
+    def test_cli_rejects_forcing_accuracy_only_group_without_accuracy(self):
+        from turbo_physai.cli import _validate_run_groups
+
+        with tempfile.TemporaryDirectory() as folder:
+            config = self._write_config(folder)
+            with self.assertRaisesRegex(TurboPhysAIError, "--accuracy"):
+                _validate_run_groups(
+                    config, ["demo.order"], [], ["python", "train.py"], False
+                )
+            _validate_run_groups(
+                config, ["demo.order"], [], ["python", "train.py"], True
+            )
 
 
 if __name__ == "__main__":

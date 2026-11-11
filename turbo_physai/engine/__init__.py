@@ -115,7 +115,7 @@ def _apply_group_overrides(
     registry: Registry,
     force_groups: Sequence[str],
     disable_groups: Sequence[str],
-    accuracy_mode: bool = True,
+    accuracy_mode: bool = False,
 ) -> Tuple[OptimizationConfig, Tuple[str, ...], Dict[str, str]]:
     forced = _validate_group_ids(config, force_groups, name="force_groups")
     disabled = _validate_group_ids(config, disable_groups, name="disable_groups")
@@ -188,7 +188,7 @@ def _resolve(
     model: Optional[str],
     force_groups: Sequence[str],
     disable_groups: Sequence[str],
-    accuracy_mode: bool = True,
+    accuracy_mode: bool = False,
 ) -> Tuple[
     OptimizationConfig,
     PreparedExecution,
@@ -374,7 +374,7 @@ def apply(
     catalog: Optional[OptimizationConfigCatalog] = None,
     force_groups: Sequence[str] = (),
     disable_groups: Sequence[str] = (),
-    accuracy_mode: bool = True,
+    accuracy_mode: bool = False,
 ) -> OptimizationReport:
     """Apply one OptimizationConfig during process startup and report its result.
 
