@@ -14,14 +14,6 @@ TurboPhysAI 的 OpenPI 优化基于官方仓库 commit `215abfb217dbac7d5f127328
 
 按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用 VLA、DiT 和世界模型配套镜像创建容器并安装 TurboPhysAI。下文命令均在容器内执行。
 
-请使用包含 OpenPI 优化及配置的 TurboPhysAI wheel；如果发布版尚未包含该内容，可参考[从源码安装](../../docs/zh/get_started/installation.md#从源码安装)安装包含 OpenPI 的版本。
-
-为使命令行工具与安装指南使用相同的 Python 环境，将该 Python 的脚本目录加入 PATH：
-
-```bash
-export PATH="$(/usr/bin/python3 -c 'import sysconfig; print(sysconfig.get_path("scripts"))'):$PATH"
-```
-
 ## 4. 准备模型源码及示例文件
 
 下文命令均在容器内执行。基础镜像保留原有 Torch、TorchVision、FlashAttention 和 Triton，Python 依赖在后续步骤安装。
