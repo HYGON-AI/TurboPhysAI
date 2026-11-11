@@ -1,4 +1,12 @@
-# Adapted from PyTorch 2.10 Inductor and the supplied LingBot optimization patch.
+# Derived from PyTorch v2.10.0, commit 449b1768410104d3ed79d3bcfe4ba1d65c7f22c0.
+# Upstream file: torch/_inductor/kernel/flex/flex_attention.py
+# SPDX-License-Identifier: BSD-3-Clause
+# See third_party/licenses/PyTorch-2.10-BSD-3-Clause.txt and
+# third_party/notices/PyTorch-2.10-NOTICE.txt for upstream notices.
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon for LingBot-VA external templates and gfx936 tuning.
+# Tuning baseline: Hygon all_optimizations.patch (2026-10-19), SHA256:
+# b8f52531d09917696a9d6ec2d481601c1d5825700d8a8a2eb7dcff02f76c6de6
 """Triton Implementation of the flex_attention Kernel"""
 from __future__ import annotations
 import logging

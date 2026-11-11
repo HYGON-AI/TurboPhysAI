@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 REVISION=3796128826
-MANIFEST_SHA256='4801b83c27ca363ed4eb325ae4a2922aaebe7f0e7666995f4c3212ca426fb6d6'
+MANIFEST_SHA256='a73970ead7f810932150d1c17443c3c24c56670217658117cb1ec9d8fe4262c5'
 
 def validate_backend(root=None):
     import torch
