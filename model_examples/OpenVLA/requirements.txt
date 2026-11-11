@@ -1,6 +1,6 @@
 # OpenVLA 训练依赖（HCU 镜像增量安装）
 #
-# 产品镜像已提供 DTK 版 torch / torchvision 等基础包，这里只列 OpenVLA 训练还需要补装的包。
+# 配套镜像已提供 DTK 版 torch / torchvision 等基础包，这里只列 OpenVLA 训练还需要补装的包。
 # 安装时带 --force-reinstall --no-deps，避免 pip 重新解析依赖、把镜像里的 DTK 版 torch 或刚装好的 HCU 版 tensorflow 换成 PyPI 版本。
 #
 # 完整安装步骤见 model_examples/OpenVLA/README.md 第 3.2 节；

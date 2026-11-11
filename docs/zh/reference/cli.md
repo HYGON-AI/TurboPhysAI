@@ -1,6 +1,6 @@
 # CLI 参考
 
-产品镜像和源码安装环境均使用 `turbo-physai`。仅在尚未安装组件的源码开发目录中，可使用 `PYTHONPATH=. python -m turbo_physai.cli` 调用同一入口。
+配套镜像和源码安装环境均使用 `turbo-physai`。仅在尚未安装组件的源码开发目录中，可使用 `PYTHONPATH=. python -m turbo_physai.cli` 调用同一入口。
 
 ## optimization init
 

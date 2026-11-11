@@ -1,6 +1,6 @@
 # 快速开始
 
-本指南从 TurboPhysAI 已完成安装并通过检查开始，说明如何对模型启用优化。产品镜像和源码安装方法见[安装指南](installation.md)。
+本指南从 TurboPhysAI 已完成安装并通过检查开始，说明如何对模型启用优化。配套镜像和源码安装方法见[安装指南](installation.md)。
 
 ![TurboPhysAI 快速开始流程](../../assets/turbophysai-workflow.svg)
 

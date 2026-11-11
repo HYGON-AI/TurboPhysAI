@@ -1,8 +1,8 @@
 # 常见问题
 
-## 产品镜像是否包含模型源码、数据集和权重？
+## 配套镜像是否包含模型源码、数据集和权重？
 
-不包含。产品镜像提供 TurboPhysAI、HCU 软件环境和已验证的模型依赖。模型源码、数据集、预训练权重和训练输出目录需要按照[模型支持清单](models/support_list.md)中的对应模型说明准备并挂载到容器中。
+不包含。配套镜像提供 HCU 软件环境。创建容器后，按安装指南安装 TurboPhysAI。模型源码、数据集、预训练权重和训练输出目录需要按照[模型支持清单](models/support_list.md)中的对应模型说明准备并挂载到容器中。
 
 ## 如何通过原训练命令启用优化？
 
@@ -78,4 +78,4 @@ turbo-physai run --log-report <original-training-command>
 
 可以。仓库内原生算子源码通过统一构建链路编译进 `turbo_physai._C`。接入流程、PyBind 注册方式和验证要求见[自定义算子接入](developer_guide/custom_operator.md)。
 
-外部动态库由其发布包或产品镜像负责安装和加载；TurboPhysAI 不管理外部动态库的安装、ABI、卸载和运行时回滚。
+外部动态库由其发布包或配套镜像负责安装和加载；TurboPhysAI 不管理外部动态库的安装、ABI、卸载和运行时回滚。

@@ -1,6 +1,6 @@
 # BEVFormer 应用说明
 
-本文说明如何在产品镜像中，基于官方 BEVFormer 仓库应用 TurboPhysAI 的 HCU 优化。镜像获取和容器创建方法参见[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)。
+本文说明如何基于官方 BEVFormer 仓库应用 TurboPhysAI 的 HCU 优化。请先按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用自动驾驶配套镜像创建容器并安装 TurboPhysAI。
 
 ## 1. 模型简介
 
@@ -12,6 +12,13 @@ TurboPhysAI 的 BEVFormer 优化基于官方仓库 commit `66b65f3a1f58caf0507cb
 
 ## 3. 准备模型源码
 
+在容器内激活模型环境，后续数据准备和训练命令均在该环境中执行：
+
+```bash
+source /opt/conda/etc/profile.d/conda.sh
+conda activate mmcv1
+```
+
 ```bash
 cd /workspace
 mkdir -p model
@@ -21,7 +28,7 @@ git checkout --detach 66b65f3a1f58caf0507cb2a971b9c0e7f842376c
 mkdir -p data work_dirs
 ```
 
-也可以将准备好的官方 BEVFormer 仓库放入宿主机工作目录的 `model/BEVFormer`。下文命令均在容器内的 `/workspace/model/BEVFormer` 执行。产品镜像提供 TurboPhysAI、HCU 运行环境和 BEVFormer 训练依赖，不包含模型源码。
+也可以将准备好的官方 BEVFormer 仓库放入宿主机工作目录的 `model/BEVFormer`。下文命令均在容器内的 `/workspace/model/BEVFormer` 执行。
 
 ## 4. 准备官方 nuScenes 数据
 
@@ -66,7 +73,7 @@ wget -O ckpts/r101_dcn_fcos3d_pretrain.pth \
   https://github.com/zhiqi-li/storage/releases/download/v1.0/r101_dcn_fcos3d_pretrain.pth
 ```
 
-TurboPhysAI 已安装在镜像的 Python 环境中。后续命令使用 `--model bevformer` 自动选择随组件安装的 OptimizationConfig 和 RuntimeConfig，不依赖固定安装目录。
+后续命令使用 `--model bevformer` 自动选择随组件安装的 OptimizationConfig 和 RuntimeConfig，不依赖固定安装目录。
 
 ## 6. 通过 turbo-physai run 启动训练
 
@@ -78,7 +85,7 @@ BEVFormer RuntimeConfig 包含训练所需的运行环境和 NUMA 配置。
 
 ```bash
 source /opt/conda/etc/profile.d/conda.sh
-conda activate bevformer
+conda activate mmcv1
 cd /workspace/model/BEVFormer
 
 turbo-physai run \
