@@ -244,7 +244,7 @@ turbo-physai run \
     --log-interval 100 \
     --save-interval 1000 \
     --no-wandb-enabled \
-  2>&1 | tee -a "/workspace/openpi_TurboPhysAI/output/logs/pi05_libero_8gpu_bs32_${STAMP}.log"
+  2>&1 | tee -a "/workspace/openpi_TurboPhysAI/output/logs/pi05_libero_${STAMP}.log"
 ```
 
 训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
