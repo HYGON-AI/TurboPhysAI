@@ -3,6 +3,7 @@ kind: RuntimeConfig
 environment:
   set:
     TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
   unset: []
 process:
   numa: true

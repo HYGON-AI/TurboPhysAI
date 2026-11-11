@@ -18,13 +18,16 @@ from turbo_physai.optimizations.models.lingbot_va.catalog import SYNC
 def training_module(tmp_path, monkeypatch):
     probe = SimpleNamespace(events=[], accumulation=2)
     monkeypatch.setitem(sys.modules, "lingbot_entry_probe", probe)
-    monkeypatch.syspath_prepend(str(tmp_path))
+    upstream = tmp_path / "wan_va"
+    upstream.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.syspath_prepend(str(upstream))
     monkeypatch.delitem(sys.modules, "train", raising=False)
     monkeypatch.delitem(
         sys.modules, "turbo_physai.optimizations.models.lingbot_va.train_sync",
         raising=False,
     )
-    (tmp_path / "train.py").write_text('''
+    (upstream / "train.py").write_text('''
 from lingbot_entry_probe import events, accumulation
 events.append(("load", __name__))
 logger = None

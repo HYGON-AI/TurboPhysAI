@@ -5,7 +5,8 @@
 
 Executing ``-m train`` would define a second Trainer in ``__main__`` after
 bootstrap has patched ``train.Trainer``. Keep one module identity instead.
-Run this entry point from the upstream repository's ``wan_va`` directory.
+The upstream repository's ``wan_va`` directory must be on ``PYTHONPATH``
+before bootstrap; the example launcher sets it from ``LINGBOT_VA_ROOT``.
 """
 
 from importlib import import_module
