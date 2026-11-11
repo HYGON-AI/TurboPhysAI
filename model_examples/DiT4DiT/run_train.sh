@@ -5,7 +5,10 @@ DIT4DIT_ROOT="${DIT4DIT_ROOT:-/workspace/model/DiT4DiT}"
 COSMOS_MODEL_PATH="${COSMOS_MODEL_PATH:-/workspace/models/Cosmos-Predict2.5-2B-diffusers}"
 DATA_ROOT="${DATA_ROOT:-/workspace/dataset/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim}"
 RUN_ROOT="${RUN_ROOT:-/workspace/outputs}"
-RUN_ID="${RUN_ID:-dit4dit_hcu_8card}"
+NUM_PROCESSES="${NUM_PROCESSES:-2}"
+PER_DEVICE_BATCH_SIZE="${PER_DEVICE_BATCH_SIZE:-2}"
+GRADIENT_ACCUMULATION_STEPS="${GRADIENT_ACCUMULATION_STEPS:-4}"
+RUN_ID="${RUN_ID:-dit4dit_hcu_${NUM_PROCESSES}card}"
 MAX_TRAIN_STEPS="${MAX_TRAIN_STEPS:-200000}"
 
 cd "$DIT4DIT_ROOT"
@@ -16,7 +19,7 @@ turbo-physai run \
   --log-report \
   accelerate launch \
     --config_file DiT4DiT/config/deepseeds/deepspeed_zero2.yaml \
-    --num_processes 8 \
+    --num_processes "$NUM_PROCESSES" \
     -m turbo_physai.optimizations.models.dit4dit.entry \
     --config_yaml DiT4DiT/config/robocasa/dit4dit_robocasa_gr1.yaml \
     --framework.name DiT4DiT \
@@ -29,7 +32,7 @@ turbo-physai run \
     --framework.cosmos25.conditional_frame_timestep 0.0001 \
     --datasets.vla_data.data_root_dir "$DATA_ROOT" \
     --datasets.vla_data.data_mix fourier_gr1_unified_1000 \
-    --datasets.vla_data.per_device_batch_size 4 \
+    --datasets.vla_data.per_device_batch_size "$PER_DEVICE_BATCH_SIZE" \
     --datasets.vla_data.action_video_freq_ratio 2 \
     --trainer.freeze_modules \
       backbone_interface.extractor.text_encoder,backbone_interface.extractor.vae \
@@ -40,6 +43,6 @@ turbo-physai run \
     --trainer.learning_rate.backbone_interface 1e-5 \
     --trainer.learning_rate.action_model 1e-4 \
     --trainer.num_warmup_steps 5000 \
-    --trainer.gradient_accumulation_steps 2 \
+    --trainer.gradient_accumulation_steps "$GRADIENT_ACCUMULATION_STEPS" \
     --run_root_dir "$RUN_ROOT" \
     --run_id "$RUN_ID"

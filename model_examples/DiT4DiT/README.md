@@ -108,7 +108,7 @@ unset MIOPEN_FIND_ENFORCE
 
 ```bash
 cd /workspace/TurboPhysAI
-bash model_examples/DiT4DiT/run_2card.sh
+bash model_examples/DiT4DiT/run_train.sh
 ```
 
 双卡配置为 2 进程 × 每卡 batch size 2 × 梯度累积 4，global batch size 为 16；学习率沿用上游 recipe。训练入口会同步 Accelerate 与 DeepSpeed 的梯度累积配置，RuntimeConfig 自动完成 rank/NUMA 映射。
@@ -119,7 +119,8 @@ bash model_examples/DiT4DiT/run_2card.sh
 
 ```bash
 cd /workspace/TurboPhysAI
-bash model_examples/DiT4DiT/run_8card.sh
+NUM_PROCESSES=8 PER_DEVICE_BATCH_SIZE=4 GRADIENT_ACCUMULATION_STEPS=2 \
+  bash model_examples/DiT4DiT/run_train.sh
 ```
 
 八卡脚本使用 8 进程 × 每卡 batch size 4 × 梯度累积 2，保持上游训练的 global batch size 64；学习率 `1e-5/1e-4` 和 warmup 5000 不变。模型、数据和输出路径可分别通过 `COSMOS_MODEL_PATH`、`DATA_ROOT` 和 `RUN_ROOT` 覆盖，默认 `run_id` 为 `dit4dit_hcu_8card`。
