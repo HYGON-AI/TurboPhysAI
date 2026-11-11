@@ -81,11 +81,18 @@ def resolve_attribute(path: str, *, import_missing: bool = True) -> ResolvedAttr
         raise HandlerError(f"target does not exist: {path}")
     original = parent[attribute] if is_mapping else getattr(parent, attribute)
     if isinstance(parent, type):
-        return ResolvedAttribute(
-            path, parent, attribute, original, is_mapping,
-            class_owned=attribute in vars(parent),
-            raw_original=inspect.getattr_static(parent, attribute),
-        )
+        try:
+            raw_original = inspect.getattr_static(parent, attribute)
+        except AttributeError:
+            # Dynamic metaclass attributes have no static descriptor snapshot.
+            # Preserve the original getattr-based resolution and restore path.
+            pass
+        else:
+            return ResolvedAttribute(
+                path, parent, attribute, original, is_mapping,
+                class_owned=attribute in vars(parent),
+                raw_original=raw_original,
+            )
     return ResolvedAttribute(path, parent, attribute, original, is_mapping)
 
 
