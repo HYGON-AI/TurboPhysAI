@@ -40,7 +40,7 @@ cd /workspace/openpi_TurboPhysAI/openpi
   -e packages/openpi-client
 ```
 
-### 4.2 获取 OpenPI 示例文件
+### 4.2 依赖清单
 
 克隆 TurboPhysAI 仓库，用于获取 `model_examples/OpenPi` 下的依赖清单、归一化统计文件和权重下载脚本。
 
