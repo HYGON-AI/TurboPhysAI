@@ -134,7 +134,9 @@ def _apply_group_overrides(
             if entry.accuracy_only and entry.id not in disabled_reasons:
                 disabled_reasons[entry.id] = "accuracy_only_group"
         accuracy_forced = tuple(
-            group_id for group_id in forced if group_id in disabled_reasons
+            group_id
+            for group_id in forced
+            if disabled_reasons.get(group_id) == "accuracy_only_group"
         )
         if accuracy_forced:
             raise OptimizationConfigError(

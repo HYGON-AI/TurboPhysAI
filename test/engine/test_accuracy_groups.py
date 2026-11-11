@@ -65,6 +65,19 @@ class AccuracyOnlyGroupTest(unittest.TestCase):
             )
         self.assertIn("accuracy-only", str(raised.exception))
 
+    def test_forced_and_disabled_plain_group_reports_overlap(self):
+        with self.assertRaises(OptimizationConfigError) as raised:
+            _apply_group_overrides(
+                self.config,
+                self.registry,
+                ("demo.speed",),
+                ("demo.speed",),
+                accuracy_mode=False,
+            )
+        message = str(raised.exception)
+        self.assertIn("both forced and disabled", message)
+        self.assertNotIn("accuracy-only", message)
+
     def test_forcing_accuracy_only_group_with_accuracy_mode_is_allowed(self):
         effective, forced, _ = _apply_group_overrides(
             self.config, self.registry, ("demo.order",), (), accuracy_mode=True
