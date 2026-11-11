@@ -123,4 +123,23 @@ NUM_PROCESSES=8 PER_DEVICE_BATCH_SIZE=4 GRADIENT_ACCUMULATION_STEPS=2 \
   bash model_examples/DiT4DiT/run_train.sh
 ```
 
-八卡脚本使用 8 进程 × 每卡 batch size 4 × 梯度累积 2，保持上游训练的 global batch size 64；学习率 `1e-5/1e-4` 和 warmup 5000 不变。模型、数据和输出路径可分别通过 `COSMOS_MODEL_PATH`、`DATA_ROOT` 和 `RUN_ROOT` 覆盖，默认 `run_id` 为 `dit4dit_hcu_8card`。
+八卡脚本使用 8 进程 × 每卡 batch size 4 × 梯度累积 2，保持上游训练的 global batch size 64；学习率 `1e-5/1e-4` 和 warmup 5000 不变。默认 `run_id` 为 `dit4dit_hcu_8card`。
+
+### 6.4 参数覆盖
+
+双卡、八卡共用 `run_train.sh`，可通过环境变量覆盖以下默认值：
+
+| 变量 | 默认值 |
+| --- | --- |
+| `DIT4DIT_ROOT` | `/workspace/model/DiT4DiT` |
+| `COSMOS_MODEL_PATH` | `/workspace/models/Cosmos-Predict2.5-2B-diffusers` |
+| `DATA_ROOT` | `/workspace/dataset/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim` |
+| `RUN_ROOT` | `/workspace/outputs` |
+| `RUN_ID` | `dit4dit_hcu_${NUM_PROCESSES}card` |
+| `MAX_TRAIN_STEPS` | `200000` |
+| `NUM_PROCESSES` | `2` |
+| `PER_DEVICE_BATCH_SIZE` | `2` |
+| `GRADIENT_ACCUMULATION_STEPS` | `4` |
+| `WANDB_MODE` | `disabled` |
+
+八卡按上文同时覆盖进程数、每卡 batch size 和梯度累积，保持 global batch size 64。
