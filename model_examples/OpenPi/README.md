@@ -38,7 +38,7 @@ cd /workspace/openpi_TurboPhysAI/openpi
   -e packages/openpi-client
 ```
 
-### 4.2 依赖清单
+### 4.2 获取 OpenPI 示例文件
 
 克隆 TurboPhysAI 仓库仅用于获取 `model_examples/OpenPi` 下的依赖清单、归一化统计文件和权重下载脚本。
 
@@ -235,7 +235,7 @@ turbo-physai run \
   -- \
   /usr/bin/python3 -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node=8 \
     scripts/train_pytorch.py pi05_libero \
-    --exp_name "pi05_libero_8gpu_bs32_by_config_${STAMP}" \
+    --exp_name "pi05_libero_8gpu_bs32_${STAMP}" \
     --batch-size 256 \
     --assets-base-dir /workspace/openpi_TurboPhysAI/static_data/assets \
     --checkpoint-base-dir /workspace/openpi_TurboPhysAI/output/checkpoints \
@@ -244,7 +244,7 @@ turbo-physai run \
     --log-interval 100 \
     --save-interval 1000 \
     --no-wandb-enabled \
-  2>&1 | tee -a "/workspace/openpi_TurboPhysAI/output/logs/pi05_libero_8gpu_bs32_by_config_${STAMP}.log"
+  2>&1 | tee -a "/workspace/openpi_TurboPhysAI/output/logs/pi05_libero_8gpu_bs32_${STAMP}.log"
 ```
 
 训练日志和检查点默认保存到 `/workspace/openpi_TurboPhysAI/output/`。优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
@@ -258,10 +258,10 @@ turbo-physai run \
 ├── openpi/                                  # OpenPI 官方源码
 ├── TurboPhysAI/                             # 示例文件所在的源码仓库
 │   └── model_examples/OpenPi/
-│   │   ├── README.md
-│   │   ├── requirements.txt
-│   │   ├── norm_stats.json                  # 本例提供的 LIBERO 统计文件
-│   │   └── download_pi05_base.py           # PI0.5 base 权重下载脚本
+│       ├── README.md
+│       ├── requirements.txt
+│       ├── norm_stats.json                  # 本例提供的 LIBERO 统计文件
+│       └── download_pi05_base.py           # PI0.5 base 权重下载脚本
 ├── static_data/                             # 数据集、权重和运行资源
 │   ├── .lerobot_root/physical-intelligence/libero/
 │   │   ├── data/
