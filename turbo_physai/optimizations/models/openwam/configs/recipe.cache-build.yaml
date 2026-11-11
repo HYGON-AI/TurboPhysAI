@@ -1,0 +1,57 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.openwam.hcu.cache-build
+  version: 0.1.0
+  description: OpenWAM VAE and T5 cache preparation; configure the cache directory
+model:
+  name: OpenWAM
+optimization_modules:
+- turbo_physai.optimizations.models.openwam.catalog
+compatibility:
+  commits:
+  - 0c9ed80d80af1d0c5f4148afe65cc7f462ec3995
+optimization_groups:
+- id: openwam.data
+  options:
+    vae_latent_cache: false
+    vae_latent_cache_dir: assets/openwam_latents_clean_50
+- id: openwam.compute
+  options:
+    lightop_norm: true
+    linear_bias2d: true
+    global_compile: true
+    global_compile_scope: vae
+    pointwise_compile: true
+    rope_real: true
+    vae_channels_last: true
+    vae_pointwise_compile: true
+- id: openwam.architecture
+  options:
+    constant_cache: true
+- id: openwam.mot
+  options:
+    sac_attention: false
+    sac_ffn_full: false
+    sac_gemm: false
+    sac_layers: null
+    sac_extra_ops: ''
+- id: openwam.text
+  options:
+    text_cache_dir: assets/openwam_latents_clean_50/text
+    padding_plan_cpu: true
+    fa2_padding: true
+    fa2_mask_fused: true
+- id: openwam.training
+  options:
+    zero_overlap: true
+    zero_reduce_scatter: false
+    online_encode: false
+    deferred_gather: false
+    fused_adamw: false
+    host_async: false
+    zero_scaled_pack: false
+    zero_norm_overlap: false
