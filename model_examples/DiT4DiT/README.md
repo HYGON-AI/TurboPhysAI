@@ -8,55 +8,24 @@
 
 TurboPhysAI 的 DiT4DiT 优化基于官方仓库 commit `d8854a11713f846b8b3f768fc3bf2c6cba2bc17f` 接入。优化接入基线的使用建议见[模型支持清单](../../docs/zh/models/support_list.md)。
 
-## 3. 下载并启动基础镜像
+## 3. 构建训练环境
 
-```bash
-export BASE_IMAGE=harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10-20260929
-docker pull "$BASE_IMAGE"
+按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用 VLA/DiT/世界模型配套镜像创建容器并安装 TurboPhysAI。下文命令均在容器内执行。
 
-export WORKSPACE=/path/to/dit4dit-workspace
-mkdir -p "$WORKSPACE"
-
-docker run -dit \
-  --name dit4dit \
-  --network=host \
-  --privileged \
-  --device=/dev/kfd \
-  --device=/dev/dri \
-  --ipc=host \
-  --shm-size=512G \
-  --group-add video \
-  --cap-add=SYS_PTRACE \
-  --security-opt seccomp=unconfined \
-  --ulimit stack=-1:-1 \
-  --ulimit memlock=-1:-1 \
-  -v /opt/hyhal:/opt/hyhal:ro \
-  -v "$WORKSPACE":/workspace \
-  -w /workspace \
-  "$BASE_IMAGE" \
-  sleep infinity
-
-docker exec -it dit4dit bash
-```
-
-## 4. 安装 TurboPhysAI 和模型依赖
+获取模型依赖清单和训练脚本，并安装模型依赖：
 
 ```bash
 cd /workspace
 git clone https://github.com/HYGON-AI/TurboPhysAI.git
-cd TurboPhysAI
-
 export TURBO_PHYSAI_ROOT=/workspace/TurboPhysAI
 
-PATH=/usr/bin:$PATH MAX_JOBS=8 python3 setup.py bdist_wheel
-python3 -m pip install --no-deps dist/turbo_physai-*.whl
-python3 -m pip install --no-deps \
+/usr/bin/python3 -m pip install --no-deps \
   -r "$TURBO_PHYSAI_ROOT/model_examples/DiT4DiT/requirements.txt"
 ```
 
 `--no-deps` 用于保护基础镜像中的 HCU PyTorch、DeepSpeed、Triton 等适配组件。不要直接安装 DiT4DiT 上游 `requirements.txt`，否则可能覆盖这些组件或引入 CUDA 依赖。
 
-## 5. 准备模型源码
+## 4. 准备模型源码
 
 ```bash
 cd /workspace
@@ -84,7 +53,7 @@ turbo-physai --help
 
 Accelerate 1.13.0 和 Diffusers 0.38.0 是经过双卡 HCU 训练验证的组合；TurboPhysAI 的 Cosmos 优化直接适配 Diffusers 0.38.0，不能单独替换为上游 commit。该 RoboCasa 训练路径不安装未使用的 PEFT。
 
-## 6. 准备模型权重与数据
+## 5. 准备模型权重与数据
 
 - [Cosmos-Predict2.5-2B](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)，使用 `diffusers/base/post-trained` revision。该目录已包含 text encoder、VAE 和 transformer，无需单独下载 VAE/VLM 权重。
 - [physical-intelligence/fast](https://huggingface.co/physical-intelligence/fast) Action Tokenizer。
@@ -107,11 +76,11 @@ ln -s "$PWD/playground/Datasets/nvidia/PhysicalAI-Robotics-GR00T-X-Embodiment-Si
   /workspace/dataset/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim
 ```
 
-## 7. 通过 turbo-physai run 启动训练
+## 6. 通过 turbo-physai run 启动训练
 
 `turbo-physai run` 默认加载随包交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)。
 
-### 7.1 生成并复用 MIOpen 缓存
+### 6.1 生成并复用 MIOpen 缓存
 
 将 MIOpen user DB 和 kernel cache 放在已挂载的 `/workspace` 中：
 
@@ -135,7 +104,7 @@ unset MIOPEN_FIND_ENFORCE
 
 首次搜索会明显变慢。后续训练只保留两个缓存路径。
 
-### 7.2 单机双卡训练
+### 6.2 单机双卡训练
 
 ```bash
 cd /workspace/TurboPhysAI
@@ -146,7 +115,7 @@ bash model_examples/DiT4DiT/run_2card.sh
 
 优化应用状态的确认方法见[快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
 
-### 7.3 单机八卡训练
+### 6.3 单机八卡训练
 
 ```bash
 cd /workspace/TurboPhysAI
