@@ -290,7 +290,9 @@ turbo-physai run \
         ├── catalog.py
         ├── ...                            # 其他优化实现
         └── configs/
+            ├── .optimization.yaml.generation.json
             ├── optimization.yaml
+            ├── recipe.yaml
             └── runtime.yaml
 ```
 
