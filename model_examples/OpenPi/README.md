@@ -259,7 +259,7 @@ turbo-physai run \
 /workspace/openpi_TurboPhysAI/
 ├── openpi/                                  # OpenPI 官方源码
 ├── TurboPhysAI/                             # 示例文件所在的源码仓库
-│   ├── model_examples/OpenPi/
+│   └── model_examples/OpenPi/
 │   │   ├── README.md
 │   │   ├── requirements.txt
 │   │   ├── norm_stats.json                  # 本例提供的 LIBERO 统计文件
@@ -278,4 +278,25 @@ turbo-physai run \
 └── output/                                  # 训练输出
     ├── logs/
     └── checkpoints/
+```
+
+已安装的 TurboPhysAI Python 包示例结构如下（实际路径以当前环境为准）：
+
+```text
+/usr/local/lib/python3.10/dist-packages/
+└── turbo_physai/
+    └── optimizations/models/openpi/
+        ├── sitecustomize.py
+        ├── catalog.py
+        ├── ...                            # 其他优化实现
+        └── configs/
+            ├── optimization.yaml
+            └── runtime.yaml
+```
+
+使用以下命令查看已安装的 OpenPI 优化目录：
+
+```bash
+/usr/bin/python3 -c \
+  'import os, turbo_physai.optimizations.models.openpi as m; print(os.path.dirname(m.__file__))'
 ```
