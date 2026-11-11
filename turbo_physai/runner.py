@@ -230,7 +230,7 @@ def _discover_rank_numa_node(local_rank: str) -> int:
     rocr_visible = os.environ.get("ROCR_VISIBLE_DEVICES", "")
     rocr_devices = [item.strip() for item in rocr_visible.split(",") if item.strip()]
     if rocr_devices:
-        if device_id < 0 or device_id >= len(rocr_devices):
+        if device_id >= len(rocr_devices):
             raise RuntimeError(
                 "HIP device index is outside ROCR_VISIBLE_DEVICES: "
                 f"{device_id} not in 0..{len(rocr_devices) - 1}"
