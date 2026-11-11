@@ -4,6 +4,7 @@ import unittest
 
 from turbo_physai.bootstrap import ACCURACY_MODE, bootstrap_environment
 from turbo_physai.engine import _apply_group_overrides
+from turbo_physai.engine.config.loader import _merge
 from turbo_physai.engine.config.schema import optimization_config_from_dict
 from turbo_physai.engine.contracts import (
     OptimizationConfig,
@@ -96,6 +97,30 @@ class AccuracyOnlySchemaTest(unittest.TestCase):
                     ],
                 }
             )
+
+
+class AccuracyOnlyMergeTest(unittest.TestCase):
+    def _config(self, groups):
+        return optimization_config_from_dict(
+            {
+                "schema_version": "turbophysai/optimization-config/v1",
+                "kind": "OptimizationConfig",
+                "metadata": {"id": "demo", "version": "1"},
+                "optimization_groups": groups,
+            }
+        )
+
+    def test_overlay_keeps_base_accuracy_only_when_not_provided(self):
+        base = self._config([{"id": "demo.order", "accuracy_only": True}])
+        overlay = self._config([{"id": "demo.order", "options": {"window": 20}}])
+        merged = _merge(base, overlay).optimization_groups[0]
+        self.assertTrue(merged.accuracy_only)
+        self.assertEqual(dict(merged.options), {"window": 20})
+
+    def test_overlay_can_clear_accuracy_only(self):
+        base = self._config([{"id": "demo.order", "accuracy_only": True}])
+        overlay = self._config([{"id": "demo.order", "accuracy_only": False}])
+        self.assertFalse(_merge(base, overlay).optimization_groups[0].accuracy_only)
 
 
 class AccuracyModeEnvironmentTest(unittest.TestCase):
