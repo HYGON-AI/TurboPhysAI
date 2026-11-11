@@ -261,7 +261,7 @@ turbo-physai run \
 │       ├── README.md
 │       ├── requirements.txt
 │       ├── norm_stats.json                  # 本例提供的 LIBERO 统计文件
-│       └── download_pi05_base.py           # PI0.5 base 权重下载脚本
+│       └── download_pi05_base.py            # PI0.5 base 权重下载脚本
 ├── static_data/                             # 数据集、权重和运行资源
 │   ├── .lerobot_root/physical-intelligence/libero/
 │   │   ├── data/
