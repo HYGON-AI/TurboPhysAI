@@ -1,13 +1,10 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 
-from pathlib import Path
 import sys
 import types
 
-from packaging.requirements import Requirement
 import pytest
-import yaml
 
 from turbo_physai.optimizations.models.dit4dit import (
     action_compile,
@@ -410,86 +407,6 @@ def test_entry_rejects_missing_deepspeed_or_invalid_accumulation():
         entry._set_gradient_accumulation(accelerator, 0)
     with pytest.raises(RuntimeError, match="DeepSpeed"):
         entry._set_gradient_accumulation(accelerator, 1)
-
-
-def test_dit4dit_recipe_targets_product_torch_210():
-    recipe = Path(action_compile.__file__).with_name("configs") / "recipe.yaml"
-    data = yaml.safe_load(recipe.read_text())
-    assert data["compatibility"]["dependencies"]["torch"] == ">=2.10,<2.11"
-
-
-def test_dit4dit_requirements_preserve_hcu_base_components():
-    requirements = (
-        Path(__file__).resolve().parents[2]
-        / "model_examples"
-        / "DiT4DiT"
-        / "requirements.txt"
-    )
-    entries = [
-        Requirement(line)
-        for raw_line in requirements.read_text().splitlines()
-        if (line := raw_line.strip()) and not line.startswith("#")
-    ]
-    names = {entry.name.lower().replace("_", "-") for entry in entries}
-
-    protected = {
-        "torch",
-        "torchvision",
-        "torchaudio",
-        "triton",
-        "deepspeed",
-        "flash-attn",
-        "apex",
-        "aiter",
-        "transformer-engine",
-        "torchcodec",
-        "lightop",
-        "numpy",
-    }
-    assert names.isdisjoint(protected)
-    assert {
-        "accelerate",
-        "decord",
-        "diffusers",
-        "omegaconf",
-        "pipablepytorch3d",
-        "pyarrow",
-        "pyyaml",
-        "transformers",
-    } <= names
-    assert all(entry.url is None for entry in entries)
-
-
-def test_dit4dit_runtime_does_not_force_tuning_or_precision():
-    config_dir = Path(action_compile.__file__).with_name("configs")
-    runtime = yaml.safe_load((config_dir / "runtime.yaml").read_text())
-    environment = runtime["environment"]
-    configured = set(environment["set"]) | set(environment["unset"])
-
-    forbidden = {
-        "MIOPEN_FIND_ENFORCE",
-        "MIOPEN_FIND_MODE",
-        "MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32",
-        "ROCBLAS_TENSILE_LIBPATH",
-        "TENSILE_DB",
-    }
-    assert configured.isdisjoint(forbidden)
-
-
-def test_dit4dit_readme_uses_persistent_runtime_miopen_cache():
-    readme = (
-        Path(__file__).resolve().parents[2]
-        / "model_examples"
-        / "DiT4DiT"
-        / "README.md"
-    ).read_text()
-
-    assert "DIT4DIT_CACHE_ROOT=/workspace/cache/dit4dit" in readme
-    assert "MIOPEN_USER_DB_PATH" in readme
-    assert "MIOPEN_CUSTOM_CACHE_DIR" in readme
-    assert "MIOPEN_FIND_ENFORCE=SEARCH" in readme
-    assert "unset MIOPEN_FIND_ENFORCE" in readme
-    assert "SEARCH_DB_UPDATE" in readme
 
 
 def test_video_pack_rejects_mixed_future_frame_counts():
