@@ -1,6 +1,6 @@
 # OpenPI 应用说明
 
-请先按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用 VLA、DiT 和世界模型配套镜像创建容器并安装 TurboPhysAI。本文介绍 OpenPI 依赖安装、资源准备及训练启动。
+本文介绍 OpenPI 依赖安装、资源准备及训练启动。
 
 ## 1. 模型简介
 
@@ -12,47 +12,24 @@ TurboPhysAI 的 OpenPI 优化基于官方仓库 commit `215abfb217dbac7d5f127328
 
 ## 3. 准备训练环境
 
-以下命令在宿主机执行:
+按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用 VLA、DiT 和世界模型配套镜像创建容器并安装 TurboPhysAI。下文命令均在容器内执行。
 
-### 3.1 拉取基础镜像
+请使用包含 OpenPI 优化及配置的 TurboPhysAI wheel；如果发布版尚未包含该内容，可参考[从源码安装](../../docs/zh/get_started/installation.md#从源码安装)安装包含 OpenPI 的版本。
 
-```bash
-docker pull harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10
-```
-
-### 3.2 创建并进入容器
+为使命令行工具与安装指南使用相同的 Python 环境，将该 Python 的脚本目录加入 PATH：
 
 ```bash
-docker run -dit \
-  --restart unless-stopped \
-  --network=host \
-  --name=openpi-train-TurboPhysAI \
-  --privileged \
-  --device=/dev/kfd \
-  --device=/dev/dri \
-  --ipc=host \
-  --shm-size=128G \
-  --group-add video \
-  --cap-add=SYS_PTRACE \
-  --security-opt seccomp=unconfined \
-  -u root \
-  --ulimit stack=-1:-1 \
-  --ulimit memlock=-1:-1 \
-  -v /opt/hyhal:/opt/hyhal:ro \
-  -w /workspace/openpi_TurboPhysAI \
-  harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10 \
-  bash -lc 'exec tail -f /dev/null'
-
-docker exec -it openpi-train-TurboPhysAI bash
+export PATH="$(/usr/bin/python3 -c 'import sysconfig; print(sysconfig.get_path("scripts"))'):$PATH"
 ```
 
-## 4. 准备模型源码并安装 TurboPhysAI
+## 4. 准备模型源码及示例文件
 
 下文命令均在容器内执行。基础镜像保留原有 Torch、TorchVision、FlashAttention 和 Triton，Python 依赖在后续步骤安装。
 
 ### 4.1 准备官方 OpenPI 源码
 
 ```bash
+mkdir -p /workspace/openpi_TurboPhysAI
 cd /workspace/openpi_TurboPhysAI
 git clone https://github.com/Physical-Intelligence/openpi.git \
   /workspace/openpi_TurboPhysAI/openpi
@@ -66,29 +43,21 @@ git -C /workspace/openpi_TurboPhysAI/openpi submodule update --init --recursive
 ```bash
 cd /workspace/openpi_TurboPhysAI/openpi
 
-python -m pip install --ignore-requires-python --no-deps \
+/usr/bin/python3 -m pip install --ignore-requires-python --no-deps \
   -e . \
   -e packages/openpi-client
 ```
 
-### 4.2 拉取 TurboPhysAI 源码
+### 4.2 获取 OpenPI 示例文件
+
+克隆 TurboPhysAI 仓库，用于获取 `model_examples/OpenPi` 下的依赖清单、归一化统计文件和权重下载脚本；训练使用已安装的 TurboPhysAI 包。
+
+OpenPI 合入上游 `main` 前，请改为克隆包含这些示例文件的分支。
 
 ```bash
 cd /workspace/openpi_TurboPhysAI
 git clone --branch main \
   https://github.com/HYGON-AI/TurboPhysAI.git TurboPhysAI
-```
-
-### 4.3 编译并安装 TurboPhysAI
-
-```bash
-cd /workspace/openpi_TurboPhysAI/TurboPhysAI
-
-python -c 'import torch; print(torch.__version__)'
-python -m pip install ninja wheel setuptools
-MAX_JOBS=8 python setup.py bdist_wheel
-python -m pip install --no-deps --force-reinstall dist/turbo_physai-*.whl
-turbo-physai --help
 ```
 
 ## 5. 安装 Python 依赖
@@ -98,7 +67,7 @@ turbo-physai --help
 ```bash
 cd /workspace/openpi_TurboPhysAI/TurboPhysAI
 
-python -m pip install --no-cache-dir \
+/usr/bin/python3 -m pip install --no-cache-dir \
   --index-url https://pypi.tuna.tsinghua.edu.cn/simple \
   -r model_examples/OpenPi/requirements.txt
 ```
@@ -106,7 +75,7 @@ python -m pip install --no-cache-dir \
 LeRobot 和 gym-aloha 使用 `--no-deps` 安装，避免其依赖要求替换基础镜像的 Torch 栈。
 
 ```bash
-python -m pip install --no-cache-dir --no-deps \
+/usr/bin/python3 -m pip install --no-cache-dir --no-deps \
   --index-url https://pypi.tuna.tsinghua.edu.cn/simple \
   gym-aloha==0.1.1 \
   'lerobot @ git+https://github.com/huggingface/lerobot.git@0cf864870cf29f4738d3ade893e6fd13fbd7cdb5'
@@ -136,7 +105,7 @@ hf download physical-intelligence/libero \
 使用 Python 脚本下载官方 JAX checkpoint，`--output-dir` 可按实际情况修改：
 
 ```bash
-python /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/download_pi05_base.py \
+/usr/bin/python3 /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/download_pi05_base.py \
   --output-dir /workspace/openpi_TurboPhysAI/static_data/pi05_base
 ```
 
@@ -149,7 +118,7 @@ python /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/download_
 ```bash
 cd /workspace/openpi_TurboPhysAI/openpi
 
-TRANSFORMERS_DIR="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/transformers"
+TRANSFORMERS_DIR="$(/usr/bin/python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/transformers"
 
 cp -a \
   /workspace/openpi_TurboPhysAI/openpi/src/openpi/models_pytorch/transformers_replace/. \
@@ -166,10 +135,9 @@ cd /workspace/openpi_TurboPhysAI/openpi
 test -f /workspace/openpi_TurboPhysAI/static_data/pi05_base/params/commit_success.txt \
   || { echo "未找到 checkpoint 标记，请先完成下载"; exit 1; }
 
-export PYTHONPATH="/workspace/openpi_TurboPhysAI/openpi/src:/workspace/openpi_TurboPhysAI/openpi/packages/openpi-client/src${PYTHONPATH:+:${PYTHONPATH}}"
 export JAX_PLATFORMS=cpu
 
-python - <<'PY'
+/usr/bin/python3 - <<'PY'
 import datetime
 import runpy
 import sys
@@ -201,16 +169,15 @@ cp /workspace/openpi_TurboPhysAI/TurboPhysAI/model_examples/OpenPi/norm_stats.js
 需要重新计算，或使用其他数据集时，运行以下命令；更换数据集需同步调整训练配置名称。结果保存到 `static_data/assets/pi05_libero/physical-intelligence/libero/norm_stats.json`。
 
 ```bash
-python -m pip install --no-deps multiprocess
-python -m pip install --no-deps attr
+/usr/bin/python3 -m pip install --no-deps multiprocess
+/usr/bin/python3 -m pip install --no-deps attr
 
 cd /workspace/openpi_TurboPhysAI/static_data
 
-export PYTHONPATH="/workspace/openpi_TurboPhysAI/openpi/src:/workspace/openpi_TurboPhysAI/openpi/packages/openpi-client/src${PYTHONPATH:+:${PYTHONPATH}}"
 export HF_LEROBOT_HOME="/workspace/openpi_TurboPhysAI/static_data/.lerobot_root"
 export JAX_PLATFORMS=cpu
 
-python - <<'PY'
+/usr/bin/python3 - <<'PY'
 import datetime
 import dataclasses
 import runpy
@@ -256,7 +223,7 @@ mkdir -p \
 
 请按实际设备和数据位置调整路径、可见卡及通信网卡；示例使用八卡，每卡 batch size 为 32。
 
-启动命令中的 `PYTHONPATH` 指向包含 `sitecustomize.py` 的 OpenPI 优化目录，用于加载 Python 和数据集兼容处理；`OPENPI_DATA_HOME` 和 `HF_LEROBOT_HOME` 分别指定资源缓存及数据集目录。请根据实际安装位置调整这三项。
+启动命令从已安装的 TurboPhysAI 包获取 OpenPI 优化目录，并通过 `PYTHONPATH` 加载其中的 `sitecustomize.py`，确保训练进程及数据加载子进程应用兼容处理。`OPENPI_DATA_HOME` 和 `HF_LEROBOT_HOME` 分别指定资源缓存及数据集目录，请按实际情况调整。
 
 `ens65f0np0` 仅为通信网卡名称示例，请按本节点实际情况修改；多机训练时各节点应选择相互连通的网卡。单机训练如果不需要指定网卡，可删除 `--set NCCL_SOCKET_IFNAME` 参数。
 
@@ -264,18 +231,19 @@ mkdir -p \
 cd /workspace/openpi_TurboPhysAI/openpi
 
 STAMP="$(date +%Y%m%d_%H%M%S)"
+OPENPI_TURBO_DIR="$(/usr/bin/python3 -c \
+  'import os, turbo_physai.optimizations.models.openpi as m; print(os.path.dirname(m.__file__))')"
 
 turbo-physai run \
-  --optimization-config /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/configs/optimization.yaml \
-  --runtime-config /workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi/configs/runtime.yaml \
-  --set "PYTHONPATH=/workspace/openpi_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/openpi${PYTHONPATH:+:${PYTHONPATH}}" \
+  --model openpi \
+  --set "PYTHONPATH=${OPENPI_TURBO_DIR}" \
   --set OPENPI_DATA_HOME=/workspace/openpi_TurboPhysAI/static_data/assets \
   --set HF_LEROBOT_HOME=/workspace/openpi_TurboPhysAI/static_data/.lerobot_root \
   --set NCCL_SOCKET_IFNAME=ens65f0np0 \
   --set HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
   --log-report \
   -- \
-  torchrun --standalone --nnodes=1 --nproc_per_node=8 \
+  /usr/bin/python3 -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node=8 \
     scripts/train_pytorch.py pi05_libero \
     --exp_name "pi05_libero_8gpu_bs32_by_config_${STAMP}" \
     --batch-size 256 \
@@ -293,18 +261,17 @@ turbo-physai run \
 
 ## 8. 目录结构
 
-完成上述流程后，容器内主要目录如下：
+完成上述流程后，容器内主要目录如下。训练使用的 TurboPhysAI Python 包和配置位于 Python 环境的安装目录，不在此目录树中：
 
 ```text
 /workspace/openpi_TurboPhysAI/
 ├── openpi/                                  # OpenPI 官方源码
-├── TurboPhysAI/                             # TurboPhysAI 源码
+├── TurboPhysAI/                             # 示例文件所在的源码仓库
 │   ├── model_examples/OpenPi/
 │   │   ├── README.md
 │   │   ├── requirements.txt
 │   │   ├── norm_stats.json                  # 本例提供的 LIBERO 统计文件
 │   │   └── download_pi05_base.py           # PI0.5 base 权重下载脚本
-│   └── turbo_physai/optimizations/models/openpi/
 ├── static_data/                             # 数据集、权重和运行资源
 │   ├── .lerobot_root/physical-intelligence/libero/
 │   │   ├── data/
