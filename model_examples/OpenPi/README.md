@@ -280,7 +280,7 @@ turbo-physai run \
     └── checkpoints/
 ```
 
-已安装的 TurboPhysAI Python 包示例结构如下（实际路径以当前环境为准）：
+已安装的 TurboPhysAI Python 包示例结构如下：
 
 ```text
 /usr/local/lib/python3.10/dist-packages/
@@ -294,9 +294,3 @@ turbo-physai run \
             └── runtime.yaml
 ```
 
-使用以下命令查看已安装的 OpenPI 优化目录：
-
-```bash
-/usr/bin/python3 -c \
-  'import os, turbo_physai.optimizations.models.openpi as m; print(os.path.dirname(m.__file__))'
-```
