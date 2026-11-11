@@ -50,7 +50,7 @@ git clone --branch main \
   https://github.com/HYGON-AI/TurboPhysAI.git TurboPhysAI
 ```
 
-## 5. 安装 Python 依赖
+## 5. 安装 OpenPI 依赖
 
 普通依赖通过 [requirements.txt](./requirements.txt) 安装。
 
