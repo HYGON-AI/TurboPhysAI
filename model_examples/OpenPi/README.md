@@ -1,6 +1,6 @@
 # OpenPI 应用说明
 
-本文说明如何在 HCU 环境中，直接使用 VLA 基础镜像，在容器内安装依赖、准备资源并应用 TurboPhysAI 优化，无需 Dockerfile。通用环境说明参见[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)。
+请先按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用 VLA、DiT 和世界模型配套镜像创建容器并安装 TurboPhysAI。本文介绍 OpenPI 依赖安装、资源准备及训练启动。
 
 ## 1. 模型简介
 
