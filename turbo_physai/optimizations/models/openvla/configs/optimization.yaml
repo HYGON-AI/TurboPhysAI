@@ -110,11 +110,13 @@ optimization_groups:
       prismatic.training.strategies.base_strategy.TrainingStrategy.run_vla_training:
       - ast-v1:a002574e805c6e58c9e10fd71f8aa8d0c539f45354d52e1d4dc58b7d0a13af25
 - id: openvla.reproducibility.data_order
-  enabled: false
+  enabled: true
+  accuracy_only: true
   options: {}
   trust: {}
 - id: openvla.reproducibility.determinism
-  enabled: false
+  enabled: true
+  accuracy_only: true
   options: {}
   trust: {}
 optimization_modules:
