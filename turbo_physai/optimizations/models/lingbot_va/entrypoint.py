@@ -3,6 +3,10 @@
 
 """Run the same imported training module that LingBot-VA Groups patch.
 
+Temporary workaround until https://github.com/HYGON-AI/TurboPhysAI/issues/31
+supports replacing functions in the entry script. Once that support lands,
+remove this entrypoint and restore upstream's ``-m wan_va.train`` launch.
+
 Executing ``-m train`` would define a second Trainer in ``__main__`` after
 bootstrap has patched ``train.Trainer``. Keep one module identity instead.
 The upstream repository's ``wan_va`` directory must be on ``PYTHONPATH``

@@ -100,6 +100,8 @@ test -f "$MODEL_ROOT/transformer/config.json"
 
 ### 7.1 单机八卡训练
 
+专用入口是 [#31：支持替换直接运行的 Python 脚本中的函数](https://github.com/HYGON-AI/TurboPhysAI/issues/31) 合入前的临时做法，用于保证 Group 替换与训练使用同一份 `train` 模块。#31 合入后删除该入口，并改回官方 `-m wan_va.train`。
+
 ```bash
 cd /workspace/lingbot-va-tools
 export LINGBOT_VA_ROOT=/workspace/model/lingbot-va
