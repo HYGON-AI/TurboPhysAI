@@ -14,8 +14,6 @@ environment:
     MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
   unset: []
   accuracy:
-    set:
-      DISABLE_ADDMM_CUDA_LT: "1"
     unset:
       - MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32
 
