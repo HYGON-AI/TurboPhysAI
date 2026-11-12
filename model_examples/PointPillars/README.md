@@ -1,53 +1,29 @@
 # PointPillars 应用说明
 
-本文说明如何在 HCU 环境中准备官方 PointPillars 训练所需的源码和 nuScenes 数据，并通过 TurboPhysAI 加载优化。示例在容器内使用 `mmcv2` 环境，不修改官方模型源码。
+本文介绍 PointPillars 训练环境、模型源码及 nuScenes 数据准备，并使用 TurboPhysAI 应用训练优化。
 
 ## 1. 模型简介
 
-[PointPillars](https://github.com/open-mmlab/mmdetection3d/tree/main/configs/pointpillars) 是一种基于激光雷达点云的三维目标检测方法。本文使用 MMDetection3D 中的 nuScenes PointPillars 配置。
+[PointPillars](https://github.com/open-mmlab/mmdetection3d/tree/main/configs/pointpillars) 是一种基于激光雷达点云的三维目标检测方法。本文使用 MMDetection3D 中基于 nuScenes 数据集的 PointPillars 配置。
 
 ## 2. 优化接入基线
 
-本例使用官方 [MMDetection3D](https://github.com/open-mmlab/mmdetection3d) commit `fe25f7a51d36e3702f961e198894580d83c4387b`，训练配置为 `configs/pointpillars/pointpillars_hv_fpn_sbn-all_8xb4-2x_nus-3d.py`。
-
-PointPillars 的优化配置、运行配置及替换实现位于 [turbo_physai/optimizations/models/PointPillars](../../turbo_physai/optimizations/models/PointPillars/)。
+TurboPhysAI 的 PointPillars 优化基于官方 [MMDetection3D](https://github.com/open-mmlab/mmdetection3d) commit `fe25f7a51d36e3702f961e198894580d83c4387b` 接入，训练配置为 `configs/pointpillars/pointpillars_hv_fpn_sbn-all_8xb4-2x_nus-3d.py`。优化接入基线的使用建议见[模型支持清单](../../docs/zh/models/support_list.md)。
 
 ## 3. 准备训练环境
 
-本例使用 `autonomous-driving:torch2.10-dtk26.04` 和镜像内的 `mmcv2` Conda 环境。
+按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用自动驾驶模型配套镜像创建容器并安装 TurboPhysAI。下文命令均在容器内执行。
 
-以下命令在宿主机执行，设备、镜像名称及 `/opt/hyhal` 挂载按实际环境调整：
-
-```bash
-docker run -d -t \
-  -v /opt/hyhal:/opt/hyhal:ro \
-  --workdir /workspace/PointPillars_TurboPhysAI \
-  --privileged \
-  --shm-size=128G \
-  --device=/dev/kfd \
-  --device=/dev/dri/ \
-  --device=/dev/mkfd \
-  --network=host \
-  --group-add video \
-  --name PointPillars_TurboPhysAI \
-  --entrypoint /bin/bash \
-  autonomous-driving:torch2.10-dtk26.04 \
-  -lc 'exec sleep infinity'
-
-docker exec -it PointPillars_TurboPhysAI bash
-```
-
-后续命令均在容器内执行：
+本例后续使用 `mmcv2` Conda 环境，需确保该环境中的 Python、PyTorch、MMCV、MMEngine、MMDetection 和 TurboPhysAI 版本兼容，且 `turbo-physai` 与训练使用同一 Python 环境。安装指南中的系统 Python 命令需按本例的 Conda 环境调整。
 
 ```bash
 source /opt/conda/etc/profile.d/conda.sh
 conda activate mmcv2
 export PYTHONDONTWRITEBYTECODE=1
-cd /workspace/PointPillars_TurboPhysAI
-python -c 'import torch, mmcv, mmengine, mmdet; print("torch:", torch.__version__, "HIP:", torch.version.hip); print("mmcv:", mmcv.__version__, "mmengine:", mmengine.__version__, "mmdet:", mmdet.__version__)'
+mkdir -p /workspace/PointPillars_TurboPhysAI
 ```
 
-## 4. 准备源码并安装 TurboPhysAI
+## 4. 准备源码及配置文件
 
 ### 4.1 拉取官方模型源码
 
@@ -59,21 +35,14 @@ git -C /workspace/PointPillars_TurboPhysAI/mmdetection3d checkout --detach \
   fe25f7a51d36e3702f961e198894580d83c4387b
 ```
 
-### 4.2 拉取并安装 TurboPhysAI
+### 4.2 获取 PointPillars 配置文件
 
-注意：官方 `main` 分支需包含 PointPillars 优化代码和配置，才能执行第 6 节的训练命令。
+克隆官方 TurboPhysAI 仓库，用于获取第 6 节所需的 PointPillars 优化配置和运行配置。官方 `main` 分支需包含这些配置，且已安装的 TurboPhysAI 版本需包含对应优化实现，才能运行第 6 节的命令。
 
 ```bash
 cd /workspace/PointPillars_TurboPhysAI
 git clone --branch main \
-  https://github.com/HYGON-AI/TurboPhysAI.git \
-  /workspace/PointPillars_TurboPhysAI/TurboPhysAI
-cd /workspace/PointPillars_TurboPhysAI/TurboPhysAI
-python -c 'import torch; print(torch.__version__, torch.version.hip)'
-python -m pip install ninja wheel setuptools
-MAX_JOBS=8 python setup.py bdist_wheel
-python -m pip install --no-deps --force-reinstall dist/turbo_physai-*.whl
-turbo-physai --help
+  https://github.com/HYGON-AI/TurboPhysAI.git TurboPhysAI
 ```
 
 ## 5. 准备 nuScenes 数据
