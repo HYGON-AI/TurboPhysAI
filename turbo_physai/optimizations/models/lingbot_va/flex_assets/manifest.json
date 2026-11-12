@@ -1,0 +1,23 @@
+{
+  "torch_version": "2.10.0",
+  "torch_git_version": "28498cd684b22c1f420f7f30c4a5e5771147ca77",
+  "hip_version": "6.3.26113",
+  "triton_version": "3.5.0",
+  "original_hashes": {
+    "_inductor/kernel/flex/flex_attention.py": "734fd46b529ebece35d085f974f383c668b3598a74bc0f05dc9e4bb9d9a652a0",
+    "_inductor/kernel/flex/templates/common.py.jinja": "559402426d02bb87711f9932cd0bef151ad1d923e167c814fcad4f081e0d95b5",
+    "_inductor/kernel/flex/templates/flex_attention.py.jinja": "65e6f2cfea9061759c7900ad81c935d1051f9ca55b2b3df0deeb486671dbb3b3",
+    "_inductor/kernel/flex/templates/flex_backwards.py.jinja": "3ce9556b07322fa7071a38c077266e71136fe084193625a95c5fb7e066c9942f",
+    "_inductor/kernel/flex/templates/utilities.py.jinja": "d128a8b647740e91ceefdedf3912caba2925e3383af0a1b56732feed8fa69bfd",
+    "_inductor/runtime/triton_heuristics.py": "b4c7bc4f50f510b77760f7168e46e8927f8bf9cd588eb7c9d8525e2916704962"
+  },
+  "revision": 3796128826,
+  "assets": {
+    "implementation.py": "c1ae776bd602f7b8278d9d1f167d0f4dd85deb31451bbd08ddfbb6dee2c785af",
+    "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "templates/flex_backwards.py.jinja": "898998468dda8d6345f5dc5ecc4aeda2cadf36c2db8b526774e93865967606f0",
+    "templates/flex_attention.py.jinja": "42fc1a132f604325ef271c1b4e7c9dd011569e9bf28c6b36914dbd4d8f9f15c8",
+    "templates/common.py.jinja": "ed6b971a822f5f8fa9b72e55f48919fc723e6147ce899856b55fe72f313bf0fc",
+    "templates/utilities.py.jinja": "48c965a4c5bbe460feb6906593bf9069e259a0a0b3363c91b5ad851d55d6e2f2"
+  }
+}

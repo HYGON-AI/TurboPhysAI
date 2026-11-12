@@ -1,0 +1,44 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.lingbot_va.hcu.full
+  version: 0.1.0
+  description: Nine-group HCU training optimization profile
+model:
+  name: lingbot_va
+optimization_modules:
+- turbo_physai.optimizations.models.lingbot_va.catalog
+compatibility:
+  dependencies:
+    torch: '>=2.10,<2.11'
+    diffusers: ==0.36.0
+    transformers: ==4.55.4
+optimization_groups:
+- id: lingbot_va.timestep_dedup
+  enabled: true
+- id: lingbot_va.rotary_compile
+  enabled: true
+  options:
+    qk_norm: true
+- id: lingbot_va.linear_addmm
+  enabled: true
+- id: lingbot_va.pointwise_compile
+  enabled: true
+  options:
+    cross_norm: true
+- id: lingbot_va.attention_backend
+  enabled: true
+  options:
+    cross_fa: true
+- id: lingbot_va.selective_checkpoint
+  enabled: true
+  options:
+    sac_layer_interval: 4
+- id: lingbot_va.fsdp_residency
+  enabled: true
+- id: lingbot_va.train_sync
+  enabled: true
+- id: lingbot_va.flex_template_backend
+  enabled: true
+  options:
+    fast_bf16: false

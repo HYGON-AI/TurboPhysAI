@@ -108,8 +108,15 @@ The full Apache-2.0 text is in [third_party/licenses/Apache-2.0.txt](third_party
 | --- | --- | --- | --- | --- | --- |
 | PyTorch | `turbo_physai/operators/{grid_sample,upsample_bilinear_2d}.py`; `kernel/grid_sample/{GridSampler.cu,GridSampler.cuh}`; `kernel/upsample_bilinear_2d/UpSampleBilinear2d.cu` | <https://github.com/pytorch/pytorch> @ `e2d141dbde55c2a4370fac5165b0561b6af4798b` (v2.7.1) | `torch/nn/functional.py` (`grid_sample`, `interpolate`); `aten/src/ATen/native/cuda/{GridSampler.cu,GridSampler.cuh,UpSampleBilinear2d.cu}` | BSD-3-Clause | No `NOTICE` file identified at the fixed baseline. |
 | PyTorch | `kernel/common/utils.h` | <https://github.com/pytorch/pytorch> @ `49444c3e546bf240bed24a101e747422d1f8a0ee` (v1.13.1) | `aten/src/ATen/native/UpSample.h` | BSD-3-Clause | No `NOTICE` file identified at the fixed baseline. |
+| PyTorch | `turbo_physai/optimizations/models/lingbot_va/flex_assets/implementation.py` | <https://github.com/pytorch/pytorch> @ `449b1768410104d3ed79d3bcfe4ba1d65c7f22c0` (v2.10.0) | `torch/_inductor/kernel/flex/flex_attention.py` | BSD-3-Clause | [Upstream NOTICE](third_party/notices/PyTorch-2.10-NOTICE.txt) retained. |
+| PyTorch | `turbo_physai/optimizations/models/lingbot_va/flex_assets/templates/common.py.jinja` | <https://github.com/pytorch/pytorch> @ `449b1768410104d3ed79d3bcfe4ba1d65c7f22c0` (v2.10.0) | `torch/_inductor/kernel/flex/templates/common.py.jinja` | BSD-3-Clause | [Upstream NOTICE](third_party/notices/PyTorch-2.10-NOTICE.txt) retained. |
+| PyTorch | `turbo_physai/optimizations/models/lingbot_va/flex_assets/templates/flex_attention.py.jinja` | <https://github.com/pytorch/pytorch> @ `449b1768410104d3ed79d3bcfe4ba1d65c7f22c0` (v2.10.0) | `torch/_inductor/kernel/flex/templates/flex_attention.py.jinja` | BSD-3-Clause | [Upstream NOTICE](third_party/notices/PyTorch-2.10-NOTICE.txt) retained. |
+| PyTorch | `turbo_physai/optimizations/models/lingbot_va/flex_assets/templates/flex_backwards.py.jinja` | <https://github.com/pytorch/pytorch> @ `449b1768410104d3ed79d3bcfe4ba1d65c7f22c0` (v2.10.0) | `torch/_inductor/kernel/flex/templates/flex_backwards.py.jinja` | BSD-3-Clause | [Upstream NOTICE](third_party/notices/PyTorch-2.10-NOTICE.txt) retained. |
+| PyTorch | `turbo_physai/optimizations/models/lingbot_va/flex_assets/templates/utilities.py.jinja` | <https://github.com/pytorch/pytorch> @ `449b1768410104d3ed79d3bcfe4ba1d65c7f22c0` (v2.10.0) | `torch/_inductor/kernel/flex/templates/utilities.py.jinja` | BSD-3-Clause | [Upstream NOTICE](third_party/notices/PyTorch-2.10-NOTICE.txt) retained. |
 
 The complete PyTorch v2.7.1 license text is in [third_party/licenses/PyTorch-BSD-3-Clause.txt](third_party/licenses/PyTorch-BSD-3-Clause.txt). `UpSampleBilinear2d.cu` also retains its inherited Caffe contributor attribution.
+
+The LingBot-VA Flex assets above are modified derivatives of PyTorch v2.10.0. The five original source files match the official `449b1768410104d3ed79d3bcfe4ba1d65c7f22c0` baseline byte-for-byte; their SHA256 values are recorded in `flex_assets/manifest.json`. The HCU package build revision recorded there is used for runtime compatibility checking and is separate from this public upstream source revision. The v2.10.0 [license](third_party/licenses/PyTorch-2.10-BSD-3-Clause.txt) and [NOTICE](third_party/notices/PyTorch-2.10-NOTICE.txt) are retained verbatim.
 
 ## Confirmed MIT derivations
 
@@ -136,6 +143,22 @@ The complete Pillow 12.3.0 license text is in [third_party/licenses/Pillow-MIT-C
 | cxx-prettyprint | `kernel/sparse_conv/include/prettyprint.h` | <https://github.com/mit-han-lab/bevfusion> @ `326653dc06e0938edf1aae7d01efcd158ba83de5` | `mmdet3d/ops/spconv/include/prettyprint.h` | Boost-1.0 | No `NOTICE` file at the fixed baseline. |
 
 The complete Boost Software License 1.0 text is in [third_party/licenses/Boost-1.0.txt](third_party/licenses/Boost-1.0.txt). The source file retains Louis Delacroix's original copyright and license notice.
+
+### LingBot-VA
+
+- Repository: <https://github.com/Robbyant/lingbot-va>
+- Fixed commit: `7c6ffa9bfc4b83582cafc860fab4c82cc7deeeeb`
+- License: Apache-2.0; see [`third_party/licenses/LingBot-VA-Apache-2.0.txt`](third_party/licenses/LingBot-VA-Apache-2.0.txt).
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/lingbot_va/timestep.py` | `wan_va/modules/model.py` (`WanTransformer3DModel._time_embed`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_va/rotary.py` | `wan_va/modules/model.py` (`WanAttention.forward`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_va/pointwise.py` | `wan_va/modules/model.py` (`WanTransformerBlock.forward`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_va/fsdp.py` | `wan_va/distributed/fsdp.py` | Modified |
+| `turbo_physai/optimizations/models/lingbot_va/train_sync.py` | `wan_va/train.py` (`Trainer.train`) | Modified |
+
+The Group catalog, compatibility checks, and guarded Flex template adapter are TurboPhysAI integration code. The PyTorch-derived Flex implementation and four templates are registered in the BSD-3-Clause table above and retain their upstream source and license notices.
 
 ## Provenance policy for future additions
 
