@@ -118,8 +118,6 @@ The complete PyTorch v2.7.1 license text is in [third_party/licenses/PyTorch-BSD
 
 The LingBot-VA Flex assets above are modified derivatives of PyTorch v2.10.0. The five original source files match the official `449b1768410104d3ed79d3bcfe4ba1d65c7f22c0` baseline byte-for-byte; their SHA256 values are recorded in `flex_assets/manifest.json`. The HCU package build revision recorded there is used for runtime compatibility checking and is separate from this public upstream source revision. The v2.10.0 [license](third_party/licenses/PyTorch-2.10-BSD-3-Clause.txt) and [NOTICE](third_party/notices/PyTorch-2.10-NOTICE.txt) are retained verbatim.
 
-Hygon's LingBot-VA tuning baseline is the internal `all_optimizations.patch` delivery dated 2026-10-19 (SHA256 `b8f52531d09917696a9d6ec2d481601c1d5825700d8a8a2eb7dcff02f76c6de6`), subsequently adapted for external template selection, guarded tuning and opt-in BF16 conversion.
-
 ## Confirmed MIT derivations
 
 | Component | turbo_physai paths | Upstream repository and fixed commit | Upstream paths | License | NOTICE |

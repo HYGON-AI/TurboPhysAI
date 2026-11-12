@@ -5,8 +5,6 @@
 # third_party/notices/PyTorch-2.10-NOTICE.txt for upstream notices.
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # Modified by Hygon for LingBot-VA external templates and gfx936 tuning.
-# Tuning baseline: Hygon all_optimizations.patch (2026-10-19), SHA256:
-# b8f52531d09917696a9d6ec2d481601c1d5825700d8a8a2eb7dcff02f76c6de6
 """Triton Implementation of the flex_attention Kernel"""
 from __future__ import annotations
 import logging
