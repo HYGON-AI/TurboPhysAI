@@ -92,6 +92,8 @@ openvla也可以改为加载本地检查点，此时需通过 `--pretrained_chec
 
 OpenVLA RuntimeConfig 包含训练所需的运行环境和 NUMA 配置。
 
+`openvla.reproducibility.data_order` 和 `.determinism` 标记为 `accuracy_only`，默认不应用；需要逐 step 对齐 loss 时，在启动命令中加 `--accuracy`。该开关同时应用 RuntimeConfig 的 `environment.accuracy` 段。
+
 ### 7.1 快速验证（单机八卡）
 
 ```bash

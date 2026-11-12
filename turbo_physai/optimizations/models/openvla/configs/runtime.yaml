@@ -13,6 +13,9 @@ environment:
     DISABLE_ADDMM_CUDA_LT: "1"
     MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
   unset: []
+  accuracy:
+    unset:
+      - MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32
 
 # Not set here on purpose: ROCBLAS_TENSILE_LIBPATH.  The rocBLAS tuning library
 # is generated per node by `rocblas-tensile` for that node's device and driver,

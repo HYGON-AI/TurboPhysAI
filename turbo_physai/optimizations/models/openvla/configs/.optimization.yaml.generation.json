@@ -4,14 +4,14 @@
   "model_commit": "c8f03f48af692657d3060c19588038c7220e9af9",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "222fb4aa8e067c3f54436233ac71178bb701428f1eb8d33759fb5f6b1020d39e"
+    "sha256": "b13f9072df2915670aac4e42a8f5ccefe585400891ca93ef628b5bc059ae2899"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "package",
       "path": "optimizations/models/openvla/configs/recipe.yaml",
-      "sha256": "0e501ff5a283964904b7110601cb9a9980892e7b88a707bfec1b51c6e7eb62b6"
+      "sha256": "5dcce621c972e060bb8ae94798a2541fbdcf4557bdc8e416495256db8bc0fce5"
     },
     {
       "role": "catalog",

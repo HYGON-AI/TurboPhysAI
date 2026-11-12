@@ -32,7 +32,7 @@ _TOP_LEVEL = {
 _METADATA = {"id", "version", "description"}
 _MODEL = {"name"}
 _COMPATIBILITY = {"commits", "allow_dirty", "dependencies", "backend", "repository"}
-_GROUP = {"id", "enabled", "options", "trust"}
+_GROUP = {"id", "enabled", "options", "trust", "accuracy_only"}
 _TRUST = {"ast_hashes", "source_hashes"}
 
 
@@ -176,10 +176,14 @@ def optimization_config_from_dict(raw: Mapping[str, Any]) -> OptimizationConfig:
         enabled = item.get("enabled", True)
         if not isinstance(enabled, bool):
             raise OptimizationConfigError(f"{path}.enabled must be boolean")
+        accuracy_only = item.get("accuracy_only", False)
+        if not isinstance(accuracy_only, bool):
+            raise OptimizationConfigError(f"{path}.accuracy_only must be boolean")
         entries.append(
             OptimizationGroupConfig(
                 id=group_id,
                 enabled=enabled,
+                accuracy_only=accuracy_only,
                 options=FrozenDict(
                     _json_only(
                         _mapping(item.get("options", {}), f"{path}.options"), path

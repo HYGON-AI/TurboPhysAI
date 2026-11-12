@@ -89,6 +89,7 @@ optimization_groups:
 | `optimization_groups` | 本配置选择的 Optimization Group |
 | `optimization_groups[].id` | Group ID，必须与 Catalog 中的声明一致 |
 | `optimization_groups[].enabled` | 是否启用该 Group，默认值为 `true` |
+| `optimization_groups[].accuracy_only` | 是否仅用于精度验证，默认值为 `false`。需配合 `enabled: true` 才有意义，且只在 `turbo-physai run --accuracy` 下应用；`TURBO_PHYSAI_ACCURACY_MODE` 由 `turbo-physai run` 注入，手动 export 会被覆盖。原先用 `enabled: true` 对齐精度的配置需改为加 `--accuracy` |
 | `optimization_groups[].options` | 传递给明确读取配置的 Wrapper；普通 `replace` 不读取该字段 |
 
 Group 的 target、aliases、Replacement 和 `depends_on` 由 Catalog 定义，不在 OptimizationConfig 中重复保存。加载配置时，框架会导入 `optimization_modules`，并根据 Group ID 查找对应声明。
