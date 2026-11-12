@@ -101,8 +101,7 @@ cd "${POINTPILLARS_REPO_ROOT:-/workspace/PointPillars_TurboPhysAI/mmdetection3d}
 mkdir -p "${LOG_DIR:-/workspace/PointPillars_TurboPhysAI/logs}"
 
 turbo-physai run \
-    --optimization-config /workspace/PointPillars_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/pointpillars/configs/optimization.yaml \
-    --runtime-config /workspace/PointPillars_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/pointpillars/configs/runtime.yaml \
+    --model pointpillars \
     --set HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
     --set "PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}" \
     --log-report -- \
