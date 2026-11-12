@@ -33,16 +33,6 @@ git -C /workspace/PointPillars_TurboPhysAI/mmdetection3d checkout --detach \
   fe25f7a51d36e3702f961e198894580d83c4387b
 ```
 
-### 4.2 获取 PointPillars 配置文件
-
-克隆官方 TurboPhysAI 仓库，用于获取第 6 节所需的 PointPillars 优化配置和运行配置。官方 `main` 分支需包含这些配置，且已安装的 TurboPhysAI 版本需包含对应优化实现，才能运行第 6 节的命令。
-
-```bash
-cd /workspace/PointPillars_TurboPhysAI
-git clone --branch main \
-  https://github.com/HYGON-AI/TurboPhysAI.git TurboPhysAI
-```
-
 ## 5. 准备 nuScenes 数据
 
 从 [nuScenes 官方下载页](https://www.nuscenes.org/download) 按许可要求下载并解压 nuScenes v1.0 trainval 数据。将数据准备到容器中可访问的位置，本例使用 `/workspace/PointPillars_TurboPhysAI/static_data/nuscenes_pointpillars`：
