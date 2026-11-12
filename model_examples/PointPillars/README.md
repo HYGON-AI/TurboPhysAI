@@ -23,8 +23,6 @@ mkdir -p /workspace/PointPillars_TurboPhysAI
 
 ## 4. 准备源码及配置文件
 
-### 4.1 拉取官方模型源码
-
 ```bash
 cd /workspace/PointPillars_TurboPhysAI
 git clone https://github.com/open-mmlab/mmdetection3d.git \
