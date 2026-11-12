@@ -17,7 +17,7 @@
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/lingbot_va/catalog.py",
-      "sha256": "5b50ab7d08b48c0c6b0a3d3fb920e19f4af59d81b59ac324edecd1e43262821c"
+      "sha256": "7974eba7e1bcfed9023af02faa2053ba66ab58cdb4574b5765b234f83e0db7b8"
     }
   ]
 }
