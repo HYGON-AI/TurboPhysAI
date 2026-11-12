@@ -14,7 +14,7 @@ TurboPhysAI 的 PointPillars 优化基于官方 [MMDetection3D](https://github.c
 
 按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用自动驾驶模型配套镜像创建容器并安装 TurboPhysAI。下文命令均在容器内执行。
 
-本例后续使用 `mmcv2` Conda 环境，需确保该环境中的 Python、PyTorch、MMCV、MMEngine、MMDetection 和 TurboPhysAI 版本兼容，且 `turbo-physai` 与训练使用同一 Python 环境。安装指南中的系统 Python 命令需按本例的 Conda 环境调整。
+本例后续使用 `mmcv2` Conda 环境。安装指南中的系统 Python 命令需按本例的 Conda 环境调整。
 
 ```bash
 source /opt/conda/etc/profile.d/conda.sh
