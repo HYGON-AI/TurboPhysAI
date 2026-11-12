@@ -115,4 +115,4 @@ optimization_groups:
       mmengine.runner.loops.EpochBasedTrainLoop.run:
       - ast-v1:ba561358dcc753f00a335b30c0e017288fcd415477bb5512aebdd092cbc0fe77
 optimization_modules:
-- turbo_physai.optimizations.models.PointPillars.catalog
+- turbo_physai.optimizations.models.pointpillars.catalog

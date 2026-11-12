@@ -95,10 +95,10 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 
 | Local file | Upstream file | HYGON modification |
 | --- | --- | --- |
-| `turbo_physai/optimizations/models/PointPillars/unique_free_sampler.py` | `mmdet3d/models/task_modules/samplers/pseudosample.py` | Modified |
-| `turbo_physai/optimizations/models/PointPillars/pillar_scatter.py` | `mmdet3d/models/middle_encoders/pillar_scatter.py` | Modified |
-| `turbo_physai/optimizations/models/PointPillars/native_limit_period.py` | `mmdet3d/structures/bbox_3d/utils.py` | Modified |
-| `turbo_physai/optimizations/models/PointPillars/compiled_nearest_bev_iou.py` | `mmdet3d/structures/ops/iou3d_calculator.py`; `mmdet3d/structures/bbox_3d/base_box3d.py` | Modified |
+| `turbo_physai/optimizations/models/pointpillars/unique_free_sampler.py` | `mmdet3d/models/task_modules/samplers/pseudosample.py` | Modified |
+| `turbo_physai/optimizations/models/pointpillars/pillar_scatter.py` | `mmdet3d/models/middle_encoders/pillar_scatter.py` | Modified |
+| `turbo_physai/optimizations/models/pointpillars/native_limit_period.py` | `mmdet3d/structures/bbox_3d/utils.py` | Modified |
+| `turbo_physai/optimizations/models/pointpillars/compiled_nearest_bev_iou.py` | `mmdet3d/structures/ops/iou3d_calculator.py`; `mmdet3d/structures/bbox_3d/base_box3d.py` | Modified |
 
 ### PointPillars / OpenMMLab MMDetection
 
@@ -108,7 +108,7 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 
 | Local file | Upstream file | HYGON modification |
 | --- | --- | --- |
-| `turbo_physai/optimizations/models/PointPillars/tensorized_assigner.py` | `mmdet/models/task_modules/assigners/max_iou_assigner.py` | Modified |
+| `turbo_physai/optimizations/models/pointpillars/tensorized_assigner.py` | `mmdet/models/task_modules/assigners/max_iou_assigner.py` | Modified |
 
 ### MMCV
 

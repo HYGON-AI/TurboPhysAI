@@ -10,7 +10,7 @@ metadata:
 model:
   name: PointPillars
 optimization_modules:
-  - turbo_physai.optimizations.models.PointPillars.catalog
+  - turbo_physai.optimizations.models.pointpillars.catalog
 compatibility: {}
 optimization_groups:
   - id: pointpillars.assigner.tensorized_compiled

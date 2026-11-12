@@ -4,7 +4,7 @@
 """Engine-managed PointPillars targets for the official MMDetection3D model."""
 from turbo_physai import group, wrap
 
-P = "turbo_physai.optimizations.models.PointPillars"
+P = "turbo_physai.optimizations.models.pointpillars"
 
 ASSIGNER = group(
     "pointpillars.assigner.tensorized_compiled",
