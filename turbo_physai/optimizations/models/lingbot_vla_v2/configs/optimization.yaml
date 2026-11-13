@@ -1,0 +1,227 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.lingbot_vla_v2.base.hcu
+  version: 0.1.0
+  description: HCU optimization recipe for LingBot-VLA v2
+model:
+  name: lingbot_vla_v2
+compatibility:
+  commits:
+  - be969b8fd117fb70550c5d4bf4bc328211b5b1b6
+optimization_groups:
+- id: lingbot-vla-v2.profiling
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.utils.helper.create_profiler:
+      - source-v1:47beff5b93bd2333aeb5524478a6d92a3c759154856e3de05cfc12b6a7e559fd
+    ast_hashes:
+      lingbotvla.utils.helper.create_profiler:
+      - ast-v1:4fb7260f297823da8d393436910dc29c0cfd46f4efd51bc75ca5e5b800d3a2bc
+- id: lingbot-vla-v2.flex-kernel-options
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.lingbot_vla.flex_attention.flex_attention:
+      - source-v1:589b3f88ca21cb4fe045f753eaaf975eb7f9de63da6a389d912938dca5f05a35
+    ast_hashes:
+      lingbotvla.models.vla.lingbot_vla.flex_attention.flex_attention:
+      - ast-v1:98244ea77c92c874854a0a83f7035396d0d0c043d196afc948c7cc7a67daa277
+- id: lingbot-vla-v2.flex-head-shared-mask
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.lingbot_vla.flex_attention.build_block_mask:
+      - source-v1:9545bb5e6400d7e7ddbd192ed15917121564f8c49d80192ac294ad04a6cedc65
+    ast_hashes:
+      lingbotvla.models.vla.lingbot_vla.flex_attention.build_block_mask:
+      - ast-v1:612948b650c8f10c8a6c575176b25c4f4ff4a87f97d645770ee4ad75dc54b5b4
+- id: lingbot-vla-v2.flex-attn-tf32
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch._inductor.kernel.flex.flex_attention.get_float32_precision:
+      - source-v1:95b0f1450a36c2e81581a9ad28e7edf39c0bcc89c966efe37a4552331f35dc57
+    ast_hashes:
+      torch._inductor.kernel.flex.flex_attention.get_float32_precision:
+      - ast-v1:65314615e07d35a554c2aa1e306b0f8224a28652e82865bb6758d48c831fa9f3
+- id: lingbot-vla-v2.conv3d-channel-last
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLVisionPatchEmbed.forward:
+      - source-v1:8a9155b5aa2fad48521834fb177e946d880c117270e73ba408869bc32f577968
+    ast_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLVisionPatchEmbed.forward:
+      - ast-v1:bdcd00dfa6847276fd229f3a44b1b36343065dd9084493f994a4ca8da101dd82
+- id: lingbot-vla-v2.qwen3vl-cache-grid-thw
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.lingbot_vla.qwen3vl_in_vla.Qwen3VLVisionModel.fast_pos_embed_interpolate:
+      - source-v1:61d301b0c88ebb06a6fd023eea0091919b5ef0e716d95739b5ec71c18955d96c
+    ast_hashes:
+      lingbotvla.models.vla.lingbot_vla.qwen3vl_in_vla.Qwen3VLVisionModel.fast_pos_embed_interpolate:
+      - ast-v1:7700dce19277a366bf881149fe4ad551992572f816451d6aa91e645602f9df30
+- id: lingbot-vla-v2.compile-teacher
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.vision_models.module_utils.v2.forward:
+      - source-v1:0f3a0740cc770f661f561a5a8e75514f7c8bdccbbbce7740698a05d6a65e3009
+      lingbotvla.models.vla.vision_models.module_utils.v2_morgbd.forward_feat:
+      - source-v1:8512f1004e49e1ac8c6a6a68a05828ea5ee8a0fb3b552aa49a2e3e727e5edddf
+      lingbotvla.models.vla.vision_models.dino_video.lumos_dinov3.models.inference.CausalEvalAdapter.get_intermediate_layers:
+      - source-v1:7a9ed05ec72ea55a1451cd88587f6e6a4ed79be6a8f45162c6a3b9e535cfcd9b
+      lingbotvla.models.vla.vision_models.module_utils.get_depth_target:
+      - source-v1:00a1a995a0e91bebe2ebfe8b01c9f6de513a48bb6361c2a878ee31ff8719f888
+    ast_hashes:
+      lingbotvla.models.vla.vision_models.module_utils.v2.forward:
+      - ast-v1:01a5991a4e653fb89aab7121770edfc4bfae99ad4626176adf65cc0aee999e16
+      lingbotvla.models.vla.vision_models.module_utils.v2_morgbd.forward_feat:
+      - ast-v1:3be77e6de0e93d6ea325970f4ccb18d6be1d9af13ad184f3925fb6997c6a436e
+      lingbotvla.models.vla.vision_models.dino_video.lumos_dinov3.models.inference.CausalEvalAdapter.get_intermediate_layers:
+      - ast-v1:9a9df057ea1636d363ee433e3e2fb3994062ff440f45124b2dd11db9fa61591c
+      lingbotvla.models.vla.vision_models.module_utils.get_depth_target:
+      - ast-v1:857bbf65a749f1ef529f923e3eadcdc9f4225be553b3c98b0f368d07217260ce
+- id: lingbot-vla-v2.qwen3vl-compile
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.lingbot_vla.modeling_lingbot_vla_v2.FlowMatchingV2.__init__:
+      - source-v1:2196adec32b9464fd390e082bcb10c1b328ddb482597d2693b73c16ed8a7edcd
+      lingbotvla.models.vla.lingbot_vla.qwen3vl_in_vla.Qwen3VLVisionModel.__init__:
+      - source-v1:264197b66c823d83c4a64ff546a1a4f2e448f4449f397cc18339e5fd3dcf3f8d
+      lingbotvla.models.vla.lingbot_vla.qwen3vl_in_vla.forward_without_grid_thw:
+      - source-v1:8ce64fd54360d49ddb11d2a91559d86b365f88058fe010b71816ac1556198754
+    ast_hashes:
+      lingbotvla.models.vla.lingbot_vla.modeling_lingbot_vla_v2.FlowMatchingV2.__init__:
+      - ast-v1:99d51689208891ce171389beb02425e855dcf174544ed86c3712221d4aeb768d
+      lingbotvla.models.vla.lingbot_vla.qwen3vl_in_vla.Qwen3VLVisionModel.__init__:
+      - ast-v1:ae64f85483d780d4471743ad3e117909b18e545b2f9bc36f85a4c239838b9195
+      lingbotvla.models.vla.lingbot_vla.qwen3vl_in_vla.forward_without_grid_thw:
+      - ast-v1:3dd4570ccd7575687bcb685ce0a7bd31aa27824eb542bdd8c55469ef0143410b
+- id: lingbot-vla-v2.qwen3vl-compile-text
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.lingbot_vla.modeling_lingbot_vla_v2.QwenvlWithExpertV2Model.__init__:
+      - source-v1:8b35448c448345148f501bfdc18ad9fe7e648f360f70082a1525db2a0cc0aa81
+      lingbotvla.models.vla.lingbot_vla.modeling_lingbot_vla_v2.QwenvlWithExpertV2Model.forward:
+      - source-v1:edfe347cb584b7f5317bf46a38cc51fd731d697f60c87be8aec9f0e4d1cc7440
+    ast_hashes:
+      lingbotvla.models.vla.lingbot_vla.modeling_lingbot_vla_v2.QwenvlWithExpertV2Model.__init__:
+      - ast-v1:3a04af75260b5445e419dda73c83bc7d61ced2be549ad71130cbebe08a2fba5a
+      lingbotvla.models.vla.lingbot_vla.modeling_lingbot_vla_v2.QwenvlWithExpertV2Model.forward:
+      - ast-v1:8abbd15dc92bd6f9b732e11793f4c202068f0c987d9acaaa81fd475bb353e68a
+- id: lingbot-vla-v2.qwen2-compile-expert
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.lingbot_vla.qwen2_action_expert.Qwen2ForCausalLM.__init__:
+      - source-v1:265e8a69ad6e24cf94af49a9de16236ec4d449527a52c71d66565a6ba2f4278e
+      lingbotvla.models.vla.lingbot_vla.qwen2_action_expert.Qwen2DecoderLayer.__call__:
+      - source-v1:d9eab16c3ed29924b86673cc6776d2434e387f687dba1146c3183a614a1794b6
+    ast_hashes:
+      lingbotvla.models.vla.lingbot_vla.qwen2_action_expert.Qwen2ForCausalLM.__init__:
+      - ast-v1:2a4ddd6c06d56bae60ca6058d3a758e84863b4c20a152a16c37ac65b1d10832c
+      lingbotvla.models.vla.lingbot_vla.qwen2_action_expert.Qwen2DecoderLayer.__call__:
+      - ast-v1:9d4e54e39ad542a907b8c94e425f3eeccde2ea8f30597b741b1ba61fd97ca1c7
+- id: lingbot-vla-v2.teacher-fa2
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.vision_models.module_utils.build_depth_model:
+      - source-v1:1d19f1b32672ffb7b3560b809765ca7a613cae6f1726859e743afbdacc09dedc
+    ast_hashes:
+      lingbotvla.models.vla.vision_models.module_utils.build_depth_model:
+      - ast-v1:da5309adccc9230ebce13da1221c6f60cb8fa5d14778e61f7117bbcd52993049
+- id: lingbot-vla-v2.video-teacher-fa2
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.vision_models.dino_video.teacher.DinoVideoTeacher.__init__:
+      - source-v1:cd986f14d4a6f859ee2d6b21f63c3b9daf56a5506397c8114338e539969356aa
+      lingbotvla.models.vla.vision_models.dino_video.lumos_dinov3.layers.sdpa_attention_packed.sdpa_attention_block_causal:
+      - source-v1:885eb281423b3053c729d603b82744b6472515278a1cf256f4ad4ebb85f47071
+    ast_hashes:
+      lingbotvla.models.vla.vision_models.dino_video.teacher.DinoVideoTeacher.__init__:
+      - ast-v1:126e9f83440463bb2bd48e256b4abbfecbbe8d076ba2c710764d562d96ab2e6f
+      lingbotvla.models.vla.vision_models.dino_video.lumos_dinov3.layers.sdpa_attention_packed.sdpa_attention_block_causal:
+      - ast-v1:589cd5927840f990127b8ec30805998db08916e784b7f6fa52b918080e4caea5
+- id: lingbot-vla-v2.rope-fast
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.lingbot_vla.modeling_lingbot_vla_v2.QwenvlWithExpertV2Model.apply_mrope:
+      - source-v1:4b4b28c848196f082dbbcea0001299aadea70b3108c6ac1ab2a00a6139f9b78d
+    ast_hashes:
+      lingbotvla.models.vla.lingbot_vla.modeling_lingbot_vla_v2.QwenvlWithExpertV2Model.apply_mrope:
+      - ast-v1:6752e0580706fe3bb2b7ec43b6711847f416b0f2c21c85f7f572d669ee1f4f08
+- id: lingbot-vla-v2.qwen3vl-rope-index-cpu
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLModel.get_rope_index:
+      - source-v1:867ac5bee949408e2d21ce6f716bb6bbffb5538d6c052a151554d8abfffec0a6
+    ast_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLModel.get_rope_index:
+      - ast-v1:fc5b6a88946d244f5e28e2ed9dede02690a1ed85f44dd9fe4c50c252a1f1feb8
+- id: lingbot-vla-v2.muon-fused
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.optim.muon.DistributedMuon:
+      - source-v1:ae55b86229838322ff71cb75c2a2dcdfb7a51889ad869547a7a13da96535db82
+      lingbotvla.optim.muon.batched_newton_schulz:
+      - source-v1:360bba6b7e2bb72f0a953a46f86637780eefc5363b15afec7a27a1d65c6b8435
+    ast_hashes:
+      lingbotvla.optim.muon.DistributedMuon:
+      - ast-v1:09d5a51cc78e234112166b3163a933483aa3104cdfb03af31df44ce31c54adcf
+      lingbotvla.optim.muon.batched_newton_schulz:
+      - ast-v1:5db76a2da8cc5ea8a8be06d3a30047e09e88bf470126ae5ab8fd4cb1c256a11b
+- id: lingbot-vla-v2.moge-depth-only
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.models.vla.vision_models.module_utils.v2.infer:
+      - source-v1:08f5da9b220fb9442dd22f2a73b864ac1a48b76c51d2f1e8ac7ddd4302335206
+    ast_hashes:
+      lingbotvla.models.vla.vision_models.module_utils.v2.infer:
+      - ast-v1:e9d1e2cb3fd2fc4e6c8e6543efde88e6750e929a3e8645755c0a87f2ae99878a
+- id: lingbot-vla-v2.fast-hf-query
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      lingbotvla.data.vla_data.base_dataset.LeRobotDataset._query_hf_dataset:
+      - source-v1:ac25fb40844f032b49434332035dc7f6d588711e0d3afdb623397c767245c59f
+      lingbotvla.data.vla_data.base_dataset.LeRobotDataset.__init__:
+      - source-v1:8193b65b74a64619f4db933fd5169428c81eb1700ccc8ed708f114ad96f02ed5
+    ast_hashes:
+      lingbotvla.data.vla_data.base_dataset.LeRobotDataset._query_hf_dataset:
+      - ast-v1:dda7d609673a1ea56288f9bc35c3592c8241c3d86c189489aec86c57f63f5ac6
+      lingbotvla.data.vla_data.base_dataset.LeRobotDataset.__init__:
+      - ast-v1:8cd1169fd8b2eac0f8ff6e2931b9b1367bd1cd20e2d4da66a7b295dbb5236581
+optimization_modules:
+- turbo_physai.optimizations.models.lingbot_vla_v2.catalog

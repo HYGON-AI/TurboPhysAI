@@ -102,6 +102,31 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 
 The full Apache-2.0 text is in [third_party/licenses/Apache-2.0.txt](third_party/licenses/Apache-2.0.txt).
 
+### LingBot-VLA-V2
+
+- Repository: <https://github.com/Robbyant/lingbot-vla-v2>
+- Fixed commit: `be969b8fd117fb70550c5d4bf4bc328211b5b1b6`
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/lingbot_vla_v2/profiling.py` | `lingbotvla/utils/helper.py` | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla_v2/fast_hf_query.py` | `lingbotvla/data/vla_data/base_dataset.py` | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla_v2/muon.py` | `lingbotvla/optim/muon.py` | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla_v2/muon_batched_ns.py` | `lingbotvla/optim/muon.py` | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla_v2/muon_gather.py` | `lingbotvla/optim/muon.py` | Modified |
+
+### Hugging Face transformers
+
+- Repository: <https://github.com/huggingface/transformers>
+- Fixed commit: `8ac2b916b042b1f78b75c9eb941c0f5d2cdd8e10` (v4.57.0)
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/lingbot_vla_v2/qwen3vl_rope_index_cpu.py` | `src/transformers/models/qwen3_vl/modeling_qwen3_vl.py` (`Qwen3VLModel.get_rope_index`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla_v2/qwen3vl_cache_gridTHW.py` | `src/transformers/models/qwen3_vl/modeling_qwen3_vl.py` (`Qwen3VLVisionModel.fast_pos_embed_interpolate`) | Modified |
+
 ## Confirmed BSD-3-Clause derivations
 
 | Component | turbo_physai paths | Upstream repository and fixed commit | Upstream paths | License | NOTICE |

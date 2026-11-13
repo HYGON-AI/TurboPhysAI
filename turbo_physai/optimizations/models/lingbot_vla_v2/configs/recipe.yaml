@@ -1,0 +1,73 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+
+metadata:
+  id: model.lingbot_vla_v2.base.hcu
+  version: "0.1.0"
+  description: HCU optimization recipe for LingBot-VLA v2
+
+model:
+  name: lingbot_vla_v2
+
+optimization_modules:
+  - turbo_physai.optimizations.models.lingbot_vla_v2.catalog
+
+extends: []
+
+compatibility: {}
+
+optimization_groups:
+
+  - id: lingbot-vla-v2.profiling
+    enabled: true
+
+  - id: lingbot-vla-v2.flex-kernel-options
+    enabled: true
+
+  - id: lingbot-vla-v2.flex-head-shared-mask
+    enabled: true
+
+  - id: lingbot-vla-v2.flex-attn-tf32
+    enabled: true
+
+  - id: lingbot-vla-v2.conv3d-channel-last
+    enabled: true
+
+  - id: lingbot-vla-v2.qwen3vl-cache-grid-thw
+    enabled: true
+
+  - id: lingbot-vla-v2.compile-teacher
+    enabled: true
+
+  - id: lingbot-vla-v2.qwen3vl-compile
+    enabled: true
+
+  - id: lingbot-vla-v2.qwen3vl-compile-text
+    enabled: true
+
+  - id: lingbot-vla-v2.qwen2-compile-expert
+    enabled: true
+
+  - id: lingbot-vla-v2.teacher-fa2
+    enabled: true
+
+  - id: lingbot-vla-v2.video-teacher-fa2
+    enabled: true
+
+  - id: lingbot-vla-v2.rope-fast
+    enabled: true
+
+  - id: lingbot-vla-v2.qwen3vl-rope-index-cpu
+    enabled: true
+
+  - id: lingbot-vla-v2.muon-fused
+    enabled: true
+
+  - id: lingbot-vla-v2.moge-depth-only
+    enabled: true
+
+  - id: lingbot-vla-v2.fast-hf-query
+    enabled: true
