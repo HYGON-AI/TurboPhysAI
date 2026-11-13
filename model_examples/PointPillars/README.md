@@ -86,6 +86,15 @@ PY
 
 ## 6. 通过 turbo-physai run 启动训练
 
+启动前请根据实际环境调整以下变量或参数：
+
+- `HIP_VISIBLE_DEVICES`：指定使用的 HCU 卡号；`--nproc_per_node` 设置为使用的卡数，两者数量应一致。本例使用 8 张卡。
+- `train_dataloader.batch_size`：每张卡的 batch size，本例为 4；全局 batch size 等于每卡 batch size 乘以卡数。
+- `train_dataloader.num_workers`：每张卡的数据加载进程数，本例为 10，可根据 CPU 资源调整。
+- `DATA_ROOT`：nuScenes 数据目录，默认为 `/workspace/PointPillars_TurboPhysAI/static_data/nuscenes_pointpillars`。
+- `POINTPILLARS_REPO_ROOT` 和 `POINTPILLARS_CONFIG`：分别指定 MMDetection3D 源码目录和训练配置文件，默认使用本例的源码和配置。
+- `WORK_DIR` 和 `LOG_DIR`：分别指定训练输出目录和日志目录；`default_hooks.logger.interval` 控制训练日志输出间隔。
+
 训练脚本示例如下：
 
 ```bash
