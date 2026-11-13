@@ -99,12 +99,6 @@ mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts"
 └── static_data/
 ```
 
-## 兼容性说明
-
-FlashOCC 的 `ray_metrics.py` 在导入时加载 DVR 扩展，上游编译方式在 HCU 上不兼容。TurboPhysAI 的 FlashOCC 兼容层拦截名为 `dvr` 的 `torch.utils.cpp_extension.load` 调用，过滤 HCU 编译器不支持的参数，并在实际调用 DVR 接口时使用随包提供的兼容源码延迟编译；其他扩展加载不受影响。该兼容处理不属于优化组，不能通过 `--disable-group` 关闭，也不会出现在 OptimizationReport 中。
-
-FlashOCC 的 `bevdet_occ.py` 包含 GB18030 编码的源码，引擎通过 `inspect.getsource` 读取源码时可能失败，导致 `forward_occ_train` 无法进行哈希信任检查。当前兼容层仅针对该文件在需要时使用 GB18030 解码并填充 `linecache`，使引擎能够读取源码；后续将由引擎提供通用源码编码处理后移除该兼容层。
-
 ## 6. 启动训练
 
 以下命令通过 `--set` 指定当前容器的模型路径、设备和单机网卡。默认使用单机8卡、每卡 batch size 4和每卡 24 个数据加载 worker。多机运行时需要修改NCCL_SOCKET_IFNAME和GLOO_SOCKET_IFNAME。
@@ -136,3 +130,9 @@ turbo-physai run \
 ```
 
 NUMA 配置、优化应用结果及其检查方法见 [快速开始：通过日志确认优化状态](../../docs/zh/get_started/quick_start.md#3-通过日志确认优化状态)。
+
+## 兼容性说明
+
+FlashOCC 的 `ray_metrics.py` 在导入时加载 DVR 扩展，上游编译方式在 HCU 上不兼容。TurboPhysAI 的 FlashOCC 兼容层拦截名为 `dvr` 的 `torch.utils.cpp_extension.load` 调用，过滤 HCU 编译器不支持的参数，并在实际调用 DVR 接口时使用随包提供的兼容源码延迟编译；其他扩展加载不受影响。该兼容处理不属于优化组，不能通过 `--disable-group` 关闭，也不会出现在 OptimizationReport 中。
+
+FlashOCC 的 `bevdet_occ.py` 包含 GB18030 编码的源码，引擎通过 `inspect.getsource` 读取源码时可能失败，导致 `forward_occ_train` 无法进行哈希信任检查。当前兼容层仅针对该文件在需要时使用 GB18030 解码并填充 `linecache`，使引擎能够读取源码；后续将由引擎提供通用源码编码处理后移除该兼容层。
