@@ -24,6 +24,7 @@
 
 ```bash
 mkdir "/workspace/FlashOCC_TurboPhysAI"
+cd "/workspace/FlashOCC_TurboPhysAI"
 ```
 
 ### 3.3 拉取官方 FlashOCC 源码
