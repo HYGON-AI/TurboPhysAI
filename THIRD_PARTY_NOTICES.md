@@ -87,6 +87,21 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 | `turbo_physai/optimizations/models/bevformer/training.py` | `projects/mmdet3d_plugin/bevformer/apis/train.py` | Modified |
 | `turbo_physai/optimizations/models/bevformer/tsa.py` | `projects/mmdet3d_plugin/bevformer/modules/temporal_self_attention.py` | Modified |
 
+### FlashOCC
+
+- Repository: <https://github.com/Yzichen/FlashOCC>
+- Fixed commit: `449dc7947d6549ccb72a99d6f6d8c02f166ec0dd`
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/flashocc/geometry_compile.py` | `projects/mmdet3d_plugin/models/necks/view_transformer.py` (`LSSViewTransformer.get_ego_coor`) | Modified |
+| `turbo_physai/optimizations/models/flashocc/voxel_pooling_compile.py` | `projects/mmdet3d_plugin/models/necks/view_transformer.py` (`LSSViewTransformer.voxel_pooling_prepare_v2`) | Modified |
+| `turbo_physai/optimizations/models/flashocc/compat_sources/dvr/dvr.cpp` | `lib/dvr/dvr.cpp` | Unmodified |
+| `turbo_physai/optimizations/models/flashocc/compat_sources/dvr/dvr.cu` | `lib/dvr/dvr.cu` | Modified |
+
+The DVR files retain FlashOCC's attribution to [4d-occ-forecasting](https://github.com/tarashakhurana/4d-occ-forecasting), whose repository includes an [MIT license](https://github.com/tarashakhurana/4d-occ-forecasting/blob/e1ea9434113d303986684395a961aaacac90d470/LICENSE).
+
 ### MMCV
 
 - Repository: <https://github.com/open-mmlab/mmcv>
