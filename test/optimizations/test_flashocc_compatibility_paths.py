@@ -4,8 +4,6 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from turbo_physai.optimizations.models.flashocc import compatibility
 
 
@@ -19,25 +17,24 @@ def test_bootstrap_needs_model_root_only():
         install.assert_called_once_with("/model")
 
 
-def test_import_roots_use_model_and_not_runtime():
-    paths = compatibility.order_import_roots(["/existing"], "/model", "/plugin")
+def test_import_roots_prioritize_model_and_preserve_other_entries():
+    paths = compatibility.order_import_roots(["/existing", "/plugin"], "/model")
     assert paths[:2] == ["/model", "/model/mmdetection3d"]
-    assert "/plugin" not in paths
+    assert paths[2:] == ["/existing", "/plugin"]
 
 
-def test_encoding_finder_is_idempotent_and_rejects_different_model_root():
+def test_install_registers_encoding_finder_and_dvr_compatibility():
     with patch("sys.meta_path", []), patch("sys.path", ["/existing"]), patch.object(
         compatibility, "install_dvr_compatibility"
-    ):
-        compatibility.install_compatibility("/model")
+    ) as install_dvr:
         compatibility.install_compatibility("/model")
         finders = [
             finder for finder in __import__("sys").meta_path
             if isinstance(finder, compatibility.LegacyEncodingSourceFinder)
         ]
         assert len(finders) == 1
-        with pytest.raises(RuntimeError, match="different roots"):
-            compatibility.install_compatibility("/different-model")
+        assert finders[0].model_root == Path("/model")
+        install_dvr.assert_called_once_with(Path(compatibility.__file__).resolve().parent)
 
 
 def test_readme_uses_upstream_editable_build():

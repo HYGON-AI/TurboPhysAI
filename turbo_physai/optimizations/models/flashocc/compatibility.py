@@ -19,15 +19,13 @@ from typing import Callable, Mapping
 _NVCC_ONLY_FLAGS = {"-allow-unsupported-compiler", "--allow-unsupported-compiler"}
 
 
-def order_import_roots(
-    existing_paths, model_root, optimization_root
-) -> list[str]:
+def order_import_roots(existing_paths, model_root) -> list[str]:
     """Prefer official model modules while retaining runtime dependencies."""
     priority = [
         Path(model_root).expanduser().resolve(),
         (Path(model_root).expanduser().resolve() / "mmdetection3d"),
     ]
-    priority_set = set(priority) | {Path(optimization_root).expanduser().resolve()}
+    priority_set = set(priority)
     remaining = []
     for entry in existing_paths:
         resolved = Path(entry or os.curdir).expanduser().resolve()
@@ -87,8 +85,6 @@ class _GB18030SourceLoader(importlib.machinery.SourceFileLoader):
 
 class LegacyEncodingSourceFinder(importlib.abc.MetaPathFinder):
     """Load the one legacy GB18030 Python source without editing the model."""
-
-    _flashocc_finder_kind = "encoding"
 
     _SOURCE_PATH = Path(
         "projects/mmdet3d_plugin/models/detectors/bevdet_occ.py"
@@ -193,19 +189,8 @@ def install_compatibility(
 ) -> None:
     model_path = Path(model_root).expanduser().resolve()
     optimization_path = Path(__file__).resolve().parent
-    finders = [
-        finder for finder in sys.meta_path
-        if getattr(finder, "_flashocc_finder_kind", None) == "encoding"
-    ]
-    for finder in finders:
-        if finder.model_root != model_path:
-            raise RuntimeError("FlashOCC compatibility is already installed with different roots")
-    sys.path[:] = order_import_roots(
-        sys.path, model_path, optimization_path
-    )
-    if not finders:
-        finder = LegacyEncodingSourceFinder(model_path)
-        sys.meta_path.insert(0, finder)
+    sys.path[:] = order_import_roots(sys.path, model_path)
+    sys.meta_path.insert(0, LegacyEncodingSourceFinder(model_path))
     install_dvr_compatibility(optimization_path)
 
 
