@@ -10,7 +10,7 @@
 
 本接入基于官方 FlashOCC 仓库 commit `449dc7947d6549ccb72a99d6f6d8c02f166ec0dd`，TurboPhysAI 优化实现位于 [FlashOCC 优化目录](../../turbo_physai/optimizations/models/flashocc)。
 
-启动时通过 `--optimization-config` 和 `--runtime-config` 显式指定该模型的配置；不需要修改官方 FlashOCC 源码。配置文件的作用说明见 [OptimizationConfig 文档](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig 文档](../../docs/zh/user_guide/runtime_config.md)。
+启动时通过 `--model flashocc` 加载该模型的优化配置和运行时配置；不需要修改官方 FlashOCC 源码。配置文件的作用说明见 [OptimizationConfig 文档](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig 文档](../../docs/zh/user_guide/runtime_config.md)。
 
 ## 3. 准备运行环境与源码
 
@@ -41,6 +41,8 @@ git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC" checkout --detach \
 ### 3.4 拉取并安装 TurboPhysAI
 
 以下源码安装步骤适用于已准备好 HCU 开发环境的情况，依赖要求和安装检查见[安装指南](../../docs/zh/get_started/installation.md#从源码安装)。
+
+使用 `--model flashocc` 需要安装包含 FlashOCC 接入的 TurboPhysAI 版本；如主分支尚未合入该接入，请使用包含该接入的版本。
 
 ```bash
 cd "/workspace/FlashOCC_TurboPhysAI"
@@ -120,21 +122,15 @@ mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts"
 
 ## 6. 启动训练
 
-FlashOCC 的优化配置和运行环境配置分别位于：
-
-- `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml`
-- `/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml`
-
 以下命令通过 `--set` 指定当前容器的模型路径、设备和单机网卡。默认使用单机8卡、每卡 batch size 4和每卡 24 个数据加载 worker。多机运行时需要修改NCCL_SOCKET_IFNAME和GLOO_SOCKET_IFNAME。
 
-通过 `turbo-physai run` 显式加载配置并启动训练：
+通过 `turbo-physai run --model flashocc` 加载模型配置并启动训练：
 
 ```bash
 cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
 
 turbo-physai run \
-  --optimization-config "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/optimization.yaml" \
-  --runtime-config "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/configs/runtime.yaml" \
+  --model flashocc \
   --set HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
   --set NCCL_SOCKET_IFNAME=lo \
   --set GLOO_SOCKET_IFNAME=lo \
