@@ -91,7 +91,7 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 
 - Repository: <https://github.com/Yzichen/FlashOCC>
 - Fixed commit: `449dc7947d6549ccb72a99d6f6d8c02f166ec0dd`
-- FlashOCC repository license: Apache-2.0
+- License: Apache-2.0
 
 | Local file | Upstream file | HYGON modification |
 | --- | --- | --- |
