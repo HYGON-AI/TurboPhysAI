@@ -137,24 +137,32 @@ turbo-physai run \
 
 ## 7. 目录结构
 
-容器中的主要目录如下：
+容器中的主要目录如下，`logs/` 和 `work_dirs/` 为训练时生成的输出目录：
 
 ```text
 /workspace/PointPillars_TurboPhysAI/
 ├── mmdetection3d/                        # 官方模型源码
-├── TurboPhysAI/
-│   └── turbo_physai/optimizations/models/pointpillars/
-│       ├── configs/
-│       │   ├── optimization.yaml
-│       │   ├── recipe.yaml
-│       │   └── runtime.yaml
-│       └── ...                           # 优化代码
-└── static_data/
-    └── nuscenes_pointpillars/
-        ├── maps/
-        ├── samples/
-        ├── sweeps/
-        ├── v1.0-trainval/
-        ├── nuscenes_infos_train.pkl
-        └── nuscenes_infos_val.pkl
+├── static_data/
+│   └── nuscenes_pointpillars/            # nuScenes 数据目录
+│       ├── maps/
+│       ├── samples/
+│       ├── sweeps/
+│       ├── v1.0-trainval/
+│       ├── nuscenes_infos_train.pkl
+│       └── nuscenes_infos_val.pkl
+├── logs/                                 # 训练日志
+└── work_dirs/                            # 训练输出和权重
 ```
+
+TurboPhysAI 安装后的 PointPillars 优化代码和配置位于：
+
+```text
+/usr/local/lib/python3.10/dist-packages/turbo_physai/optimizations/models/pointpillars/
+├── configs/
+│   ├── optimization.yaml
+│   ├── recipe.yaml
+│   └── runtime.yaml
+└── ...                                   # 优化代码
+```
+
+以上组件路径对应本例的系统 Python 安装位置，其他环境以实际安装位置为准。数据目录中的文件和目录也可以通过软链接指向实际数据位置。
