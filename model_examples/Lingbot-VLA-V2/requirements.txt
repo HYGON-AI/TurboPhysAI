@@ -1,0 +1,46 @@
+# LingBot-VLA-V2 训练依赖（HCU 镜像增量安装）
+#
+# 产品镜像已提供 DTK 版 torch / torchvision 等基础包，这里只列 LingBot-VLA-V2 训练还需要补装的包。
+#
+# 完整安装步骤见 model_examples/Lingbot-VLA-V2/README.md 第 3.2 节；
+# lerobot 与 utils3d 的安装参数不同，单独用命令安装，不在本文件里。
+
+datasets==3.6.0
+huggingface-hub==0.34.3
+safetensors==0.5.3
+qwen-vl-utils==0.0.11
+peft==0.15.2
+scipy==1.13.1
+pandas==2.3.1
+pyarrow==21.0.0
+pillow==11.3.0
+av==15.0.0
+imageio==2.34.2
+einops==0.8.1
+tqdm==4.67.1
+pyyaml==6.0.2
+blobfile==3.2.0
+wandb==0.21.0
+tensorboard==2.16.2
+sentencepiece==0.2.0
+protobuf==3.20.3
+packaging==25.0
+ninja==1.11.1.4
+h5py==3.14.0
+jsonlines==4.0.0
+zstandard==0.23.0
+fsspec==2024.6.1
+aiohttp==3.12.15
+psutil==7.0.0
+ipdb==0.13.13
+rich==14.1.0
+matplotlib==3.10.3
+seaborn==0.13.2
+omegaconf==2.3.0
+msgpack==1.1.1
+websockets==15.0.1
+transformers==4.57.0
+pytest
+torchdata
+opencv-python
+numpy==1.26.3
