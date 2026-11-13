@@ -66,6 +66,8 @@ def resolve_dvr_compat_sources(
     return resolved
 
 
+# TODO: Remove this loader and LegacyEncodingSourceFinder when the engine
+# supports deterministic source retrieval for legacy encodings.
 class _GB18030SourceLoader(importlib.machinery.SourceFileLoader):
     def get_source(self, fullname: str) -> str:
         source = self.get_data(self.path).decode("gb18030")
