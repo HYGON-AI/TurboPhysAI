@@ -23,7 +23,7 @@
 进入容器后执行：
 
 ```bash
-cd "/workspace/FlashOCC_TurboPhysAI"
+mkdir "/workspace/FlashOCC_TurboPhysAI"
 ```
 
 ### 3.3 拉取官方 FlashOCC 源码
