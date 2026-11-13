@@ -40,12 +40,9 @@ def test_encoding_finder_is_idempotent_and_rejects_different_model_root():
             compatibility.install_compatibility("/different-model")
 
 
-def test_build_script_targets_official_projects():
-    script = (
-        Path(__file__).resolve().parents[2]
-        / "turbo_physai/optimizations/models/flashocc/scripts/build_flashocc_ops_external.sh"
-    ).read_text()
-    assert '--build-lib "$FLASHOCC_ROOT/projects"' in script
-    assert "FLASHOCC_RUNTIME_ROOT" not in script
-    assert "source /root/.hygon_base_env" not in script
-    assert "conda activate" not in script
+def test_readme_uses_upstream_editable_build():
+    readme = (
+        Path(__file__).resolve().parents[2] / "model_examples/FlashOCC/README.md"
+    ).read_text(encoding="utf-8")
+    assert 'cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC/projects"' in readme
+    assert "python -m pip install -e . --no-build-isolation --no-deps" in readme

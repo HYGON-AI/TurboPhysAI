@@ -161,6 +161,8 @@ def _compatible_dvr_loader(original_load, args, kwargs, compat_source_root: Path
 
 
 def install_dvr_compatibility(optimization_root: str | os.PathLike[str]) -> None:
+    # TODO: Replace this hook with an engine import-compatibility declaration
+    # and a registered DVR operator once those engine capabilities are available.
     import torch.utils.cpp_extension as cpp_extension
 
     if getattr(cpp_extension.load, "_flashocc_compat", False):

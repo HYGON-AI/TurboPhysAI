@@ -48,10 +48,11 @@ source /opt/conda/etc/profile.d/conda.sh
 conda activate mmcv1
 
 export PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}"
-bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/scripts/build_flashocc_ops_external.sh"
+cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC/projects"
+FORCE_CUDA=1 MAX_JOBS=8 python -m pip install -e . --no-build-isolation --no-deps
 ```
 
-构建脚本不会覆盖已有的 HCU 扩展文件。
+该命令在当前 `mmcv1` 环境中构建 FlashOCC 的 `bev_pool`、`bev_pool_v2` 和 `nearest_assign` 扩展。
 
 ## 4. 准备 nuScenes 数据并生成标注
 
@@ -95,9 +96,12 @@ mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts"
 ├── FlashOCC/
 │   ├── data/nuscenes/
 │   └── mmdetection3d/
-├── TurboPhysAI/
 └── static_data/
 ```
+
+## 兼容性说明
+
+FlashOCC 的 `ray_metrics.py` 在导入时加载 DVR 扩展，上游编译方式在 HCU 上不兼容。TurboPhysAI 的 FlashOCC 兼容层拦截名为 `dvr` 的 `torch.utils.cpp_extension.load` 调用，过滤 HCU 编译器不支持的参数，并在实际调用 DVR 接口时使用随包提供的兼容源码延迟编译；其他扩展加载不受影响。该兼容处理不属于优化组，不能通过 `--disable-group` 关闭，也不会出现在 OptimizationReport 中。
 
 ## 6. 启动训练
 
