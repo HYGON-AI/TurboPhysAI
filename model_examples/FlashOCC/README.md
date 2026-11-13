@@ -10,6 +10,8 @@
 
 本接入基于官方 FlashOCC 仓库 commit `449dc7947d6549ccb72a99d6f6d8c02f166ec0dd`。
 
+优化接入基线的使用建议见[模型支持清单](https://github.com/Coulsonq/TurboPhysAI/blob/pointpillars-TurboPhysAI/docs/zh/models/support_list.md)。
+
 ## 3. 准备运行环境与源码
 
 ### 3.1 创建容器
