@@ -16,7 +16,7 @@
 
 ### 3.1 创建容器
 
-按照[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)，使用自动驾驶模型配套镜像创建并进入容器。
+按照[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)，使用自动驾驶配套镜像创建容器并安装 TurboPhysAI。。
 
 ### 3.2 设置工作目录
 
