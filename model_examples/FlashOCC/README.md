@@ -1,6 +1,6 @@
 # FlashOCC 应用说明
 
-本文说明如何在 HCU 环境中，基于官方 FlashOCC 仓库使用 TurboPhysAI 优化。
+本文说明如何基于官方 FlashOCC 仓库使用 TurboPhysAI 的 HCU 优化。按照[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)，使用自动驾驶配套镜像创建容器并安装 TurboPhysAI。
 
 ## 1. 模型简介
 
@@ -14,11 +14,7 @@
 
 ## 3. 准备运行环境与源码
 
-### 3.1 创建容器
-
-按照[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)，使用自动驾驶配套镜像创建容器并安装 TurboPhysAI。。
-
-### 3.2 设置工作目录
+### 3.1 设置工作目录
 
 进入容器后执行：
 
@@ -27,7 +23,7 @@ mkdir "/workspace/FlashOCC_TurboPhysAI"
 cd "/workspace/FlashOCC_TurboPhysAI"
 ```
 
-### 3.3 拉取官方 FlashOCC 源码
+### 3.2 拉取官方 FlashOCC 源码
 
 ```bash
 git clone https://github.com/Yzichen/FlashOCC.git "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
@@ -35,7 +31,7 @@ git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC" checkout --detach \
   449dc7947d6549ccb72a99d6f6d8c02f166ec0dd
 ```
 
-### 3.4 准备 MMDetection3D 依赖并构建 HCU 扩展
+### 3.3 准备 MMDetection3D 依赖并构建 HCU 扩展
 
 ```bash
 git clone --branch v1.0.0rc4 \
