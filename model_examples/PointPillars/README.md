@@ -33,6 +33,8 @@ git -C /workspace/PointPillars_TurboPhysAI/mmdetection3d checkout --detach \
 
 ## 5. 准备 nuScenes 数据
 
+### 5.1 下载 nuScenes 数据
+
 从 [nuScenes 官方下载页](https://www.nuscenes.org/download) 按许可要求下载并解压 nuScenes v1.0 trainval 数据。将数据准备到容器中可访问的位置，本例使用 `/workspace/PointPillars_TurboPhysAI/static_data/nuscenes_pointpillars`：
 
 ```text
@@ -45,7 +47,7 @@ git -C /workspace/PointPillars_TurboPhysAI/mmdetection3d checkout --detach \
 └── nuscenes_infos_val.pkl
 ```
 
-### 5.1 生成训练和验证 PKL
+### 5.2 生成训练和验证 PKL
 
 ```bash
 source /opt/conda/etc/profile.d/conda.sh
