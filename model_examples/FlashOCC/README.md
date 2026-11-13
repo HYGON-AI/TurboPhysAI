@@ -18,13 +18,11 @@
 
 按照[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)，使用自动驾驶模型配套镜像创建并进入容器。
 
-### 3.2 激活环境并设置工作目录
+### 3.2 设置工作目录
 
 进入容器后执行：
 
 ```bash
-source /opt/conda/etc/profile.d/conda.sh
-conda activate mmcv1
 export PYTHONDONTWRITEBYTECODE=1
 
 cd "/workspace/FlashOCC_TurboPhysAI"
@@ -46,6 +44,9 @@ git clone --branch v1.0.0rc4 \
   "/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d"
 git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d" checkout --detach \
   c9541b0db89498fdea5cafd05b7b17f7b625b858
+
+source /opt/conda/etc/profile.d/conda.sh
+conda activate mmcv1
 
 export PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}"
 bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/scripts/build_flashocc_ops_external.sh"
@@ -106,6 +107,9 @@ mkdir -p "/workspace/FlashOCC_TurboPhysAI/static_data/ckpts"
 通过 `turbo-physai run --model flashocc` 加载模型配置并启动训练：
 
 ```bash
+source /opt/conda/etc/profile.d/conda.sh
+conda activate mmcv1
+
 cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC"
 
 turbo-physai run \
