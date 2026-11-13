@@ -1,6 +1,6 @@
 # FlashOCC 应用说明
 
-本文说明如何基于官方 FlashOCC 仓库使用 TurboPhysAI 的 HCU 优化。按照[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)，使用自动驾驶配套镜像创建容器并安装 TurboPhysAI。
+本文说明如何基于官方 FlashOCC 仓库使用 TurboPhysAI 的 HCU 优化。按照[安装指南](../../docs/zh/get_started/installation.md#%E4%BD%BF%E7%94%A8%E9%85%8D%E5%A5%97%E9%95%9C%E5%83%8F使用产品镜像)，使用自动驾驶配套镜像创建容器并安装 TurboPhysAI。
 
 ## 1. 模型简介
 
