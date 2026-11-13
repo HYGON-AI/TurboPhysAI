@@ -52,8 +52,6 @@ cd "/workspace/FlashOCC_TurboPhysAI/FlashOCC/projects"
 FORCE_CUDA=1 MAX_JOBS=8 python -m pip install -e . --no-build-isolation --no-deps
 ```
 
-该命令在当前 `mmcv1` 环境中构建 FlashOCC 的 `bev_pool`、`bev_pool_v2` 和 `nearest_assign` 扩展。
-
 ## 4. 准备 nuScenes 数据并生成标注
 
 按照 [FlashOCC 官方安装文档 Step 3](https://github.com/Yzichen/FlashOCC/blob/master/doc/install.md) 下载并准备 nuScenes。将数据放到 `/workspace/FlashOCC_TurboPhysAI/FlashOCC/data/nuscenes`，至少包括以下目录：
