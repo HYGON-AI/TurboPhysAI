@@ -47,7 +47,7 @@ git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d" checkout --detac
 source /opt/conda/etc/profile.d/conda.sh
 conda activate mmcv1
 
-export PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/TurboPhysAI:/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="/workspace/FlashOCC_TurboPhysAI/FlashOCC/mmdetection3d:/workspace/FlashOCC_TurboPhysAI/FlashOCC${PYTHONPATH:+:$PYTHONPATH}"
 bash "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI/turbo_physai/optimizations/models/flashocc/scripts/build_flashocc_ops_external.sh"
 ```
 
