@@ -159,6 +159,7 @@ TurboPhysAI 安装后的 PointPillars 优化代码和配置位于：
 ```text
 /usr/local/lib/python3.10/dist-packages/turbo_physai/optimizations/models/pointpillars/
 ├── configs/
+│   ├── .optimization.yaml.generation.json  # 配置生成记录
 │   ├── optimization.yaml
 │   ├── recipe.yaml
 │   └── runtime.yaml
