@@ -38,28 +38,7 @@ git -C "/workspace/FlashOCC_TurboPhysAI/FlashOCC" checkout --detach \
   449dc7947d6549ccb72a99d6f6d8c02f166ec0dd
 ```
 
-### 3.4 拉取并安装 TurboPhysAI
-
-以下源码安装步骤适用于已准备好 HCU 开发环境的情况，依赖要求和安装检查见[安装指南](../../docs/zh/get_started/installation.md#从源码安装)。
-
-使用 `--model flashocc` 需要安装包含 FlashOCC 接入的 TurboPhysAI 版本；如主分支尚未合入该接入，请使用包含该接入的版本。
-
-```bash
-cd "/workspace/FlashOCC_TurboPhysAI"
-git clone --branch main \
-  https://github.com/HYGON-AI/TurboPhysAI.git \
-  "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI"
-
-cd "/workspace/FlashOCC_TurboPhysAI/TurboPhysAI"
-python -c 'import torch; print(torch.__version__, torch.version.hip)'
-python -m pip install ninja wheel setuptools
-MAX_JOBS=8 python setup.py bdist_wheel
-python -m pip install --no-deps --force-reinstall dist/turbo_physai-*.whl
-turbo-physai --help
-
-```
-
-### 3.5 准备 MMDetection3D 依赖并构建 HCU 扩展
+### 3.4 准备 MMDetection3D 依赖并构建 HCU 扩展
 
 ```bash
 git clone --branch v1.0.0rc4 \
