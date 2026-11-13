@@ -16,26 +16,7 @@
 
 ### 3.1 创建容器
 
-宿主机准备好 `autonomous-driving:torch2.10-dtk26.04` 镜像后，执行：
-
-```bash
-docker run -d -t \
-  -v /opt/hyhal:/opt/hyhal:ro \
-  --workdir /workspace/FlashOCC_TurboPhysAI \
-  --privileged \
-  --shm-size=128G \
-  --device=/dev/kfd \
-  --device=/dev/dri/ \
-  --network=host \
-  --device=/dev/mkfd \
-  --group-add video \
-  --name FlashOCC_TurboPhysAI \
-  --entrypoint /bin/bash \
-  autonomous-driving:torch2.10-dtk26.04 \
-  -lc 'exec sleep infinity'
-
-docker exec -it FlashOCC_TurboPhysAI bash
-```
+按照[安装指南](../../docs/zh/get_started/installation.md#使用产品镜像)，使用自动驾驶模型配套镜像创建并进入容器。
 
 ### 3.2 激活环境并设置工作目录
 
