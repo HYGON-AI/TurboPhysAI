@@ -23,8 +23,6 @@
 进入容器后执行：
 
 ```bash
-export PYTHONDONTWRITEBYTECODE=1
-
 cd "/workspace/FlashOCC_TurboPhysAI"
 ```
 
