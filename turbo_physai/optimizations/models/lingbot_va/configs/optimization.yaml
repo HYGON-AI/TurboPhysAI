@@ -1,0 +1,125 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.lingbot_va.hcu.full
+  version: 0.1.0
+  description: Nine-group HCU training optimization profile
+model:
+  name: lingbot_va
+compatibility:
+  commits:
+  - 7c6ffa9bfc4b83582cafc860fab4c82cc7deeeeb
+  dependencies:
+    diffusers: ==0.36.0
+    torch: '>=2.10,<2.11'
+    transformers: ==4.55.4
+optimization_groups:
+- id: lingbot_va.timestep_dedup
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      modules.model.WanTransformer3DModel._time_embed:
+      - source-v1:00d229196c44344ec24935b466d00fb207e362009a52b8364774a4cc7b954817
+    ast_hashes:
+      modules.model.WanTransformer3DModel._time_embed:
+      - ast-v1:161688483d8ec6018e153ce1292b235cd315cb8621dbcb87ad9c3763bc01b871
+- id: lingbot_va.rotary_compile
+  enabled: true
+  options:
+    qk_norm: true
+  trust:
+    source_hashes:
+      modules.model.WanAttention.forward:
+      - source-v1:c006a48dff21400fe2169001129a0e0931b59cc51d23b26c482ac33d29904563
+    ast_hashes:
+      modules.model.WanAttention.forward:
+      - ast-v1:0376c3c23d8cbc21ff07a011cb61d75568dab4606495458d2be9ddab29e48e0d
+- id: lingbot_va.linear_addmm
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      modules.model.WanTransformer3DModel.__init__:
+      - source-v1:469679a0e891dd371ad257a8b5ca03740117d31c40404d814fd0b95fa464b23d
+    ast_hashes:
+      modules.model.WanTransformer3DModel.__init__:
+      - ast-v1:5c3a97b6632266ae986c4aa3b5c1583a6cf6fb8d36daba04dc1b9d806b65b426
+- id: lingbot_va.pointwise_compile
+  enabled: true
+  options:
+    cross_norm: true
+  trust:
+    source_hashes:
+      modules.model.WanTransformerBlock.forward:
+      - source-v1:8ea4a257a9bcfbb1c42f1a8a354e3d2a206151e3da1e1576ae14fe053d85b77e
+    ast_hashes:
+      modules.model.WanTransformerBlock.forward:
+      - ast-v1:ef38c20f706fce8b3cfbd318a2fb3179e2ccb22cd35f568d21dd591d293c9739
+- id: lingbot_va.attention_backend
+  enabled: true
+  options:
+    cross_fa: true
+  trust:
+    source_hashes:
+      modules.model.FlexAttnFunc.init_mask:
+      - source-v1:c2e4bcdaf5997ff26507735826997674b2a3dd9d833bf38317df5705fb8def86
+      modules.model.FlexAttnFunc.forward:
+      - source-v1:0079eacd868daad36856c4e7ffe324e97ec57e707bd44f9cba7ef45f3d7daab9
+    ast_hashes:
+      modules.model.FlexAttnFunc.init_mask:
+      - ast-v1:be6ee231709055d58804a92a717e18a2ae192f8250d6c6ecce572158007397ee
+      modules.model.FlexAttnFunc.forward:
+      - ast-v1:7dc801701bae4ec7ea6183480bb71b2e4b31cf7092fb94e1e02049cc97dd868b
+- id: lingbot_va.selective_checkpoint
+  enabled: true
+  options:
+    sac_layer_interval: 4
+  trust:
+    source_hashes:
+      distributed.fsdp.apply_ac:
+      - source-v1:76d4543288cf45741241bcb434d09b77c38b76f0dbe7ede0577c4da36007b3f6
+    ast_hashes:
+      distributed.fsdp.apply_ac:
+      - ast-v1:9d5d13dd69e50c7a05757725b4c15a13d8bd51b99e6aa913495b012527ff534b
+- id: lingbot_va.fsdp_residency
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      distributed.fsdp.shard_model:
+      - source-v1:6fc2fe485624e492b19f4404f4fe21721500221dc9dee358e39dd80334dffdbf
+    ast_hashes:
+      distributed.fsdp.shard_model:
+      - ast-v1:4c2c141f305a3822bbe11bfd28b7613fab51ae97d3960736cd688ee1fe15a0d9
+- id: lingbot_va.train_sync
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      train.Trainer.train:
+      - source-v1:c47c97d5451a196584632ce6894d6f5c70919fb72bfd3e585c21bddeb04948b4
+    ast_hashes:
+      train.Trainer.train:
+      - ast-v1:b5af9d05b8c27c8d7d9b2f52b7e6686e5eccab73d592c1729c797a9f0f08483c
+- id: lingbot_va.flex_template_backend
+  enabled: true
+  options:
+    fast_bf16: false
+  trust:
+    source_hashes:
+      turbo_physai.optimizations.models.lingbot_va.attention.flex_call:
+      - source-v1:af1ed1c524cfe4a848369bc0873ec31c7d0d5775458b66ac47abe84d5c94e4bc
+      torch._inductor.select_algorithm.TritonTemplate.maybe_append_choice:
+      - source-v1:e7bc6fb61a139e79b4a096b5533187e52230d90675968386e7a25d5371809039
+      torch._inductor.runtime.triton_heuristics.CachingAutotuner._create_compile_options:
+      - source-v1:0763d70c62ce1af2914d340b185edc6185cf5c9732d17ee1523bdc2e9529b1d0
+    ast_hashes:
+      turbo_physai.optimizations.models.lingbot_va.attention.flex_call:
+      - ast-v1:f210715424183ed7f02fabd750b804bba43353464769e5c883aae2d376a31353
+      torch._inductor.select_algorithm.TritonTemplate.maybe_append_choice:
+      - ast-v1:4080f9b3998e7e3c3c552217203a87fde8008cebd35bc974fd02128f90b0acda
+      torch._inductor.runtime.triton_heuristics.CachingAutotuner._create_compile_options:
+      - ast-v1:39e40ea1da6257bb9e973d8d03502b3b857a390a14948a21e0940c1003020260
+optimization_modules:
+- turbo_physai.optimizations.models.lingbot_va.catalog
