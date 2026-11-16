@@ -115,6 +115,7 @@ def _apply_group_overrides(
     registry: Registry,
     force_groups: Sequence[str],
     disable_groups: Sequence[str],
+    accuracy_mode: bool = False,
 ) -> Tuple[OptimizationConfig, Tuple[str, ...], Dict[str, str]]:
     forced = _validate_group_ids(config, force_groups, name="force_groups")
     disabled = _validate_group_ids(config, disable_groups, name="disable_groups")
@@ -128,6 +129,21 @@ def _apply_group_overrides(
     disabled_reasons: Dict[str, str] = {
         group_id: "disabled_by_user" for group_id in disabled
     }
+    if not accuracy_mode:
+        for entry in config.optimization_groups:
+            if entry.accuracy_only and entry.id not in disabled_reasons:
+                disabled_reasons[entry.id] = "accuracy_only_group"
+        accuracy_forced = tuple(
+            group_id
+            for group_id in forced
+            if disabled_reasons.get(group_id) == "accuracy_only_group"
+        )
+        if accuracy_forced:
+            raise OptimizationConfigError(
+                "--force-group cannot enable accuracy-only OptimizationGroups "
+                "while accuracy mode is off: " + ", ".join(accuracy_forced)
+            )
+
     enabled_ids = {
         entry.id for entry in config.optimization_groups if entry.enabled
     }
@@ -174,6 +190,7 @@ def _resolve(
     model: Optional[str],
     force_groups: Sequence[str],
     disable_groups: Sequence[str],
+    accuracy_mode: bool = False,
 ) -> Tuple[
     OptimizationConfig,
     PreparedExecution,
@@ -197,6 +214,7 @@ def _resolve(
         active_registry,
         force_groups,
         disable_groups,
+        accuracy_mode,
     )
     compatibility_outcome = ExecutionOutcome(())
     run_id = _resolve_run_id()
@@ -358,6 +376,7 @@ def apply(
     catalog: Optional[OptimizationConfigCatalog] = None,
     force_groups: Sequence[str] = (),
     disable_groups: Sequence[str] = (),
+    accuracy_mode: bool = False,
 ) -> OptimizationReport:
     """Apply one OptimizationConfig during process startup and report its result.
 
@@ -370,6 +389,8 @@ def apply(
     Blocked or successfully rolled-back Groups are isolated together with their
     dependents; unrelated Groups continue.  A rollback failure is terminal.
     ``force_groups`` bypasses only overrideable checks for the named enabled Groups.
+    ``accuracy_mode`` applies ``accuracy_only`` Groups; when False those Groups and
+    their dependents are skipped for this call.
     """
 
     _claim_apply()
@@ -388,6 +409,7 @@ def apply(
         model=model,
         force_groups=force_groups,
         disable_groups=disable_groups,
+        accuracy_mode=accuracy_mode,
     )
     regular_outcome: ExecutionOutcome = Executor().execute(
         regular_prepared, prepared_groups=prepared_groups

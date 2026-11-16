@@ -187,11 +187,14 @@ class OptimizationGroupConfig:
     enabled: bool = True
     options: FrozenDict = field(default_factory=FrozenDict)
     trust: FrozenDict = field(default_factory=FrozenDict)
+    accuracy_only: bool = False
     _provided: Tuple[str, ...] = field(default=(), repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if not self.id:
             raise ValueError("OptimizationGroupConfig id is required")
+        if not isinstance(self.accuracy_only, bool):
+            raise ValueError("accuracy_only must be boolean")
         object.__setattr__(self, "options", freeze_json(self.options))
         object.__setattr__(self, "trust", freeze_json(self.trust))
         object.__setattr__(self, "_provided", tuple(self._provided))

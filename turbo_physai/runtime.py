@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
@@ -28,6 +28,8 @@ class RuntimeConfig:
     rank_affinity: Mapping[str, str]
     rank_numa: Mapping[str, int]
     numa_auto: bool
+    accuracy_set: Mapping[str, str] = field(default_factory=dict)
+    accuracy_unset: tuple[str, ...] = ()
 
 
 def parse_cpu_set(value: str) -> set[int]:
@@ -87,6 +89,7 @@ def load_runtime_config(path: str | os.PathLike[str] | None) -> RuntimeConfig:
         raise RuntimeConfigError("RuntimeConfig environment and process must be mappings")
     values = environment.get("set", {})
     unset = environment.get("unset", [])
+    accuracy = environment.get("accuracy", {})
     affinity = process.get("rank_affinity", {})
     numa = process.get("rank_numa", {})
     numa_auto = process.get("numa", "auto")
@@ -94,6 +97,22 @@ def load_runtime_config(path: str | os.PathLike[str] | None) -> RuntimeConfig:
         raise RuntimeConfigError("environment.set must map variable names to values")
     if not isinstance(unset, list) or not all(isinstance(key, str) for key in unset):
         raise RuntimeConfigError("environment.unset must be a list of variable names")
+    if not isinstance(accuracy, dict):
+        raise RuntimeConfigError("environment.accuracy must be a mapping")
+    accuracy_values = accuracy.get("set", {})
+    accuracy_unset = accuracy.get("unset", [])
+    if not isinstance(accuracy_values, dict) or not all(
+        isinstance(key, str) for key in accuracy_values
+    ):
+        raise RuntimeConfigError(
+            "environment.accuracy.set must map variable names to values"
+        )
+    if not isinstance(accuracy_unset, list) or not all(
+        isinstance(key, str) for key in accuracy_unset
+    ):
+        raise RuntimeConfigError(
+            "environment.accuracy.unset must be a list of variable names"
+        )
     if not isinstance(affinity, dict):
         raise RuntimeConfigError("process.rank_affinity must be a mapping")
     if not isinstance(numa, dict):
@@ -110,6 +129,8 @@ def load_runtime_config(path: str | os.PathLike[str] | None) -> RuntimeConfig:
         normalized_affinity,
         normalized_numa,
         numa_auto in {True, "auto"},
+        {key: str(value) for key, value in accuracy_values.items()},
+        tuple(accuracy_unset),
     )
 
 
@@ -120,11 +141,16 @@ def prepare_environment(
     rank_affinity_overrides: Mapping[str, str] = {},
     rank_numa_overrides: Mapping[str, int] = {},
     numa_auto_override: bool | None = None,
+    accuracy_mode: bool = False,
 ) -> dict[str, str]:
     env = os.environ.copy()
     for name in runtime.environment_unset:
         env.pop(name, None)
     env.update(runtime.environment_set)
+    if accuracy_mode:
+        for name in runtime.accuracy_unset:
+            env.pop(name, None)
+        env.update(runtime.accuracy_set)
     env.update(overrides)
     affinity = dict(runtime.rank_affinity)
     affinity.update(rank_affinity_overrides)

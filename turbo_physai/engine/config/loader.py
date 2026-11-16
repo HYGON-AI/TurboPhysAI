@@ -151,6 +151,11 @@ def _merge(base: OptimizationConfig, overlay: OptimizationConfig) -> Optimizatio
         entries[entry.id] = OptimizationGroupConfig(
             id=entry.id,
             enabled=entry.enabled if "enabled" in provided else previous.enabled,
+            accuracy_only=(
+                entry.accuracy_only
+                if "accuracy_only" in provided
+                else previous.accuracy_only
+            ),
             options=options,
             trust=trust,
             _provided=tuple(sorted(set(previous._provided) | provided)),

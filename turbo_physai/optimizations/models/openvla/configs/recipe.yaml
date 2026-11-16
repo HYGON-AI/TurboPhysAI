@@ -45,7 +45,9 @@ optimization_groups:
     enabled: true
 
   - id: openvla.reproducibility.data_order
-    enabled: false
+    enabled: true
+    accuracy_only: true
 
   - id: openvla.reproducibility.determinism
-    enabled: false
+    enabled: true
+    accuracy_only: true
