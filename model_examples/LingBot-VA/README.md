@@ -96,11 +96,11 @@ test -f "$MODEL_ROOT/transformer/config.json"
 
 ## 7. 通过 turbo-physai run 启动训练
 
-`--model lingbot_va` 自动加载随包交付的九组 OptimizationConfig 和 NUMA RuntimeConfig。启动时使用 `turbo-physai run`，以便 Group 配置应用到训练进程及编译 worker。`linear_addmm` 保持启用，但 `action_embedder` 保留原始 `nn.Linear` 路径以避免 BF16 舍入顺序差异；其它白名单线性层仍使用融合实现。
+`turbo-physai run` 自动加载随包交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)，无需修改模型源码即可应用 LingBot-VA 优化。
 
 ### 7.1 单机八卡训练
 
-专用入口是 [#31：支持替换直接运行的 Python 脚本中的函数](https://github.com/HYGON-AI/TurboPhysAI/issues/31) 合入前的临时做法，用于保证 Group 替换与训练使用同一份 `train` 模块。#31 合入后删除该入口，并改回官方 `-m wan_va.train`。
+`run_8card.sh` 基于官方 `script/run_va_posttrain.sh` 的单机八卡启动方式，使用 LIBERO 训练配置，通过 `turbo-physai run --model lingbot_va` 启动。
 
 ```bash
 export LINGBOT_VA_ROOT=/workspace/model/lingbot-va
