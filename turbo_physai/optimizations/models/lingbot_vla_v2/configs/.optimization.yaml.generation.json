@@ -4,20 +4,20 @@
   "model_commit": "be969b8fd117fb70550c5d4bf4bc328211b5b1b6",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "bcff15aa99b0600c347470ff5b4f0c540840c0da9388de9f0c0c3b5d983e21d5"
+    "sha256": "730acb3ee26794add9a2273df1f1e3d4fe7d3903927d9b389233e99ac8080aff"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "package",
       "path": "optimizations/models/lingbot_vla_v2/configs/recipe.yaml",
-      "sha256": "5bd182bca2b8610318677b1dc801e32b268191fed04985887f9deb343c0076b1"
+      "sha256": "14a704bc9b8b06c70cbcbddb8eb43ec1e9d37457d0b1049c4205021109f3f220"
     },
     {
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/lingbot_vla_v2/catalog.py",
-      "sha256": "786f29c22999fc8aae70061d97e0266bc5e3612ff1a6c5a3e2f92f4213f25920"
+      "sha256": "bd3b9ad0d9a77355c439e91c1c1749fbb146b34beb8cb9147ddf91d0882965b2"
     }
   ]
 }

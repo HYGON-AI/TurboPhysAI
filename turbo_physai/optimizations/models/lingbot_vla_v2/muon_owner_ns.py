@@ -6,6 +6,8 @@ import math
 import torch
 import torch.distributed as dist
 
+from .muon_row_pack import pack_rows
+
 
 def partition_range(size, world_size, rank):
     if size < 0 or world_size < 1 or not 0 <= rank < world_size:
@@ -15,7 +17,6 @@ def partition_range(size, world_size, rank):
 
 
 def pack_result(owned, *, matrix_count, world_size, rank, shard_dim):
-    """owner 的 [owned_N,M,K] → 按目标 rank 排列的一维发送缓冲。"""
     if owned.ndim != 3 or shard_dim not in (0, 1):
         raise ValueError("owner NS requires batched 2D matrices")
     _, count = partition_range(matrix_count, world_size, rank)
@@ -24,14 +25,24 @@ def pack_result(owned, *, matrix_count, world_size, rank, shard_dim):
     axis = shard_dim + 1
     if owned.shape[axis] % world_size:
         raise ValueError("owner NS v1 requires evenly divisible storage shards")
+
+    send = owned.new_empty(owned.numel())
     sizes = []
-    pieces = []
+    for dest in range(world_size):
+        _, length = partition_range(owned.shape[axis], world_size, dest)
+        sizes.append(count * length * owned.shape[2])
+    if shard_dim == 0 and pack_rows(owned, send, count=count, world_size=world_size):
+        return send, sizes
+    offset = 0
     for dest in range(world_size):
         start, length = partition_range(owned.shape[axis], world_size, dest)
-        piece = owned.narrow(axis, start, length).contiguous().reshape(-1)
-        pieces.append(piece)
-        sizes.append(piece.numel())
-    return torch.cat(pieces), sizes
+        piece = owned.narrow(axis, start, length)
+        numel = piece.numel()
+        send.narrow(0, offset, numel).view(piece.shape).copy_(piece)
+        offset += numel
+    if offset != send.numel():
+        raise ValueError("packed send buffer does not cover the owned matrices")
+    return send, sizes
 
 
 def exchange_result(owned, *, matrix_count, world_size, rank, shard_dim, group):
@@ -45,6 +56,11 @@ def exchange_result(owned, *, matrix_count, world_size, rank, shard_dim, group):
     elements = math.prod(local_shape)
     recv_sizes = [partition_range(matrix_count, world_size, src)[1] * elements
                   for src in range(world_size)]
+    if 0 in send_sizes or 0 in recv_sizes:
+        raise RuntimeError(
+            f"zero-size all_to_all is not supported on this stack: "
+            f"send={send_sizes} recv={recv_sizes}"
+        )
     recv = owned.new_empty(sum(recv_sizes))
     # 显式 split sizes 支持不均分矩阵/存储分片。后端错误直接抛出，不能单 rank 回退。
     dist.all_to_all_single(recv, send, output_split_sizes=recv_sizes,

@@ -1,9 +1,7 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""
-Qwen2 action expert（MoE decoder）的逐层 torch.compile。
-"""
+"""Qwen2 action expert（MoE decoder）的分支级 torch.compile。"""
 
 from __future__ import annotations
 
@@ -17,9 +15,6 @@ COMPILE_OPTIONS = {"dynamic": True}
 
 
 def _kqv_impl(self, hidden_states, ada_cond=None):
-    """
-    Qwen2DecoderLayer.forward 的 compute_kqv 分支。
-    """
     param_dtype = self.self_attn.q_proj.weight.dtype
     hidden_states = hidden_states.to(param_dtype)
     if ada_cond is not None:
@@ -37,10 +32,28 @@ def _kqv_impl(self, hidden_states, ada_cond=None):
     return query_state, key_state, value_state
 
 
+def _oa_dense_impl(self, hidden_states, att_output, start, end, ada_cond=None):
+    """output_atten 分支的 dense 段：o_proj + 第一个残差 + post_attention_layernorm。
+
+    MoE不在图里，返回 norm 后的输入和残差，由 python 侧接上。
+    """
+    param_dtype = self.self_attn.o_proj.weight.dtype
+    hidden_states = hidden_states.to(param_dtype)
+    att_output = att_output.to(param_dtype)
+    if ada_cond is not None:
+        ada_cond = ada_cond.to(param_dtype)
+
+    out_emb = self.self_attn.o_proj(att_output[:, start:end])
+    out_emb = out_emb + hidden_states
+    residual = out_emb
+    if ada_cond is not None:
+        normed = self.post_attention_layernorm(out_emb, ada_cond)
+    else:
+        normed = self.post_attention_layernorm(out_emb)
+    return normed, residual
+
+
 def _stabilise(tensor, param_dtype):
-    """
-    转成权重 dtype，只在必要时物化布局，在 checkpoint 之前调用。
-    """
     if tensor is None:
         return None
     converted = tensor.to(param_dtype)
@@ -52,50 +65,60 @@ def _stabilise(tensor, param_dtype):
 
 
 def _compile_layer_forward(layer) -> Any:
-    """给一层编 compute_kqv 一张图，把 hybrid 挂到实例 forward 上。"""
     if torch.compiler.is_compiling():
         return layer.forward
     hybrid = layer.__dict__.get("_tp_compiled_forward")
     if hybrid is None:
         eager_forward = layer.forward
-        bound_kqv = types.MethodType(_kqv_impl, layer)
-        compiled_kqv = torch.compile(bound_kqv, **COMPILE_OPTIONS)
-        param_dtype = layer.self_attn.q_proj.weight.dtype
+        compiled_kqv = torch.compile(
+            types.MethodType(_kqv_impl, layer), **COMPILE_OPTIONS
+        )
+        compiled_oa = torch.compile(
+            types.MethodType(_oa_dense_impl, layer), **COMPILE_OPTIONS
+        )
 
         def hybrid(*args, **kwargs):
-            if kwargs.get("output_atten", False) or (len(args) > 5 and args[5]):
-                return eager_forward(*args, **kwargs)
+            compute_kqv = kwargs.get("compute_kqv", False)
+            output_atten = kwargs.get("output_atten", False)
+            if not compute_kqv and not output_atten:
+                compute_kqv = bool(len(args) > 4 and args[4])
+                output_atten = bool(len(args) > 5 and args[5])
             hidden_states = args[0] if args else kwargs["hidden_states"]
-            if hidden_states.dtype is not param_dtype:
-                return eager_forward(*args, **kwargs)
-            if not hidden_states.is_contiguous():
-                hidden_states = hidden_states.contiguous()
             ada_cond = kwargs.get("ada_cond")
             if ada_cond is None and len(args) > 6:
                 ada_cond = args[6]
-            return compiled_kqv(hidden_states, ada_cond=ada_cond)
+
+            param_dtype = layer.self_attn.q_proj.weight.dtype
+            stable_cond = _stabilise(ada_cond, param_dtype)
+
+            if compute_kqv and not output_atten:
+                return compiled_kqv(
+                    _stabilise(hidden_states, param_dtype), ada_cond=stable_cond
+                )
+
+            if output_atten:
+                att_output = args[1] if len(args) > 1 else kwargs.get("att_output")
+                if att_output is not None:
+                    start = args[2] if len(args) > 2 else kwargs.get("start", 0)
+                    end = args[3] if len(args) > 3 else kwargs.get("end", 0)
+                    normed, residual = compiled_oa(
+                        _stabilise(hidden_states, param_dtype),
+                        _stabilise(att_output, param_dtype),
+                        start,
+                        end,
+                        ada_cond=stable_cond,
+                    )
+                    mlp_out = layer.mlp(normed)
+                    router_logits = None
+                    if isinstance(mlp_out, tuple):
+                        mlp_out, router_logits = mlp_out
+                    return mlp_out + residual, router_logits
+
+            return eager_forward(*args, **kwargs)
 
         layer.__dict__["_tp_compiled_forward"] = hybrid
         layer.__dict__["forward"] = hybrid
     return hybrid
-
-
-def install_call_guard(original, _options=None):
-    @functools.wraps(original)
-    def guarded_call(self, *args, **kwargs):
-        param_dtype = self.self_attn.q_proj.weight.dtype
-        if args:
-            args = list(args)
-            for index in (0, 1):
-                if index < len(args) and torch.is_tensor(args[index]):
-                    args[index] = _stabilise(args[index], param_dtype)
-            args = tuple(args)
-        ada_cond = kwargs.get("ada_cond")
-        if torch.is_tensor(ada_cond):
-            kwargs["ada_cond"] = _stabilise(ada_cond, param_dtype)
-        return original(self, *args, **kwargs)
-
-    return guarded_call
 
 
 def _expert_layers(model) -> list:
@@ -120,3 +143,16 @@ def install_on_init(original, _options=None):
         return None
 
     return wrapped
+
+
+
+
+def deepstack_process(
+    self, hidden_states: torch.Tensor, visual_pos_masks: torch.Tensor, visual_embeds: torch.Tensor
+) -> torch.Tensor:
+    visual_pos_masks = visual_pos_masks.to(hidden_states.device)
+    visual_embeds = visual_embeds.to(hidden_states.device, hidden_states.dtype)
+    local_this = hidden_states[visual_pos_masks, :].clone() + visual_embeds
+    out = hidden_states.clone()
+    out[visual_pos_masks, :] = local_this
+    return out

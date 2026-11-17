@@ -31,7 +31,58 @@ from torch import Tensor
 
 from lingbotvla.optim.muon import DEFAULT_NS_COEFFICIENTS, DEFAULT_NS_STEPS, EPS
 
-from .muon_fused_kernels import _FUSE_MIN_ELEMS, _HAS_TRITON, _pack_kernel, triton
+from .muon_fused_kernels import _FUSE_MIN_ELEMS, _HAS_TRITON, _pack_kernel, triton, tl
+
+_NORM_BLOCK = 4096
+
+if _HAS_TRITON:
+
+    @triton.jit
+    def _sumsq_blocks(x_ptr, out_ptr, n_elements, BLOCK: tl.constexpr):
+        b = tl.program_id(0)
+        blk = tl.program_id(1)
+        stride = tl.num_programs(1)
+        offs = blk * BLOCK + tl.arange(0, BLOCK)
+        mask = offs < n_elements
+        v = tl.load(x_ptr + b.to(tl.int64) * n_elements + offs, mask=mask, other=0.0)
+        v = v.to(tl.float32)
+        tl.store(out_ptr + b.to(tl.int64) * stride + blk, tl.sum(v * v))
+
+    @triton.jit
+    def _norm_from_blocks(part_ptr, out_ptr, n_blocks, eps, BLOCK: tl.constexpr):
+        b = tl.program_id(0)
+        base = part_ptr + b.to(tl.int64) * n_blocks
+        acc = tl.zeros((BLOCK,), dtype=tl.float32)
+        for i in tl.range(0, n_blocks, BLOCK):
+            idx = i + tl.arange(0, BLOCK)
+            acc += tl.load(base + idx, mask=idx < n_blocks, other=0.0)
+        total = tl.sum(acc)
+        nrm = tl.maximum(tl.sqrt(total), eps)
+        tl.store(out_ptr + b, nrm.to(out_ptr.dtype.element_ty))
+
+
+def _contiguous_matrices(x: Tensor) -> Tensor:
+    if x.is_contiguous():
+        return x
+    transposed = x.mT
+    if transposed.is_contiguous():
+        return transposed
+    return x.contiguous()
+
+
+def matrix_norm(x: Tensor, eps: float) -> Tensor:
+    if not (_HAS_TRITON and x.is_cuda and x.ndim == 3 and x.numel() > 0):
+        return x.norm(dim=(-2, -1), keepdim=True).clamp(min=eps)
+
+    base = _contiguous_matrices(x)
+    matrices, inner = base.shape[0], base.shape[1] * base.shape[2]
+    blocks = max(1, (inner + _NORM_BLOCK - 1) // _NORM_BLOCK)
+    partials = torch.empty((matrices, blocks), device=x.device, dtype=torch.float32)
+    _sumsq_blocks[(matrices, blocks)](base, partials, inner, BLOCK=_NORM_BLOCK)
+    out = torch.empty((matrices, 1, 1), device=x.device, dtype=x.dtype)
+    _norm_from_blocks[(matrices,)](partials, out, blocks, float(eps), BLOCK=1024)
+    return out
+
 
 def can_pack(x: Tensor, compute_dtype: torch.dtype) -> bool:
     """是否是 packed gather 布局、且值得用融合 cast kernel 重排。"""
@@ -128,7 +179,7 @@ def _iterate_newton_schulz(
     ortho, original_dtype, transposed = prepared
     del prepared  # 别让这个 tuple 把 pre-normalization 张量留住
     a, b, c = ns_coefficients
-    norm = ortho.norm(dim=(-2, -1), keepdim=True).clamp(min=eps)
+    norm = matrix_norm(ortho, eps)
     ortho = ortho / norm
     del norm
 

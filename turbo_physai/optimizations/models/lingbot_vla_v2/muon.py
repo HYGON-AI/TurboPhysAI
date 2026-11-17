@@ -59,16 +59,21 @@ from .muon_fused_kernels import (
     _can_fuse_apply,
     can_fuse,
     can_fuse_multi,
+    can_fuse_multi_momentum,
     momentum_nesterov_,
+    momentum_nesterov_multi_,
     muon_apply_,
     muon_apply_multi_,
 )
-from .muon_gather import gather_updates
+from .muon_gather import gather_owned_updates, gather_updates
 
 
 _LOCAL_KINDS = (_KIND_LOCAL, _KIND_MOE_LOCAL_3D)
 _NS_BATCH_MAX_BYTES = 1 << 30
 _NS_BATCH_MAX_PARAM_BYTES = 64 << 20
+
+_NS_COMPUTE_DTYPE = torch.bfloat16
+_OWNER_COST_MIN = 5e9
 
 
 class MuonStep:
@@ -155,66 +160,111 @@ class MuonStep:
         for start in range(0, len(params), chunk):
             self._step_megabatch_chunk(params[start:start + chunk], info, config)
 
+    @staticmethod
+    def _owner_cost(params: List[Tensor], world_size: int) -> float:
+        n = len(params)
+        per_rank = -(-max(n, world_size) // world_size)
+        saved = max(n - per_rank, 0)
+        return saved * float(params[0].numel()) ** 1.5
+
+    def _owner_eligible(self, params: List[Tensor], info: tuple) -> bool:
+        _, world_size, _, shard_dim = info
+        if world_size <= 1:
+            return False
+        if (
+            min(params[0].shape[-2:]) < world_size
+            or params[0].shape[shard_dim] % world_size != 0
+        ):
+            return False
+        return self._owner_cost(params, world_size) >= _OWNER_COST_MIN
+
+    @staticmethod
+    def _staged_rows(params: List[Tensor], world_size: int) -> int:
+        return world_size if len(params) < world_size else len(params)
+
     @torch.no_grad()
-    def _step_megabatch_chunk(self, params: List[Tensor], info: tuple, config: dict) -> None:
-        """一个 chunk 的 megabatch 主流程：momentum → gather → NS → apply。"""
+    def _fill_updates(self, params: List[Tensor], staged: Tensor, config: dict) -> List[bool]:
         momentum, nesterov = config["momentum"], config["nesterov"]
-        pg, world_size, rank, shard_dim = info
-        gather_dim = shard_dim + 1
-        p0_local = self._local(params[0])
-        ref_grad = params[0].grad
-        update_dtype = ref_grad.dtype if ref_grad is not None else p0_local.dtype
-        stacked_local = torch.empty(
-            (len(params),) + tuple(p0_local.shape), dtype=update_dtype, device=p0_local.device
-        )
         has_grad = [p.grad is not None for p in params]
-        for idx, p in enumerate(params):
-            if not has_grad[idx]:
-                stacked_local[idx].zero_()
-                continue
-            buf_local = self._buffer(p)
-            grad_local = self._local(p.grad)
+        active = [i for i, ok in enumerate(has_grad) if ok]
+        for i, ok in enumerate(has_grad):
+            if not ok:
+                staged[i].zero_()
+        if not active:
+            return has_grad
+
+        grads = [self._local(params[i].grad) for i in active]
+        bufs = [self._buffer(params[i]) for i in active]
+        outs = [staged[i] for i in active]
+        if can_fuse_multi_momentum(grads, bufs, outs):
+            momentum_nesterov_multi_(grads, bufs, outs, momentum, nesterov)
+            return has_grad
+        for grad_local, buf_local, out in zip(grads, bufs, outs):
             if grad_local.numel() >= _FUSE_MIN_ELEMS and can_fuse(
-                grad_local, buf_local, stacked_local[idx]
+                grad_local, buf_local, out
             ):
                 momentum_nesterov_(
-                    grad_local, buf_local, stacked_local[idx], momentum, nesterov
+                    grad_local, buf_local, out, momentum, nesterov
                 )
                 continue
             buf_local.lerp_(grad_local, 1 - momentum)
-            stacked_local[idx].copy_(
+            out.copy_(
                 torch.lerp(grad_local, buf_local, momentum) if nesterov else buf_local
             )
+        return has_grad
+
+    def _staged_dtype(self, params: List[Tensor]) -> torch.dtype:
+        ref_grad = params[0].grad
+        dtype = ref_grad.dtype if ref_grad is not None else self._local(params[0]).dtype
+        if dtype == torch.float32 and _NS_COMPUTE_DTYPE == torch.bfloat16:
+            return torch.bfloat16
+        return dtype
+
+    def _new_staged(self, params: List[Tensor], rows: int = 0) -> Tensor:
+        p0_local = self._local(params[0])
+        return torch.empty(
+            (rows or len(params),) + tuple(p0_local.shape),
+            dtype=self._staged_dtype(params), device=p0_local.device,
+        )
+
+    @torch.no_grad()
+    def _step_megabatch_chunk(self, params: List[Tensor], info: tuple, config: dict) -> None:
+        pg, world_size, rank, shard_dim = info
+        gather_dim = shard_dim + 1
+        owner = self._owner_eligible(params, info)
+        rows = self._staged_rows(params, world_size) if owner else len(params)
+        stacked_local = self._new_staged(params, rows)
+        has_grad = self._fill_updates(params, stacked_local, config)
+        if rows > len(params):
+            stacked_local[len(params):].zero_()
         global_size = params[0].shape[shard_dim]
         local_size = stacked_local.size(gather_dim)
-        stacked_full = gather_updates(
-            stacked_local, global_size=global_size, shard_dim=shard_dim,
-            world_size=world_size, rank=rank, group=pg,
-        )
-        del stacked_local
-        owner_enabled = (
-            world_size > 1
-            and len(params) >= world_size
-            and min(params[0].shape[-2:]) >= world_size
-            and global_size % world_size == 0
-            and params[0].numel() >= self._owner_ns_min_matrix_elements
-        )
-        if owner_enabled:
+        if owner:
             from .muon_owner_ns import partition_range, exchange_result
 
-            owner_start, owner_count = partition_range(len(params), world_size, rank)
-            owner_input = stacked_full.narrow(0, owner_start, owner_count).contiguous()
+            owner_start, owner_count = partition_range(rows, world_size, rank)
+            owner_input = gather_owned_updates(
+                stacked_local, matrix_count=rows, global_size=global_size,
+                shard_dim=shard_dim, own_count=owner_count,
+                world_size=world_size, group=pg,
+            )
+            del stacked_local
             prepared = self._prepare_ns(owner_input, config)
-            del owner_input, stacked_full
+            del owner_input
             owned = _iterate_newton_schulz(
                 prepared, config["ns_coefficients"], config["ns_steps"], config["eps"]
             )
             orthos_full = exchange_result(
-                owned, matrix_count=len(params), world_size=world_size,
+                owned, matrix_count=rows, world_size=world_size,
                 rank=rank, shard_dim=shard_dim, group=pg,
             )
             del owned
         else:
+            stacked_full = gather_updates(
+                stacked_local, global_size=global_size, shard_dim=shard_dim,
+                world_size=world_size, rank=rank, group=pg,
+            )
+            del stacked_local
             chunk_floor, remainder = divmod(global_size, world_size)
             shard_start = rank * chunk_floor + min(rank, remainder)
             prepared = self._prepare_ns(stacked_full, config)
@@ -326,9 +376,11 @@ class MuonStep:
         return buf_local.clone()
 
     def _prepare_ns(self, grad: Tensor, config: dict):
+        if not grad.is_contiguous():
+            grad = grad.contiguous()
         return _prepare_newton_schulz(
             grad, config["ns_coefficients"], config["ns_steps"],
-            torch.bfloat16, layout_pack=True,
+            _NS_COMPUTE_DTYPE, layout_pack=True,
         )
 
     def _ns(self, grad: Tensor, config: dict, local_slice=None) -> Tensor:
@@ -341,9 +393,7 @@ class MuonStep:
 def configure_optimizer(original, _options=None):
     if not _HAS_TRITON:
         raise RuntimeError("lingbot-vla-v2.muon-fused requires triton")
-    cls = type("DistributedMuon", (MuonStep, original), {
-        "_owner_ns_min_matrix_elements": 1 << 20,
-    })
+    cls = type("DistributedMuon", (MuonStep, original), {})
     cls.__module__ = __name__
     cls.__qualname__ = "DistributedMuon"
     return cls

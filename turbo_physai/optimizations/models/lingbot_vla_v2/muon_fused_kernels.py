@@ -35,11 +35,18 @@ _PTR_CACHE_MAX = 4096
 if _HAS_TRITON:
 
     @triton.jit
+    def _lerp_scalar(self_, end_, weight):
+        low = self_ + weight * (end_ - self_)
+        high = end_ - (end_ - self_) * (1.0 - weight)
+        return tl.where(tl.abs(weight) < 0.5, low, high)
+
+    @triton.jit
     def _muon_momentum_kernel(
         grad_ptr,
         buf_ptr,
         out_ptr,
         momentum,
+        weight,
         n_elements,
         NESTEROV: tl.constexpr,
         OUT_BF16: tl.constexpr,
@@ -52,19 +59,56 @@ if _HAS_TRITON:
         g = tl.load(grad_ptr + offs, mask=mask, other=0.0)
         b = tl.load(buf_ptr + offs, mask=mask, other=0.0)
 
-        # buf_local.lerp_(grad_local, 1 - momentum) == b + (1-m)*(g - b)
-        b_new = b + (1.0 - momentum) * (g - b)
+        b_new = b + weight * (g - b)
         tl.store(buf_ptr + offs, b_new, mask=mask)
 
-        # grad_local.lerp(buf_local, momentum) == g + m*(b_new - g)
         if NESTEROV:
-            u = g + momentum * (b_new - g)
+            u = _lerp_scalar(g, b_new, momentum)
         else:
             u = b_new
         if OUT_BF16:
             tl.store(out_ptr + offs, u.to(tl.bfloat16), mask=mask)
         else:
             tl.store(out_ptr + offs, u, mask=mask)
+
+    @triton.jit
+    def _mt_momentum_kernel(
+        g_ptrs,
+        b_ptrs,
+        o_ptrs,
+        momentum,
+        weight,
+        n_elements,
+        NESTEROV: tl.constexpr,
+        OUT_BF16: tl.constexpr,
+        BLOCK: tl.constexpr,
+    ):
+        tid = tl.program_id(0)
+        bid = tl.program_id(1)
+        g_ptr = tl.load(g_ptrs + tid).to(tl.pointer_type(tl.float32))
+        b_ptr = tl.load(b_ptrs + tid).to(tl.pointer_type(tl.float32))
+        if OUT_BF16:
+            o_ptr = tl.load(o_ptrs + tid).to(tl.pointer_type(tl.bfloat16))
+        else:
+            o_ptr = tl.load(o_ptrs + tid).to(tl.pointer_type(tl.float32))
+
+        offs = bid * BLOCK + tl.arange(0, BLOCK)
+        mask = offs < n_elements
+
+        g = tl.load(g_ptr + offs, mask=mask, other=0.0)
+        b = tl.load(b_ptr + offs, mask=mask, other=0.0)
+
+        b_new = b + weight * (g - b)
+        tl.store(b_ptr + offs, b_new, mask=mask)
+
+        if NESTEROV:
+            u = _lerp_scalar(g, b_new, momentum)
+        else:
+            u = b_new
+        if OUT_BF16:
+            tl.store(o_ptr + offs, u.to(tl.bfloat16), mask=mask)
+        else:
+            tl.store(o_ptr + offs, u, mask=mask)
 
     @triton.jit
     def _muon_apply_kernel(
@@ -130,6 +174,7 @@ if _HAS_TRITON:
         tl.store(Y + b * M * K + m[:, None] * K + k[None, :], value, mask=mask)
 else:
     _muon_momentum_kernel = None
+    _mt_momentum_kernel = None
     _muon_apply_kernel = None
     _mt_apply_kernel = None
     _pack_kernel = None
@@ -186,9 +231,46 @@ def momentum_nesterov_(
     if n == 0:
         return
     _muon_momentum_kernel[(triton.cdiv(n, _BLOCK),)](
-        grad, buf, out, float(momentum), n,
+        grad, buf, out, float(momentum), float(1 - momentum), n,
         NESTEROV=bool(nesterov),
         OUT_BF16=out.dtype == torch.bfloat16,
+        BLOCK=_BLOCK,
+        num_warps=8,
+    )
+
+def can_fuse_multi_momentum(grads: Sequence[Tensor], bufs: Sequence[Tensor],
+                            outs: Sequence[Tensor]) -> bool:
+    if not _HAS_TRITON or not grads:
+        return False
+    n = grads[0].numel()
+    if n == 0 or len(bufs) != len(grads) or len(outs) != len(grads):
+        return False
+    if outs[0].dtype not in (torch.float32, torch.bfloat16):
+        return False
+    return all(
+        g.dtype == torch.float32 and b.dtype == torch.float32
+        and o.dtype == outs[0].dtype
+        and g.is_cuda and g.is_contiguous() and b.is_contiguous() and o.is_contiguous()
+        and g.numel() == b.numel() == o.numel() == n and g.device == b.device == o.device
+        for g, b, o in zip(grads, bufs, outs)
+    )
+
+def momentum_nesterov_multi_(grads: Sequence[Tensor], bufs: Sequence[Tensor],
+                             outs: Sequence[Tensor], momentum: float,
+                             nesterov: bool) -> None:
+    if not grads:
+        return
+    n = grads[0].numel()
+    device = grads[0].device
+    _mt_momentum_kernel[(len(grads), triton.cdiv(n, _BLOCK))](
+        _ptr_array(grads, device),
+        _ptr_array(bufs, device),
+        _ptr_array(outs, device),
+        float(momentum),
+        float(1 - momentum),
+        n,
+        NESTEROV=bool(nesterov),
+        OUT_BF16=outs[0].dtype == torch.bfloat16,
         BLOCK=_BLOCK,
         num_warps=8,
     )

@@ -71,3 +71,17 @@ optimization_groups:
 
   - id: lingbot-vla-v2.fast-hf-query
     enabled: true
+
+  - id: lingbot-vla-v2.upsample-bilinear-fast
+    enabled: true
+
+  - id: lingbot-vla-v2.hip-triton-configs
+    enabled: true
+
+  - id: lingbot-vla-v2.ckpt-policy
+    enabled: true
+    options:
+      expert_layers: 16
+
+  - id: lingbot-vla-v2.split-root-fsdp
+    enabled: true

@@ -1,14 +1,8 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""lingbot_vla_v2 optimization declarations.
-
-Importing this module registers the Groups with TurboPhysAI; the generated
-OptimizationConfig loads it through ``optimization_modules``.  Declarations are
-strings only -- nothing here imports lingbotvla or resolves runtime objects.
-
-The package directory must stay a valid Python identifier (``lingbot_vla_v2``):
-``optimization_modules`` and every ``replacement`` path go through ``importlib``.
+"""
+lingbot_vla_v2 optimization declarations.
 """
 
 from __future__ import annotations
@@ -158,12 +152,39 @@ QWEN2_COMPILE_EXPERT = group(
             "turbo_physai.optimizations.models.lingbot_vla_v2.qwen2_compile_expert.install_on_init"
         ),
     ),
-    wrap(
+    replace(
         target=(
-            "lingbotvla.models.vla.lingbot_vla.qwen2_action_expert.Qwen2DecoderLayer.__call__"
+            "transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLTextModel._deepstack_process"
         ),
         replacement=(
-            "turbo_physai.optimizations.models.lingbot_vla_v2.qwen2_compile_expert.install_call_guard"
+            "turbo_physai.optimizations.models.lingbot_vla_v2."
+            "qwen2_compile_expert.deepstack_process"
+        ),
+    ),
+)
+
+CKPT_POLICY = group(
+    "lingbot-vla-v2.ckpt-policy",
+    wrap(
+        target=(
+            "lingbotvla.models.vla.lingbot_vla.modeling_lingbot_vla_v2."
+            "LingbotVlaV2Policy.gradient_checkpointing_enable"
+        ),
+        replacement=(
+            "turbo_physai.optimizations.models.lingbot_vla_v2.ckpt_policy."
+            "enable_gradient_checkpointing"
+        ),
+    ),
+)
+
+# --- 把 embed_tokens 从 FSDP 根单元拆出来单独 shard ----------------------------
+SPLIT_ROOT_FSDP = group(
+    "lingbot-vla-v2.split-root-fsdp",
+    wrap(
+        target="lingbotvla.distributed.torch_parallelize.fully_shard",
+        replacement=(
+            "turbo_physai.optimizations.models.lingbot_vla_v2."
+            "split_root_fsdp.fully_shard"
         ),
     ),
 )
@@ -294,6 +315,35 @@ FLEX_ATTN_TF32 = group(
         replacement=(
             "turbo_physai.optimizations.models.lingbot_vla_v2."
             "flex_attn_tf32.wrap_get_float32_precision"
+        ),
+    ),
+)
+
+UPSAMPLE_BILINEAR_FAST = group(
+    "lingbot-vla-v2.upsample-bilinear-fast",
+    wrap(
+        target="torch.nn.modules.upsampling.Upsample.forward",
+        replacement=(
+            "turbo_physai.optimizations.models.lingbot_vla_v2."
+            "upsample_bilinear_fast.upsample_forward"
+        ),
+    ),
+)
+
+HIP_TRITON_CONFIGS = group(
+    "lingbot-vla-v2.hip-triton-configs",
+    wrap(
+        target="torch._inductor.runtime.triton_heuristics.pointwise",
+        replacement=(
+            "turbo_physai.optimizations.models.lingbot_vla_v2."
+            "hip_triton_configs.pointwise"
+        ),
+    ),
+    wrap(
+        target="torch._inductor.runtime.triton_heuristics._reduction_configs",
+        replacement=(
+            "turbo_physai.optimizations.models.lingbot_vla_v2."
+            "hip_triton_configs.reduction_configs"
         ),
     ),
 )
