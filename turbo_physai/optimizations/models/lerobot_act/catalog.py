@@ -122,6 +122,18 @@ SAMPLER_VECTOR = group(
     ),
 )
 
+INFINITE_BATCH_SAMPLER = group(
+    "lerobot_act.infinite_batch_sampler",
+    wrap(
+        target="accelerate.data_loader.DataLoaderShard.set_epoch",
+        replacement=f"{BASE}.infinite_batch_sampler.preserve_resume_epoch_wrapper",
+    ),
+    wrap(
+        target="accelerate.data_loader.BatchSamplerShard.__iter__",
+        replacement=f"{BASE}.infinite_batch_sampler.continuous_batches_wrapper",
+    ),
+)
+
 VAE_NO_CLONE = group(
     "lerobot_act.vae_no_clone",
     wrap(

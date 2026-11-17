@@ -155,6 +155,21 @@ optimization_groups:
       lerobot.datasets.sampler.EpisodeAwareSampler._iter_epoch:
       - ast-v1:351b199497a7e82f6020dbc49fe4d3a9b6efe394f889e4629cf909a831ce5cc2
   accuracy_only: false
+- id: lerobot_act.infinite_batch_sampler
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      accelerate.data_loader.DataLoaderShard.set_epoch:
+      - source-v1:07cce703acb8d151af63e62e991f8d8ce29be45e860ccaade1f45e4957511bb4
+      accelerate.data_loader.BatchSamplerShard.__iter__:
+      - source-v1:2f92def468d7a12d8441667ebe4ea9fdbc806eef03a823097e9300434f2afcc4
+    ast_hashes:
+      accelerate.data_loader.DataLoaderShard.set_epoch:
+      - ast-v1:58de229552fd4c3edbdfd9329b46817ac9c5d988caf1ab67e2a04b58926ec1ce
+      accelerate.data_loader.BatchSamplerShard.__iter__:
+      - ast-v1:fa52fff2a4f8e333de8cdfe6cb8b0cf780c7c206faa4753de50701a2d3046931
+  accuracy_only: false
 - id: lerobot_act.vae_no_clone
   enabled: true
   options: {}
