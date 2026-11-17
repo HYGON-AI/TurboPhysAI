@@ -23,11 +23,15 @@ optimization_groups:
     enabled: true
     options:
       register_backward: true
+  - id: lerobot_act.qk_tf32
+    enabled: true
   - id: lerobot_act.ddp_options
     enabled: true
     options:
       static_graph: true
   - id: lerobot_act.nonblocking_h2d
+    enabled: true
+  - id: lerobot_act.h2d_prefetch_stream
     enabled: true
   - id: lerobot_act.deferred_metrics_apex_layernorm
     enabled: true

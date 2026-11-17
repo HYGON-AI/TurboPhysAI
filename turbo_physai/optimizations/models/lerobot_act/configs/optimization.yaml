@@ -34,6 +34,7 @@ optimization_groups:
       - ast-v1:8d3118933c31c3a7adde2ee3d9607d1cd2a6136360ee5318313e33cd2483820c
       torch.nn.modules.pooling.MaxPool2d.forward:
       - ast-v1:0bb67557c45f13d9f7cb1631cb467d459af3be101453304f280909950d1c0682
+  accuracy_only: false
 - id: lerobot_act.backbone_compile
   enabled: true
   options: {}
@@ -44,6 +45,7 @@ optimization_groups:
     ast_hashes:
       torchvision.models._utils.IntermediateLayerGetter.forward:
       - ast-v1:fceb4ce012c9a0cd639fc2df70c133da6958b626c03ef375a0a2a37b810412c2
+  accuracy_only: false
 - id: lerobot_act.no_attn_average
   enabled: true
   options: {}
@@ -54,6 +56,7 @@ optimization_groups:
     ast_hashes:
       torch.nn.modules.activation.MultiheadAttention.forward:
       - ast-v1:bf44fe72124624f5e56901f0446e3f3d9070a54b8a861b052bd792e56de951de
+  accuracy_only: false
 - id: lerobot_act.ffn_compile
   enabled: true
   options: {}
@@ -68,6 +71,7 @@ optimization_groups:
       - ast-v1:1a60ef31000f5cb1ccde1dfd07dbacdc0402b1e5489b0fc3f8cc74261887d1a2
       lerobot.policies.act.modeling_act.ACTDecoderLayer.forward:
       - ast-v1:44a820963be953c0c81552e5f85219e622c4c71d37a9beb2b76056ea4ef65bc4
+  accuracy_only: false
 - id: lerobot_act.attention_softmax_dropout
   enabled: true
   options:
@@ -79,6 +83,18 @@ optimization_groups:
     ast_hashes:
       torch.nn.functional.multi_head_attention_forward:
       - ast-v1:8984cf4775a8ac80b3a2024a13fa7618317b48e23eb98f47325dbc96d4ef95fb
+  accuracy_only: false
+- id: lerobot_act.qk_tf32
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      turbo_physai.optimizations.models.lerobot_act.attention_softmax_dropout._unmasked_qk:
+      - source-v1:6e149ec7468b0e679240e262404c20041561371233752feb46c67dcd0ad6252c
+    ast_hashes:
+      turbo_physai.optimizations.models.lerobot_act.attention_softmax_dropout._unmasked_qk:
+      - ast-v1:05d33f0ca1d0a93144ea5753b9a271c932c60eac79eb7bd60cafe0f0be01c6b2
+  accuracy_only: false
 - id: lerobot_act.ddp_options
   enabled: true
   options:
@@ -90,6 +106,7 @@ optimization_groups:
     ast_hashes:
       torch.nn.parallel.distributed.DistributedDataParallel.__init__:
       - ast-v1:0904aa9377bcb83e978bf07f6e4814a63b9099b0842bb382437c569a334dffad
+  accuracy_only: false
 - id: lerobot_act.nonblocking_h2d
   enabled: true
   options: {}
@@ -100,6 +117,18 @@ optimization_groups:
     ast_hashes:
       accelerate.accelerator.Accelerator.__init__:
       - ast-v1:8d3a917c15327dda5af21200c433460b812ca33e92f882f0b8510d8e34f6eab5
+  accuracy_only: false
+- id: lerobot_act.h2d_prefetch_stream
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      accelerate.data_loader.DataLoaderShard.__iter__:
+      - source-v1:77b896b76f3c73e9fb1126bdf1645577a4fe398e59324bec768ce1e8db3ad354
+    ast_hashes:
+      accelerate.data_loader.DataLoaderShard.__iter__:
+      - ast-v1:e44fbbcd152857cbc487258f6858fa9b9586300dbc96727402041514d9faf050
+  accuracy_only: false
 - id: lerobot_act.deferred_metrics_apex_layernorm
   enabled: true
   options: {}
@@ -114,6 +143,7 @@ optimization_groups:
       - ast-v1:6082527eec9a5ed46ede7d3e8ae90a869a1ace8f43e1051c5e2826edf8637a1f
       torch.nn.modules.normalization.LayerNorm.forward:
       - ast-v1:46d7794087369ccf8d2a6db2fe49508998e29fda386234a2b38defd2b3db01f3
+  accuracy_only: false
 - id: lerobot_act.sampler_vector
   enabled: true
   options: {}
@@ -124,6 +154,7 @@ optimization_groups:
     ast_hashes:
       lerobot.datasets.sampler.EpisodeAwareSampler._iter_epoch:
       - ast-v1:351b199497a7e82f6020dbc49fe4d3a9b6efe394f889e4629cf909a831ce5cc2
+  accuracy_only: false
 - id: lerobot_act.vae_no_clone
   enabled: true
   options: {}
@@ -134,6 +165,7 @@ optimization_groups:
     ast_hashes:
       lerobot.policies.act.modeling_act.ACT.forward:
       - ast-v1:1e4f55bbb7809acd9fcabd7efe953da14301b0a63251b829b8376713315236d8
+  accuracy_only: false
 - id: lerobot_act.apex_fused_adamw
   enabled: true
   options: {}
@@ -144,5 +176,6 @@ optimization_groups:
     ast_hashes:
       lerobot.optim.optimizers.AdamWConfig.build:
       - ast-v1:512fd8832a87140d63727b8e50e3c47cd58f8f2c2ba659079b782ea3595b9d21
+  accuracy_only: false
 optimization_modules:
 - turbo_physai.optimizations.models.lerobot_act.catalog

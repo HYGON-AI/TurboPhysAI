@@ -90,6 +90,11 @@ def _project_qkv(query, key, value, weight, bias):
     return F._in_projection_packed(query, key, value, weight, bias)
 
 
+def _unmasked_qk(query, key):
+    """Compute unmasked QK scores; replaceable by the QK TF32 Group."""
+    return torch.bmm(query, key)
+
+
 def _math_attention(
     query, key, value, embed_dim_to_check, num_heads, in_proj_weight, in_proj_bias,
     bias_k, bias_v, add_zero_attn, dropout_p, out_proj_weight, out_proj_bias,
@@ -111,7 +116,7 @@ def _math_attention(
     v = v.view(source_len, batch * num_heads, head_dim).transpose(0, 1)
     q_scaled = q * math.sqrt(1.0 / float(head_dim))
     if key_padding_mask is None:
-        scores = torch.bmm(q_scaled, k.transpose(-2, -1))
+        scores = _unmasked_qk(q_scaled, k.transpose(-2, -1))
     else:
         mask = F._canonical_mask(
             mask=key_padding_mask, mask_name="key_padding_mask", other_type=None,

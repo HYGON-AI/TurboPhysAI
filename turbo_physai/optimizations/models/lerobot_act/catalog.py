@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from ....engine.definitions import group, wrap
+from ....engine.definitions import group, replace, wrap
 
 
 BASE = "turbo_physai.optimizations.models.lerobot_act"
@@ -68,6 +68,15 @@ ATTENTION_SOFTMAX_DROPOUT = group(
     ),
 )
 
+QK_TF32 = group(
+    "lerobot_act.qk_tf32",
+    replace(
+        target=f"{BASE}.attention_softmax_dropout._unmasked_qk",
+        replacement=f"{BASE}.qk_tf32.qk_bmm",
+    ),
+    depends_on=("lerobot_act.attention_softmax_dropout",),
+)
+
 DDP_OPTIONS = group(
     "lerobot_act.ddp_options",
     wrap(
@@ -82,6 +91,15 @@ NONBLOCKING_H2D = group(
         target="accelerate.accelerator.Accelerator.__init__",
         replacement=f"{BASE}.training_ddp_h2d.nonblocking_h2d_wrapper",
     ),
+)
+
+H2D_PREFETCH_STREAM = group(
+    "lerobot_act.h2d_prefetch_stream",
+    replace(
+        target="accelerate.data_loader.DataLoaderShard.__iter__",
+        replacement=f"{BASE}.h2d_prefetch_stream.prefetch_dataloader_iter",
+    ),
+    depends_on=("lerobot_act.nonblocking_h2d",),
 )
 
 DEFERRED_METRICS_APEX_LAYERNORM = group(
