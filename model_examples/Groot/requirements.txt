@@ -1,0 +1,27 @@
+# GR00T N1.7 LIBERO finetuning on the DTK 26.04 / Python 3.10 image.
+# Keep vendor torch, torchvision, DeepSpeed, FlashAttention and Triton from the image.
+# Install with the vendor constraints generated in README.md, not upstream uv sync.
+numpy==1.26.3
+pandas==2.3.3
+pyarrow==20.0.0
+scipy==1.15.3
+scikit-image==0.25.2
+opencv-python-headless==4.11.0.86
+albumentations==1.4.18
+albucore==0.0.17
+tyro==0.9.17
+omegaconf==2.3.0
+transformers==4.57.3
+huggingface-hub==0.35.3
+tokenizers==0.22.1
+safetensors==0.6.2
+accelerate==1.12.0
+diffusers==0.35.1
+peft==0.17.1
+dm-tree==0.1.9
+einops==0.8.2
+wandb==0.23.0
+pytest==8.3.5
+PyYAML>=6.0
+packaging>=21.0
+tomli==2.5.0; python_version < "3.11"
