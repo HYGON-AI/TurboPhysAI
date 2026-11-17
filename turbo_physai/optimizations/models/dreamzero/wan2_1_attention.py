@@ -1,0 +1,163 @@
+# Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
+
+"""Cache uniform FlashAttention cumulative lengths (model commit 090223d).
+
+"""
+
+from typing import Optional
+import warnings
+
+import torch
+
+
+_UNIFORM_CU_SEQLENS_CACHE: dict[
+    tuple[str, int | None, int, int], torch.Tensor
+] = {}
+
+def _get_uniform_cu_seqlens(
+    batch_size: int,
+    sequence_length: int,
+    device: torch.device,
+) -> torch.Tensor:
+    """Return cached int32 cumulative sequence lengths for a uniform batch."""
+    device = torch.device(device)
+    if device.type == "cuda" and device.index is None:
+        device = torch.device("cuda", torch.cuda.current_device())
+    cache_key = (device.type, device.index, batch_size, sequence_length)
+    cu_seqlens = _UNIFORM_CU_SEQLENS_CACHE.get(cache_key)
+    if cu_seqlens is None:
+        # Keep cached metadata usable by autograd even when first warmed up
+        # under inference_mode. Multiplication also handles empty sequences.
+        with torch.inference_mode(False):
+            cu_seqlens = torch.arange(
+                batch_size + 1, dtype=torch.int32, device=device,
+            ) * sequence_length
+        _UNIFORM_CU_SEQLENS_CACHE[cache_key] = cu_seqlens
+    return cu_seqlens
+
+def flash_attention(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    q_lens: Optional[torch.Tensor] = None,
+    k_lens: Optional[torch.Tensor] = None,
+    dropout_p: float = 0.,
+    softmax_scale: Optional[float] = None,
+    q_scale: Optional[float] = None,
+    causal: bool = False,
+    window_size: Optional[tuple[int, int]] = None,
+    deterministic: bool = False,
+    dtype: torch.dtype = torch.bfloat16,
+    version: Optional[int] = None,
+):
+    """
+    q:              [B, Lq, Nq, C1].
+    k:              [B, Lk, Nk, C1].
+    v:              [B, Lk, Nk, C2]. Nq must be divisible by Nk.
+    q_lens:         [B].
+    k_lens:         [B].
+    dropout_p:      float. Dropout probability.
+    softmax_scale:  float. The scaling of QK^T before applying softmax.
+    causal:         bool. Whether to apply causal attention mask.
+    window_size:    (left right). If not (-1, -1), apply sliding window local attention.
+    deterministic:  bool. If True, slightly slower and uses more memory.
+    dtype:          torch.dtype. Apply when dtype of q/k/v is not float16/bfloat16.
+    version:        int. 2 for flash attention 2, 3 for flash attention 3.
+
+    Returns:
+        x:              [B, Lq, Nq, C2].
+    """
+    from groot.vla.model.dreamzero.modules import wan2_1_attention as attention
+
+    if window_size is None:
+        window_size = (-1, -1)
+    if version is None:
+        version = 3
+
+    half_dtypes = (torch.float16, torch.bfloat16)
+    assert dtype in half_dtypes
+    assert q.device.type == 'cuda' and q.size(-1) <= 256
+
+    # Use PyTorch SDPA on pre-Ampere GPUs (FlashAttention requires Ampere or newer)
+    if not attention._gpu_supports_flash_attention():
+        return attention._sdpa_attention_fallback(
+            q, k, v,
+            q_lens=q_lens,
+            k_lens=k_lens,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            q_scale=q_scale,
+            causal=causal,
+            dtype=dtype,
+        )
+
+    # params
+    b, lq, lk, out_dtype = q.size(0), q.size(1), k.size(1), q.dtype
+
+    def half(x):
+        return x if x.dtype in half_dtypes else x.to(dtype)
+
+    # preprocess query
+    if q_lens is None:
+        q = half(q.flatten(0, 1))
+        cu_seqlens_q = _get_uniform_cu_seqlens(b, lq, q.device)
+    else:
+        q = half(torch.cat([u[:v] for u, v in zip(q, q_lens)]))
+        zeros = torch.zeros([1], dtype=torch.int32, device=q.device)
+        cu_seqlens_q = torch.cat([zeros, q_lens]).cumsum(0, dtype=torch.int32)
+
+    # preprocess key, value
+    if k_lens is None:
+        k = half(k.flatten(0, 1))
+        v = half(v.flatten(0, 1))
+        cu_seqlens_k = _get_uniform_cu_seqlens(b, lk, k.device)
+    else:
+        k = half(torch.cat([u[:v] for u, v in zip(k, k_lens)]))
+        v = half(torch.cat([u[:v] for u, v in zip(v, k_lens)]))
+        zeros = torch.zeros([1], dtype=torch.int32, device=k.device)
+        cu_seqlens_k = torch.cat([zeros, k_lens]).cumsum(0, dtype=torch.int32)
+
+    q = q.to(v.dtype)
+    k = k.to(v.dtype)
+
+    if q_scale is not None:
+        q = q * q_scale
+
+    if version == 3 and not attention.FLASH_ATTN_3_AVAILABLE:
+        warnings.warn(
+            'Flash attention 3 is not available, use flash attention 2 instead.'
+        )
+
+    # apply attention
+    if version == 3 and attention.FLASH_ATTN_3_AVAILABLE:
+        # Note: dropout_p, window_size are not supported in FA3 now.
+        x = attention.flash_attn_interface.flash_attn_varlen_func(
+            q=q,
+            k=k,
+            v=v,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=lq,
+            max_seqlen_k=lk,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            deterministic=deterministic)[0].unflatten(0, (b, lq))
+    elif attention.FLASH_ATTN_2_AVAILABLE:
+        x = attention.flash_attn.flash_attn_varlen_func(
+            q=q,
+            k=k,
+            v=v,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=lq,
+            max_seqlen_k=lk,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            window_size=window_size,
+            deterministic=deterministic).unflatten(0, (b, lq))
+    else:
+        raise ValueError(f"Invalid version: {version}")
+
+    # output
+    return x.type(out_dtype)
