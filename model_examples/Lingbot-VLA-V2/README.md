@@ -17,7 +17,7 @@ TurboPhysAI 的 LingBot-VLA-V2 优化基于官方仓库 commit `be969b8fd117fb70
 
 ### 3.2 安装 LingBot-VLA-V2 训练依赖
 
-镜像已提供 DTK 版 torch 等基础包，LingBot-VLA-V2 训练还需要安装额外依赖，清单见 [requirements.txt](requirements.txt)。
+VLA 配套镜像已提供 DTK 版 torch 等基础包，LingBot-VLA-V2 训练还需要安装额外依赖，清单见 [requirements.txt](requirements.txt)。
 
 ```bash
 # 安装训练依赖
@@ -124,7 +124,7 @@ python3 scripts/download_hf_model.py --repo_id Ruicheng/moge-2-vitb-normal --loc
 
 ```bash
 # 官方脚本是32个GPU训练， global_bs 1024 = 32 * micro_bs 32，8卡训练时需要传入 --train.global_batch_size 256
-# 并且要在BW1000上保持与官方一致的micro bs 32需要传入--train.enable_gradient_checkpointing True
+# 要在HCU（BW1000）上保持与官方一致的micro bs 32需要传入--train.enable_gradient_checkpointing True，显存有余量的HCU（如BW1100）可以不开启，去掉该参数即可
 turbo-physai run \
   --model lingbot_vla_v2 \
   --log-report \
@@ -141,7 +141,7 @@ torchrun --standalone --nnodes 1 --nproc-per-node 8 \
 
 ```bash
 # 官方脚本是32个GPU训练， global_bs 1024 = 32 * micro_bs 32，8卡训练时需要传入 --train.global_batch_size 256
-# 并且要在BW1000上保持与官方一致的micro bs 32需要传入--train.enable_gradient_checkpointing True
+# 要在HCU（BW1000）上保持与官方一致的micro bs 32需要传入--train.enable_gradient_checkpointing True，显存有余量的HCU（如BW1100）可以不开启，去掉该参数即可
 turbo-physai run \
   --model lingbot_vla_v2 \
   --log-report \
