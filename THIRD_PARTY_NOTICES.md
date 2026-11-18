@@ -141,7 +141,7 @@ The complete PyTorch v2.7.1 license text is in [third_party/licenses/PyTorch-BSD
 
 | Component | turbo_physai paths | Upstream repository and fixed commit | Upstream paths | License | NOTICE |
 | --- | --- | --- | --- | --- | --- |
-| MoGe | `turbo_physai/optimizations/models/lingbot_vla_v2/moge_depth_only.py` | <https://github.com/microsoft/moge> @ `v2.0.0`, vendored in <https://github.com/Robbyant/lingbot-vla-v2> @ `be969b8fd117fb70550c5d4bf4bc328211b5b1b6` | `moge/model/v2.py` (`MoGeModel.forward`) | MIT | No `NOTICE` file identified at the fixed baseline. |
+| MoGe | `turbo_physai/optimizations/models/lingbot_vla_v2/moge_depth_only.py` | <https://github.com/microsoft/moge> @ `b942f00bdc2a2a23ebb474fbe034d487e6dcceec`, vendored in <https://github.com/Robbyant/lingbot-vla-v2> @ `be969b8fd117fb70550c5d4bf4bc328211b5b1b6` | `moge/model/v2.py` (`MoGeModel.forward`) | MIT | No `NOTICE` file identified at the fixed baseline. |
 | Sparse4D | `turbo_physai/operators/deformable_aggregation.py`; `kernel/deformable_aggregation/DeformableAggregation.cu` | <https://github.com/HorizonRobotics/Sparse4D> @ `249ffbb695f4e9db628d953e2bf6d36de04bbb69` | `projects/mmdet3d_plugin/ops/deformable_aggregation.py`; `projects/mmdet3d_plugin/ops/src/deformable_aggregation_cuda.cu` | MIT | No `NOTICE` file identified at the fixed baseline. |
 
 The complete MoGe license text is in [third_party/licenses/MoGe-MIT.txt](third_party/licenses/MoGe-MIT.txt).

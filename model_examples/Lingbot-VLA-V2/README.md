@@ -70,7 +70,6 @@ LingBot-VLA-V2 使用 RoboTwin 2.0 数据集（LeRobot 格式）。数据集的�
   ```
 
   转换是原地进行的：转完后 `lerobot/<repo_id>` 即为 v3.0 数据，转换前的 v2.1 数据被改名为 `<repo_id>_old`（确认转换完成后可以删除）
-```
 
 数据集目录结构示例：
 
