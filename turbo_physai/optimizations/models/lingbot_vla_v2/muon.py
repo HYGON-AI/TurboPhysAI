@@ -66,6 +66,7 @@ from .muon_fused_kernels import (
     muon_apply_multi_,
 )
 from .muon_gather import gather_owned_updates, gather_updates
+from .muon_owner_ns import exchange_result, partition_range, shard_range
 
 
 _LOCAL_KINDS = (_KIND_LOCAL, _KIND_MOE_LOCAL_3D)
@@ -171,10 +172,9 @@ class MuonStep:
         _, world_size, _, shard_dim = info
         if world_size <= 1:
             return False
-        if (
-            min(params[0].shape[-2:]) < world_size
-            or params[0].shape[shard_dim] % world_size != 0
-        ):
+        if min(params[0].shape[-2:]) < world_size:
+            return False
+        if shard_range(params[0].shape[shard_dim], world_size, world_size - 1)[1] == 0:
             return False
         return self._owner_cost(params, world_size) >= _OWNER_COST_MIN
 
@@ -240,9 +240,7 @@ class MuonStep:
         global_size = params[0].shape[shard_dim]
         local_size = stacked_local.size(gather_dim)
         if owner:
-            from .muon_owner_ns import partition_range, exchange_result
-
-            owner_start, owner_count = partition_range(rows, world_size, rank)
+            _, owner_count = partition_range(rows, world_size, rank)
             owner_input = gather_owned_updates(
                 stacked_local, matrix_count=rows, global_size=global_size,
                 shard_dim=shard_dim, own_count=owner_count,
@@ -265,8 +263,7 @@ class MuonStep:
                 world_size=world_size, rank=rank, group=pg,
             )
             del stacked_local
-            chunk_floor, remainder = divmod(global_size, world_size)
-            shard_start = rank * chunk_floor + min(rank, remainder)
+            shard_start = shard_range(global_size, world_size, rank)[0]
             prepared = self._prepare_ns(stacked_full, config)
             del stacked_full
             orthos_full = _iterate_newton_schulz(
@@ -307,11 +304,8 @@ class MuonStep:
             ))
             full_ortho = self._ns(full, config)
             _, world_size, rank, shard_dim = _get_dtensor_shard_info(p)
-            chunk_floor, remainder = divmod(p.shape[shard_dim], world_size)
-            start = rank * chunk_floor + min(rank, remainder)
-            ortho = full_ortho.narrow(
-                shard_dim, start, update.shape[shard_dim]
-            ).contiguous()
+            start, length = shard_range(p.shape[shard_dim], world_size, rank)
+            ortho = full_ortho.narrow(shard_dim, start, length).contiguous()
         else:
             ortho = self._ns(update, config)
         self._apply_batch([p], [ortho], config)

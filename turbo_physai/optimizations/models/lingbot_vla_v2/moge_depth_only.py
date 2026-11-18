@@ -1,5 +1,10 @@
+# Derived from MoGe: moge/model/v2.py (MoGeModel.forward), vendored in
+# lingbot-vla-v2 commit be969b8fd117fb70550c5d4bf4bc328211b5b1b6.
+# Copyright (c) Microsoft Corporation
+# SPDX-License-Identifier: MIT
 # Copyright 2026 Hygon Information Technology Co., Ltd.
-# SPDX-License-Identifier: BSD-3-Clause
+# Modified by Hygon.
+
 """
 仅为训练构建的 MoGe teacher 跳过未使用的 normal head。
 """
@@ -7,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import functools
+import os
 import types
 
 import torch
@@ -22,7 +28,10 @@ def wrap_infer(original, _options=None):
         if not _turbophysai_depth_only:
             return original(self, *args, **kwargs)
         if compiled is None:
-            compiled = torch.compile(depth_teacher_forward)
+            if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+                compiled = depth_teacher_forward
+            else:
+                compiled = torch.compile(depth_teacher_forward)
         proxy = copy.copy(self)
         proxy.forward = types.MethodType(compiled, proxy)
         return original(proxy, *args, **kwargs)

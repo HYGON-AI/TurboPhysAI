@@ -31,19 +31,19 @@ import torch
 import torch.distributed as dist
 from torch import Tensor
 
-from .muon_owner_ns import partition_range
+from .muon_owner_ns import partition_range, shard_range
 from .muon_row_pack import unpack_rows
 
 def gather_updates(stacked_local: Tensor, *, global_size: int, shard_dim: int,
                    world_size: int, rank: int, group) -> Tensor:
     """[N, 局部 M, K] -> [N, M, K]：movedim 后使用 all_gather_into_tensor"""
     gather_dim = shard_dim + 1
-    floor, remainder = divmod(global_size, world_size)
-    local_size = floor + (rank < remainder)
     if world_size == 1:
         return stacked_local
 
-    max_size = floor + bool(remainder)
+    sizes = [shard_range(global_size, world_size, r)[1] for r in range(world_size)]
+    max_size = max(sizes)
+    local_size = sizes[rank]
     if local_size != max_size:
         shape = list(stacked_local.shape)
         shape[gather_dim] = max_size
@@ -56,10 +56,10 @@ def gather_updates(stacked_local: Tensor, *, global_size: int, shard_dim: int,
     gathered = packed.new_empty((world_size * max_size,) + tuple(packed.shape[1:]))
     dist.all_gather_into_tensor(gathered, packed, group=group)
 
-    if remainder:
+    if min(sizes) != max_size:
         gathered = torch.cat(
             [
-                gathered.narrow(0, r * max_size, floor + (r < remainder))
+                gathered.narrow(0, r * max_size, sizes[r])
                 for r in range(world_size)
             ],
             dim=0,
@@ -94,7 +94,7 @@ def gather_owned_updates(
     if sum(send_counts) != matrix_count:
         raise ValueError("matrix partition does not cover every matrix")
 
-    row_ranges = [partition_range(global_size, world_size, s) for s in range(world_size)]
+    row_ranges = [shard_range(global_size, world_size, s) for s in range(world_size)]
     out_shape = list(stacked_local.shape[1:])
     out_shape[shard_dim] = global_size
     piece_shape = list(stacked_local.shape[1:])

@@ -16,6 +16,14 @@ def partition_range(size, world_size, rank):
     return rank * q + min(rank, r), q + int(rank < r)
 
 
+def shard_range(size, world_size, rank):
+    if size < 0 or world_size < 1 or not 0 <= rank < world_size:
+        raise ValueError("invalid shard")
+    chunk = -(-size // world_size)
+    start = min(rank * chunk, size)
+    return start, min(chunk, size - start)
+
+
 def pack_result(owned, *, matrix_count, world_size, rank, shard_dim):
     if owned.ndim != 3 or shard_dim not in (0, 1):
         raise ValueError("owner NS requires batched 2D matrices")
@@ -23,19 +31,15 @@ def pack_result(owned, *, matrix_count, world_size, rank, shard_dim):
     if owned.shape[0] != count:
         raise ValueError("owner matrix count mismatch")
     axis = shard_dim + 1
-    if owned.shape[axis] % world_size:
-        raise ValueError("owner NS v1 requires evenly divisible storage shards")
+    ranges = [shard_range(owned.shape[axis], world_size, dest) for dest in range(world_size)]
+    thickness = owned.numel() // (owned.shape[0] * owned.shape[axis])
 
     send = owned.new_empty(owned.numel())
-    sizes = []
-    for dest in range(world_size):
-        _, length = partition_range(owned.shape[axis], world_size, dest)
-        sizes.append(count * length * owned.shape[2])
+    sizes = [count * length * thickness for _, length in ranges]
     if shard_dim == 0 and pack_rows(owned, send, count=count, world_size=world_size):
         return send, sizes
     offset = 0
-    for dest in range(world_size):
-        start, length = partition_range(owned.shape[axis], world_size, dest)
+    for start, length in ranges:
         piece = owned.narrow(axis, start, length)
         numel = piece.numel()
         send.narrow(0, offset, numel).view(piece.shape).copy_(piece)
@@ -52,7 +56,7 @@ def exchange_result(owned, *, matrix_count, world_size, rank, shard_dim, group):
         rank=rank, shard_dim=shard_dim,
     )
     local_shape = list(owned.shape[1:])
-    _, local_shape[shard_dim] = partition_range(local_shape[shard_dim], world_size, rank)
+    _, local_shape[shard_dim] = shard_range(local_shape[shard_dim], world_size, rank)
     elements = math.prod(local_shape)
     recv_sizes = [partition_range(matrix_count, world_size, src)[1] * elements
                   for src in range(world_size)]

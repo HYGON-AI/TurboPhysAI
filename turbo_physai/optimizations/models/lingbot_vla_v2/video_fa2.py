@@ -20,7 +20,8 @@ def wrap_teacher_init(original, _options=None):
     @functools.wraps(original)
     def wrapped(self, *args, **kwargs):
         original(self, *args, **kwargs)
-        self.attention_mode = "sdpa_block_causal"
+        if self.attention_mode == "flex_block_causal":
+            self.attention_mode = "sdpa_block_causal"
 
     return wrapped
 

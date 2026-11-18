@@ -43,18 +43,47 @@ pip install -e /workspace/lingbot-vla-v2 --no-deps
 
 ## 5. 准备 RoboTwin 2.0 数据
 
-LingBot-VLA-V2 使用 RoboTwin 2.0 数据集（LeRobot 格式）。数据集的下载与预处理见官方文档 [RoboTwin2.0 Preparation](https://github.com/Robbyant/lingbot-vla-v2/blob/main/experiment/robotwin/README.md)。
+LingBot-VLA-V2 使用 RoboTwin 2.0 数据集（LeRobot 格式）。数据集的下载与预处理步骤如下：
+1. 参考官方文档 [RoboTwin2.0 Preparation](https://github.com/Robbyant/lingbot-vla-v2/blob/main/experiment/robotwin/README.md)生成LeRobot V2.1 格式的数据集。
+
+   注：官方 `generate.sh` 默认把数据集写到 lerobot 缓存目录 `${XDG_CACHE_HOME:-$HOME/.cache}/huggingface/lerobot/<repo_id>`（`XDG_CACHE_HOME` 未设置时即 `~/.cache`）。
+
+2. 将生成好的数据集移动到工作目录，后续转换、训练都使用这里的路径：
+
+  ```bash
+  mkdir -p /workspace/dataset/RoboTwin2.0/lerobot
+  for repo_id in robotwin_adjust_bottle robotwin_place_object_stand; do
+    mv ${XDG_CACHE_HOME:-$HOME/.cache}/huggingface/lerobot/${repo_id} /workspace/dataset/RoboTwin2.0/lerobot/
+  done
+  ```
+
+3. 使用 lerobot 自带的脚本将LeRobot V2.1格式转换为 V3.0 格式：
+
+  ```bash
+  # --root 传数据集父目录（脚本自动拼接 <repo_id>），--repo-id 传数据集目录名
+  for repo_id in robotwin_adjust_bottle robotwin_place_object_stand; do
+    python -m lerobot.datasets.v30.convert_dataset_v21_to_v30 \
+      --repo-id=${repo_id} \
+      --root=/workspace/dataset/RoboTwin2.0/lerobot \
+      --push-to-hub=false
+  done
+  ```
+
+  转换是原地进行的：转完后 `lerobot/<repo_id>` 即为 v3.0 数据，转换前的 v2.1 数据被改名为 `<repo_id>_old`（确认转换完成后可以删除）
+```
 
 数据集目录结构示例：
 
 ```text
 /workspace/dataset/RoboTwin2.0/lerobot
-├── robotwin_adjust_bottle
+├── robotwin_adjust_bottle          # 转换后的 v3.0 格式数据集
+├── robotwin_adjust_bottle_old      # 转换前的 v2.1 格式数据集，确认转换完成后可删除
 ├── robotwin_place_object_stand
+├── robotwin_place_object_stand_old
 └── ...
 ```
 
-仓库自带的 `assets/training_data/robotwin.txt` 中路径为占位符，使用前需替换为实际数据集路径，格式为 `<robot_config 名> <数据集绝对路径>`：
+仓库自带的 `assets/training_data/robotwin.txt` 中路径为占位符，使用前需替换为 **V3.0** 格式的数据集路径，格式为 `<robot_config 名> <数据集绝对路径>`：
 
 ```text
 robotwin /workspace/dataset/RoboTwin2.0/lerobot/robotwin_adjust_bottle

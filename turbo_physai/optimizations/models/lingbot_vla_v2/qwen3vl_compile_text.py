@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import functools
+import os
 import types
 from typing import Any
 
@@ -114,6 +115,8 @@ def _text_layers(model) -> list:
 def _ensure_compiled(model) -> None:
     """每个模型实例只装一次，trace 期间直接返回。"""
     if torch.compiler.is_compiling():
+        return
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
         return
     if model.__dict__.get("_tp_text_layers_compiled", False):
         return

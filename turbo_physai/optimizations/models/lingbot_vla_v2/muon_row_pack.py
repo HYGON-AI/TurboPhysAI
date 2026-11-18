@@ -43,13 +43,10 @@ if _HAS_TRITON:
         row = t % NROW
         m = t // NROW
 
-        q = NROW // WS
-        rem = NROW % WS
-        q_safe = tl.maximum(q, 1)
-        big_end = (q + 1) * rem
-        s = tl.where(row < big_end, row // (q + 1), rem + (row - big_end) // q_safe)
-        start = s * q + tl.minimum(s, rem)
-        length = q + (s < rem).to(tl.int32)
+        chunk = tl.cdiv(NROW, WS)
+        s = row // chunk
+        start = s * chunk
+        length = tl.minimum(chunk, NROW - start)
 
         k = kb * BLOCK + tl.arange(0, BLOCK)
         kmask = k < K
@@ -84,13 +81,10 @@ if _HAS_TRITON:
         rmask = r < NROW
         kmask = k < K
 
-        q = NROW // WS
-        rem = NROW % WS
-        q_safe = tl.maximum(q, 1)
-        big_end = (q + 1) * rem
-        s = tl.where(r < big_end, r // (q + 1), rem + (r - big_end) // q_safe)
-        start = s * q + tl.minimum(s, rem)
-        length = q + (s < rem).to(tl.int32)
+        chunk = tl.cdiv(NROW, WS)
+        s = r // chunk
+        start = s * chunk
+        length = tl.minimum(chunk, NROW - start)
 
         m64 = m.to(tl.int64)
         off_load = m64 * K * NROW + k[:, None].to(tl.int64) * NROW + r[None, :]

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import functools
+import os
 import types
 from typing import Any
 
@@ -127,6 +128,8 @@ def _expert_layers(model) -> list:
 
 def _ensure_compiled(model) -> None:
     if torch.compiler.is_compiling():
+        return
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
         return
     if model.__dict__.get("_tp_expert_layers_compiled", False):
         return

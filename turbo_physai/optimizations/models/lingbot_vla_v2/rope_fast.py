@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 import weakref
 
 import torch
@@ -17,7 +18,10 @@ _COMPILED = None
 def _compiled_apply(query_states, key_states, cos, sin):
     global _COMPILED
     if _COMPILED is None:
-        _COMPILED = torch.compile(apply_rotary_pos_emb, dynamic=False)
+        if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+            _COMPILED = apply_rotary_pos_emb
+        else:
+            _COMPILED = torch.compile(apply_rotary_pos_emb, dynamic=False)
     return _COMPILED(query_states, key_states, cos, sin, unsqueeze_dim=2)
 
 

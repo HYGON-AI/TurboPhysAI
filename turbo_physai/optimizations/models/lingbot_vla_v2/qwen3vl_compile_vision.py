@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import functools
+import os
 from typing import Optional
 
 import torch
@@ -24,6 +25,8 @@ def _drop_view(tensor: torch.Tensor) -> torch.Tensor:
 def _compile_block_forward(blk):
     """编译一个 block 的 forward 并缓存在实例上。"""
     if torch.compiler.is_compiling():
+        return blk.forward
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
         return blk.forward
     cached = blk.__dict__.get("_tp_compiled_forward")
     if cached is None:
@@ -108,7 +111,8 @@ def wrap_init(original, _options=None):
     @functools.wraps(original)
     def wrapped(self, *args, **kwargs):
         original(self, *args, **kwargs)
-        self.__dict__["steps"] = DisabledStepCounter(self.__dict__["steps"])
+        if "steps" in self.__dict__:
+            self.__dict__["steps"] = DisabledStepCounter(self.__dict__["steps"])
         return None
 
     return wrapped

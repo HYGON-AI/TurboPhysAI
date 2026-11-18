@@ -6,12 +6,15 @@
 from __future__ import annotations
 
 import functools
+import os
 
 import torch
 
 
 def compiled_forward(original, _options=None):
     """把函数包成首次调用时才编译的版本。"""
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+        return original
     compiled = None
 
     @functools.wraps(original)
