@@ -17,12 +17,11 @@ optimization_groups:
     enabled: true
   - id: lerobot_act.no_attn_average
     enabled: true
-  - id: lerobot_act.ffn_compile
+  - id: lerobot_act.module_compile
     enabled: true
-  - id: lerobot_act.attention_softmax_dropout
+  # FP32 attention at BS86/rank on the validated gfx938 Torch/Triton stack.
+  - id: lerobot_act.compiled_attention_scores
     enabled: true
-    options:
-      register_backward: true
   - id: lerobot_act.qk_tf32
     enabled: true
   - id: lerobot_act.ddp_options
@@ -33,7 +32,7 @@ optimization_groups:
     enabled: true
   - id: lerobot_act.h2d_prefetch_stream
     enabled: true
-  - id: lerobot_act.deferred_metrics_apex_layernorm
+  - id: lerobot_act.deferred_metrics
     enabled: true
   - id: lerobot_act.sampler_vector
     enabled: true

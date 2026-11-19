@@ -16,15 +16,15 @@ CHANNELS_LAST_POOL = group(
     "lerobot_act.channels_last_pool",
     wrap(
         target=f"{ACT}.ACT.__init__",
-        replacement=f"{BASE}.model_optimizations.channels_last_init_wrapper",
+        replacement=f"{BASE}.channels_last.channels_last_init_wrapper",
     ),
     wrap(
         target="torch.nn.modules.conv.Conv2d.forward",
-        replacement=f"{BASE}.model_optimizations.channels_last_input_wrapper",
+        replacement=f"{BASE}.channels_last.channels_last_input_wrapper",
     ),
     wrap(
         target="lerobot.optim.optimizers._save_single_optimizer_state",
-        replacement=f"{BASE}.model_optimizations.contiguous_optimizer_state_wrapper",
+        replacement=f"{BASE}.channels_last.contiguous_optimizer_state_wrapper",
     ),
     wrap(
         target="torch.nn.modules.pooling.MaxPool2d.forward",
@@ -36,7 +36,7 @@ BACKBONE_COMPILE = group(
     "lerobot_act.backbone_compile",
     wrap(
         target="torchvision.models._utils.IntermediateLayerGetter.forward",
-        replacement=f"{BASE}.model_optimizations.backbone_compile_wrapper",
+        replacement=f"{BASE}.backbone_compile.backbone_compile_wrapper",
     ),
 )
 
@@ -44,44 +44,45 @@ NO_ATTN_AVERAGE = group(
     "lerobot_act.no_attn_average",
     wrap(
         target="torch.nn.modules.activation.MultiheadAttention.forward",
-        replacement=f"{BASE}.model_optimizations.attention_no_average_wrapper",
+        replacement=f"{BASE}.no_attn_average.attention_no_average_wrapper",
     ),
 )
 
-FFN_COMPILE = group(
-    "lerobot_act.ffn_compile",
+MODULE_COMPILE = group(
+    "lerobot_act.module_compile",
     wrap(
-        target=f"{ACT}.ACTEncoderLayer.forward",
-        replacement=f"{BASE}.model_optimizations.encoder_ffn_compile_wrapper",
+        target=f"{ACT}.ACTEncoder.forward",
+        replacement=f"{BASE}.module_compile.wrap_encoder",
     ),
     wrap(
-        target=f"{ACT}.ACTDecoderLayer.forward",
-        replacement=f"{BASE}.model_optimizations.decoder_ffn_compile_wrapper",
+        target=f"{ACT}.ACTDecoder.forward",
+        replacement=f"{BASE}.module_compile.wrap_decoder",
     ),
 )
 
-ATTENTION_SOFTMAX_DROPOUT = group(
-    "lerobot_act.attention_softmax_dropout",
+COMPILED_ATTENTION_SCORES = group(
+    "lerobot_act.compiled_attention_scores",
     wrap(
-        target="torch.nn.functional.multi_head_attention_forward",
-        replacement=f"{BASE}.attention_softmax_dropout.attention_softmax_dropout_wrapper",
+        target="torch._inductor.async_compile.AsyncCompile.triton",
+        replacement=f"{BASE}.compiled_attention_scores.wrap_async_triton",
     ),
+    depends_on=("lerobot_act.module_compile",),
+    compatibility_check=f"{BASE}.compiled_attention_scores.check_software_stack",
 )
 
 QK_TF32 = group(
     "lerobot_act.qk_tf32",
-    replace(
-        target=f"{BASE}.attention_softmax_dropout._unmasked_qk",
-        replacement=f"{BASE}.qk_tf32.qk_bmm",
+    wrap(
+        target="torch.nn.functional.multi_head_attention_forward",
+        replacement=f"{BASE}.qk_tf32.attention_qk_tf32_wrapper",
     ),
-    depends_on=("lerobot_act.attention_softmax_dropout",),
 )
 
 DDP_OPTIONS = group(
     "lerobot_act.ddp_options",
     wrap(
         target="torch.nn.parallel.distributed.DistributedDataParallel.__init__",
-        replacement=f"{BASE}.training_ddp_h2d.ddp_options_wrapper",
+        replacement=f"{BASE}.ddp_options.ddp_options_wrapper",
     ),
 )
 
@@ -89,7 +90,7 @@ NONBLOCKING_H2D = group(
     "lerobot_act.nonblocking_h2d",
     wrap(
         target="accelerate.accelerator.Accelerator.__init__",
-        replacement=f"{BASE}.training_ddp_h2d.nonblocking_h2d_wrapper",
+        replacement=f"{BASE}.nonblocking_h2d.nonblocking_h2d_wrapper",
     ),
 )
 
@@ -102,15 +103,15 @@ H2D_PREFETCH_STREAM = group(
     depends_on=("lerobot_act.nonblocking_h2d",),
 )
 
-DEFERRED_METRICS_APEX_LAYERNORM = group(
-    "lerobot_act.deferred_metrics_apex_layernorm",
+DEFERRED_METRICS = group(
+    "lerobot_act.deferred_metrics",
     wrap(
         target=f"{ACT}.ACTPolicy.forward",
-        replacement=f"{BASE}.policy_metrics_layernorm.deferred_metrics_policy_wrapper",
+        replacement=f"{BASE}.deferred_metrics.deferred_metrics_policy_wrapper",
     ),
     wrap(
-        target="torch.nn.modules.normalization.LayerNorm.forward",
-        replacement=f"{BASE}.policy_metrics_layernorm.apex_layernorm_backward_wrapper",
+        target="lerobot.common.wandb_utils.WandBLogger.log_dict",
+        replacement=f"{BASE}.deferred_metrics.deferred_metrics_wandb_wrapper",
     ),
 )
 

@@ -16,13 +16,11 @@
 # limitations under the License.
 # Modified by Hygon.
 
-"""Traceable replacements for the reference ACT training pipeline."""
+"""DDP options for ACT."""
 
 from __future__ import annotations
 
 import functools
-import inspect
-from dataclasses import replace
 
 
 def ddp_options_wrapper(original, options):
@@ -33,25 +31,5 @@ def ddp_options_wrapper(original, options):
         if 'static_graph' in options:
             kwargs['static_graph'] = options['static_graph']
         return original(*args, **kwargs)
-
-    return wrapped
-
-
-def nonblocking_h2d_wrapper(original, options):
-    """Enable non-blocking H2D for ACT's default DataLoader configuration."""
-    del options
-    signature = inspect.signature(original)
-
-    @functools.wraps(original)
-    def wrapped(*args, **kwargs):
-        from accelerate.utils import DataLoaderConfiguration
-
-        bound = signature.bind(*args, **kwargs)
-        config = bound.arguments.get('dataloader_config')
-        bound.arguments['dataloader_config'] = (
-            DataLoaderConfiguration(non_blocking=True)
-            if config is None else replace(config, non_blocking=True)
-        )
-        return original(*bound.args, **bound.kwargs)
 
     return wrapped

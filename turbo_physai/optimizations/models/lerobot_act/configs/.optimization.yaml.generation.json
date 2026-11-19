@@ -4,20 +4,20 @@
   "model_commit": "3f2179f3b69708b6ad009b2e7685dd9d05269ee1",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "aad4a62dae88b39881d41767738b5940c414c9d4153dd35d03b314ebc9711102"
+    "sha256": "c35baf8d646f1af1cac6c07c997557a8596cb0ef313dcb48cb2a690be8fb40a4"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "package",
       "path": "optimizations/models/lerobot_act/configs/recipe.yaml",
-      "sha256": "e33c20601875b8f7642d2b6ab65b8afefe7490c23782f0baabee664365b9908e"
+      "sha256": "2986daa6daae52a2968cc68b82ff36cdeeddd1de0688ad7b624e697b3b295b72"
     },
     {
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/lerobot_act/catalog.py",
-      "sha256": "b56ab62b52d52578197826258473258e519bbe1e3cc7dfa05fea34a85b43397f"
+      "sha256": "449fd6deddda57d41a5788f5c48c46d6c74815ee5737910da51b49e35751b8a3"
     }
   ]
 }

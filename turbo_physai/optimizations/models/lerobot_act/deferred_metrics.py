@@ -18,11 +18,12 @@
 # ACT policy loss adapted from https://github.com/huggingface/lerobot,
 # src/lerobot/policies/act/modeling_act.py at 3f2179f3b69708b6ad009b2e7685dd9d05269ee1.
 # The original Hygon wrapper portions retain their BSD-3-Clause license.
-"""Compose ACT deferred metrics and an experimental scoped LayerNorm path."""
+"""Defer ACT metric scalar reads to the logging boundary."""
 
+import functools
+
+import torch
 import torch.nn.functional as F
-
-from . import apex_layernorm
 
 
 def _require_group_options(options):
@@ -34,8 +35,9 @@ def deferred_metrics_policy_forward(self, batch):
     """Retain the ACT loss calculation but defer scalar reads to logging."""
     from lerobot.utils.constants import ACTION, OBS_IMAGES
 
-    batch = dict(batch)
-    batch[OBS_IMAGES] = [batch[key] for key in self.config.image_features]
+    if self.config.image_features:
+        batch = dict(batch)
+        batch[OBS_IMAGES] = [batch[key] for key in self.config.image_features]
 
     actions_hat, (mu_hat, log_sigma_x2_hat) = self.model(batch)
     abs_err = F.l1_loss(batch[ACTION], actions_hat, reduction='none')
@@ -55,9 +57,18 @@ def deferred_metrics_policy_forward(self, batch):
 def deferred_metrics_policy_wrapper(original, options):
     del original
     _require_group_options(options)
-    return apex_layernorm.act_policy_scope_wrapper(deferred_metrics_policy_forward, {})
+    return deferred_metrics_policy_forward
 
 
-def apex_layernorm_backward_wrapper(original, options):
+def deferred_metrics_wandb_wrapper(original, options):
     _require_group_options(options)
-    return apex_layernorm.apex_layernorm_backward_wrapper(original, {})
+
+    @functools.wraps(original)
+    def wrapped(self, values, *args, **kwargs):
+        values = dict(values)
+        for key in ("l1_loss", "kld_loss"):
+            if isinstance(values.get(key), torch.Tensor):
+                values[key] = values[key].item()
+        return original(self, values, *args, **kwargs)
+
+    return wrapped

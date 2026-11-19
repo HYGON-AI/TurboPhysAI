@@ -57,25 +57,35 @@ optimization_groups:
       torch.nn.modules.activation.MultiheadAttention.forward:
       - ast-v1:bf44fe72124624f5e56901f0446e3f3d9070a54b8a861b052bd792e56de951de
   accuracy_only: false
-- id: lerobot_act.ffn_compile
+- id: lerobot_act.module_compile
   enabled: true
   options: {}
   trust:
     source_hashes:
-      lerobot.policies.act.modeling_act.ACTEncoderLayer.forward:
-      - source-v1:5e325b3d64429d1001e0369895e10a32a9e1454cf021effebfb3af1db6a10706
-      lerobot.policies.act.modeling_act.ACTDecoderLayer.forward:
-      - source-v1:9ac32a4176e726f476d7056fc88ca1ce8430ab005d331daac7c07fa563ce0689
+      lerobot.policies.act.modeling_act.ACTEncoder.forward:
+      - source-v1:2c20e4bc4775c5bfb1c4417afcb1d5c134a5ca340c13b2f689b195fb1b88b628
+      lerobot.policies.act.modeling_act.ACTDecoder.forward:
+      - source-v1:56bd3e690079a7746bbf5dfa4e20e946d47890957cebe187fed907239063197e
     ast_hashes:
-      lerobot.policies.act.modeling_act.ACTEncoderLayer.forward:
-      - ast-v1:1a60ef31000f5cb1ccde1dfd07dbacdc0402b1e5489b0fc3f8cc74261887d1a2
-      lerobot.policies.act.modeling_act.ACTDecoderLayer.forward:
-      - ast-v1:44a820963be953c0c81552e5f85219e622c4c71d37a9beb2b76056ea4ef65bc4
+      lerobot.policies.act.modeling_act.ACTEncoder.forward:
+      - ast-v1:f412b6c886909d12aa185f65de49c70d6c57f7472f7f25135be20493866a1526
+      lerobot.policies.act.modeling_act.ACTDecoder.forward:
+      - ast-v1:15dc1277021bd26a9c2ac66e74a9d2fd71c2e9bc7f5683d0124cf90e08a772e7
   accuracy_only: false
-- id: lerobot_act.attention_softmax_dropout
+- id: lerobot_act.compiled_attention_scores
   enabled: true
-  options:
-    register_backward: true
+  options: {}
+  trust:
+    source_hashes:
+      torch._inductor.async_compile.AsyncCompile.triton:
+      - source-v1:ac7025fad6f056212d107bcfba18f4ae17d060519f669ddd5b2da1c1103a4e3c
+    ast_hashes:
+      torch._inductor.async_compile.AsyncCompile.triton:
+      - ast-v1:ab47e4171694c653a4b06ed39696c442ae5690c1467686575efa2d667c149d8c
+  accuracy_only: false
+- id: lerobot_act.qk_tf32
+  enabled: true
+  options: {}
   trust:
     source_hashes:
       torch.nn.functional.multi_head_attention_forward:
@@ -83,17 +93,6 @@ optimization_groups:
     ast_hashes:
       torch.nn.functional.multi_head_attention_forward:
       - ast-v1:8984cf4775a8ac80b3a2024a13fa7618317b48e23eb98f47325dbc96d4ef95fb
-  accuracy_only: false
-- id: lerobot_act.qk_tf32
-  enabled: true
-  options: {}
-  trust:
-    source_hashes:
-      turbo_physai.optimizations.models.lerobot_act.attention_softmax_dropout._unmasked_qk:
-      - source-v1:6e149ec7468b0e679240e262404c20041561371233752feb46c67dcd0ad6252c
-    ast_hashes:
-      turbo_physai.optimizations.models.lerobot_act.attention_softmax_dropout._unmasked_qk:
-      - ast-v1:05d33f0ca1d0a93144ea5753b9a271c932c60eac79eb7bd60cafe0f0be01c6b2
   accuracy_only: false
 - id: lerobot_act.ddp_options
   enabled: true
@@ -129,20 +128,20 @@ optimization_groups:
       accelerate.data_loader.DataLoaderShard.__iter__:
       - ast-v1:e44fbbcd152857cbc487258f6858fa9b9586300dbc96727402041514d9faf050
   accuracy_only: false
-- id: lerobot_act.deferred_metrics_apex_layernorm
+- id: lerobot_act.deferred_metrics
   enabled: true
   options: {}
   trust:
     source_hashes:
       lerobot.policies.act.modeling_act.ACTPolicy.forward:
       - source-v1:651b631d86f650e77de94d9263e49e7f6dc61a594479b1e2692e55b84f552d4d
-      torch.nn.modules.normalization.LayerNorm.forward:
-      - source-v1:fa5d78b85670946f4b23c5e789af14ae0cedfd0ce0ebc9b99529a2c928b1ec69
+      lerobot.common.wandb_utils.WandBLogger.log_dict:
+      - source-v1:b0c91b74a484a127e4dae23a74096e9c9bbe95b0555693cac3e45a3a16ca1cd8
     ast_hashes:
       lerobot.policies.act.modeling_act.ACTPolicy.forward:
       - ast-v1:6082527eec9a5ed46ede7d3e8ae90a869a1ace8f43e1051c5e2826edf8637a1f
-      torch.nn.modules.normalization.LayerNorm.forward:
-      - ast-v1:46d7794087369ccf8d2a6db2fe49508998e29fda386234a2b38defd2b3db01f3
+      lerobot.common.wandb_utils.WandBLogger.log_dict:
+      - ast-v1:4087831f5c2681d69f0cf77383d2bd8274cbb128679d150eb2774b64b822264c
   accuracy_only: false
 - id: lerobot_act.sampler_vector
   enabled: true
