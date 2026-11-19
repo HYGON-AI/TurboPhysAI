@@ -17,12 +17,10 @@ import pytest
 torch = pytest.importorskip("torch")
 from torch import nn
 
-from turbo_physai.optimizations.models.dreamzero.dreamzero_optimization import (
+from turbo_physai.optimizations.models.dreamzero import (
     CausalWanSelfAttention as optimized,
 )
-from turbo_physai.optimizations.models.dreamzero.dreamzero_optimization.real_rope import (
-    rope_params_real,
-)
+from turbo_physai.optimizations.models.dreamzero.real_rope import rope_params_real
 
 try:
     from groot.vla.model.dreamzero.modules import wan_video_dit_action_casual_chunk as baseline
@@ -79,17 +77,6 @@ class ExactAttention(nn.Module):
         return (scores.softmax(-1) @ v).transpose(1, 2)
 
 
-@pytest.fixture
-def _uncompiled():
-    """Run the real-valued QKV/RoPE helpers eagerly instead of via torch.compile."""
-    with mock.patch.object(
-        optimized, "_project_qkv", optimized._project_qkv._torchdynamo_orig_callable,
-    ), mock.patch.object(
-        optimized, "_apply_rope_qk", optimized._apply_rope_qk._torchdynamo_orig_callable,
-    ):
-        yield
-
-
 def _models(local_attn_size):
     torch.manual_seed(5)
     reference = baseline.CausalWanSelfAttention(
@@ -139,28 +126,28 @@ def _compare(reference, candidate, length, image_length, registers, is_tf, cache
 
 @requires_baseline
 @pytest.mark.parametrize("local_attn_size", [-1, 3])
-def test_teacher_forcing_multiple_blocks_with_shared_image_action_kv(_uncompiled, local_attn_size):
+def test_teacher_forcing_multiple_blocks_with_shared_image_action_kv(local_attn_size):
     _compare(*_models(local_attn_size), 28, 10, 8, True)
 
 
 @requires_baseline
-def test_image_only_teacher_forcing(_uncompiled):
+def test_image_only_teacher_forcing():
     _compare(*_models(-1), 20, 10, None, True)
 
 
 @requires_baseline
-def test_non_teacher_forcing(_uncompiled):
+def test_non_teacher_forcing():
     _compare(*_models(-1), 18, 10, 8, False)
 
 
 @requires_baseline
 @pytest.mark.parametrize("registers", [None, 4])
-def test_kv_cache_with_and_without_registers(_uncompiled, registers):
+def test_kv_cache_with_and_without_registers(registers):
     _compare(*_models(-1), 4 + (registers or 0), 4, registers, False, cache=True)
 
 
 @requires_baseline
-def test_folded_state_blocks_match_loop_and_reduce_calls(_uncompiled):
+def test_folded_state_blocks_match_loop_and_reduce_calls():
     reference, candidate = _models(-1)
     q, k, v = (torch.randn(2, 6, 2, 12, dtype=torch.float64) for _ in range(3))
     with mock.patch.object(candidate.attn, "forward", wraps=candidate.attn.forward) as calls:
@@ -268,13 +255,16 @@ def test_tensorrt_calls_original_rotation_helpers(position):
     freqs, action, state = object(), object(), object()
     rotate = mock.Mock(side_effect=lambda value, **kwargs: value.double())
     causal = mock.Mock(side_effect=lambda value, **kwargs: value.double())
+    real = mock.Mock()
     with _fake_module(
         "groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk",
         rope_action_apply=rotate, causal_rope_action_apply=causal,
     ), mock.patch.object(
         optimized, "ENABLE_TENSORRT", True,
-    ), mock.patch.object(optimized, "_apply_rope_qk") as real:
-        got = optimized._rotate_qk(owner, q, k, v, freqs, action, state, 3, position)
+    ):
+        got = optimized._rotate_qk(
+            owner, q, k, v, freqs, action, state, 3, position, apply_rope_qk=real,
+        )
     used, unused = (rotate, causal) if position is None else (causal, rotate)
     assert used.call_count == 2
     unused.assert_not_called()

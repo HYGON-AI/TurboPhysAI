@@ -186,16 +186,5 @@ optimization_groups:
       groot.vla.model.dreamzero.modules.wan_video_image_encoder.VisionTransformer.forward:
       - ast-v1:b371cf510df2b1e8e68deffdee8b5e0c74ad91d12eacf514e00693f5ae999dc5
   accuracy_only: false
-- id: dreamzero.wan2.1_attention.cache_cu_seqlens
-  enabled: true
-  options: {}
-  trust:
-    source_hashes:
-      groot.vla.model.dreamzero.modules.wan2_1_attention.flash_attention:
-      - source-v1:4ce1cb661e184ea9641cf29f7506029eebcb8319455d21c5d02b64425c91dc06
-    ast_hashes:
-      groot.vla.model.dreamzero.modules.wan2_1_attention.flash_attention:
-      - ast-v1:1dbd5abef39ba1ff9a24ea74bc8500f226eef13eac68966bcd319533af69f7ae
-  accuracy_only: false
 optimization_modules:
 - turbo_physai.optimizations.models.dreamzero.catalog

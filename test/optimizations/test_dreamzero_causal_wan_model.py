@@ -22,7 +22,7 @@ torch = pytest.importorskip("torch")
 from torch import nn
 import torch.utils.checkpoint
 
-from turbo_physai.optimizations.models.dreamzero.dreamzero_optimization import (
+from turbo_physai.optimizations.models.dreamzero import (
     CausalWanModel as optimized,
 )
 

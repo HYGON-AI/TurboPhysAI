@@ -21,7 +21,7 @@ import pytest
 torch = pytest.importorskip("torch")
 from torch import nn
 
-from turbo_physai.optimizations.models.dreamzero.dreamzero_optimization import (
+from turbo_physai.optimizations.models.dreamzero import (
     CausalWanAttentionBlock as optimized,
 )
 
@@ -122,18 +122,11 @@ def test_alignment_outputs_all_training_gradients_and_cache_contract(
     want = reference_forward(ref, *ref_inputs)
     cache = torch.randn(2, 2, 1, 2, 4) if with_cache else None
     freqs, action_freqs, state_freqs = object(), object(), object()
-    with mock.patch.object(
-        optimized, "_prepare_self_attention",
-        optimized._prepare_self_attention._torchdynamo_orig_callable,
-    ), mock.patch.object(
-        optimized, "_ffn_residual",
-        optimized._ffn_residual._torchdynamo_orig_callable,
-    ):
-        result = optimized.forward(
-            opt, opt_inputs[0], opt_inputs[1], freqs, action_freqs,
-            state_freqs, 4, opt_inputs[2], kv_cache=cache,
-            current_start_frame=3, is_tf=not with_cache,
-        )
+    result = optimized.forward(
+        opt, opt_inputs[0], opt_inputs[1], freqs, action_freqs,
+        state_freqs, 4, opt_inputs[2], kv_cache=cache,
+        current_start_frame=3, is_tf=not with_cache,
+    )
     assert isinstance(result, tuple)
     assert len(result) == 2
     got, updated_cache = result
@@ -158,7 +151,9 @@ def test_alignment_outputs_all_training_gradients_and_cache_contract(
     "options", [None, {}, {"dynamic": False, "backend": "eager"}],
     ids=["none", "empty", "present"],
 )
-def test_only_i2v_target_compiled_after_original_init_with_options(options, is_i2v):
+def test_only_i2v_target_compiled_after_original_init_with_options(options, is_i2v, monkeypatch):
+    monkeypatch.delenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", raising=False)
+
     class I2V(nn.Module):
         pass
 

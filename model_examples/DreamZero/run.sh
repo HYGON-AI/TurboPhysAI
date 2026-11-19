@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -o pipefail
+
 cd /workspace/dreamzero || exit 1
 
 export DREAMZERO_ROOT="${DREAMZERO_ROOT:-/workspace/dreamzero}"
@@ -8,7 +10,6 @@ export WAN22_CKPT_DIR="${WAN22_CKPT_DIR:-/workspace/checkpoints/Wan2.2-TI2V-5B}"
 export IMAGE_ENCODER_DIR="${IMAGE_ENCODER_DIR:-/workspace/checkpoints/Wan2.1-I2V-14B-480P}"
 export TOKENIZER_DIR="${TOKENIZER_DIR:-/workspace/checkpoints/umt5-xxl}"
 export OUTPUT_DIR="${OUTPUT_DIR:-/workspace/runs/dreamzero_droid_wan22_full}"
-export TURBO_PHYSAI_ROOT="${TURBO_PHYSAI_ROOT:-/workspace/TurboPhysAI}"
 export HYDRA_FULL_ERROR=1
 
 RUN_DIR="$OUTPUT_DIR/$(date '+%Y%m%d_%H%M%S')"
@@ -16,8 +17,7 @@ mkdir -p "$RUN_DIR"
 LOG_FILE="$RUN_DIR/train.log"
 
 turbo-physai run \
-    --optimization-config "$TURBO_PHYSAI_ROOT/turbo_physai/optimizations/models/dreamzero/configs/optimization.yaml" \
-    --runtime-config "$TURBO_PHYSAI_ROOT/turbo_physai/optimizations/models/dreamzero/configs/runtime.yaml" \
+    --model DreamZero \
     --log-report \
     -- python3 -m torch.distributed.run --nproc_per_node 8 --standalone --local-ranks-filter 0 groot/vla/experiment/experiment.py \
     report_to=none \
@@ -37,13 +37,13 @@ turbo-physai run \
     seed=42 \
     training_args.learning_rate=1e-5 \
     optim=adamw_apex_fused \
-    training_args.deepspeed=/workspace/dreamzero_optimization/configs/zero2_overlap.json \
+    training_args.deepspeed=/workspace/TurboPhysAI/model_examples/DreamZero/zero2_overlap.json \
     save_steps=1000 \
     training_args.warmup_ratio=0.05 \
     output_dir=$RUN_DIR \
     per_device_train_batch_size=1 \
     global_batch_size=8 \
-    max_steps=1000 \
+    max_steps=200000 \
     weight_decay=1e-5 \
     save_total_limit=10 \
     upload_checkpoints=false \

@@ -64,19 +64,23 @@ CAUSAL_WAN_MODEL_REAL_ROPE_COMPILE = group(
             "turbo_physai.optimizations.models.dreamzero.CausalWanModel.compile_real_rope_freqs"
         ),
     ),
-    replace(
+    wrap(
         target=(
             "groot.vla.model.dreamzero.modules."
             "wan_video_dit_action_casual_chunk.CausalWanSelfAttention.forward"
         ),
-        replacement="turbo_physai.optimizations.models.dreamzero.CausalWanSelfAttention.forward",
+        replacement=(
+            "turbo_physai.optimizations.models.dreamzero.CausalWanSelfAttention.compile_forward"
+        ),
     ),
-    replace(
+    wrap(
         target=(
             "groot.vla.model.dreamzero.modules."
             "wan_video_dit_action_casual_chunk.CausalWanAttentionBlock.forward"
         ),
-        replacement="turbo_physai.optimizations.models.dreamzero.CausalWanAttentionBlock.forward",
+        replacement=(
+            "turbo_physai.optimizations.models.dreamzero.CausalWanAttentionBlock.compile_forward"
+        ),
     ),
     wrap(
         target=(
@@ -216,14 +220,5 @@ FREEZE_GC_AFTER_WARMUP = group(
         replacement=(
             "turbo_physai.optimizations.models.dreamzero.Fix_GC.freeze_gc_after_warmup"
         ),
-    ),
-)
-
-# Cache cu_seqlens for flash attention: avoids recomputing the same cu_seqlens for each batch
-CACHE_CU_SEQLENS = group(
-    "dreamzero.wan2.1_attention.cache_cu_seqlens",
-    replace(
-        target="groot.vla.model.dreamzero.modules.wan2_1_attention.flash_attention",
-        replacement="turbo_physai.optimizations.models.dreamzero.wan2_1_attention.flash_attention",
     ),
 )

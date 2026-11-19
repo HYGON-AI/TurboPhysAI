@@ -8,7 +8,7 @@
 
 ## 2. 优化接入基线
 
-TurboPhysAI 的 DreamZero 优化基于官方仓库 commit `ab790c198fbce33503358efbbd4187ce9a89adf3` 接入。优化接入基线的使用建议见[模型支持清单]()。
+TurboPhysAI 的 DreamZero 优化基于官方仓库 commit `ab790c198fbce33503358efbbd4187ce9a89adf3` 接入。优化接入基线的使用建议见[模型支持清单](../../docs/zh/models/support_list.md)。
 
 ## 3. 构建训练环境
 
@@ -33,7 +33,7 @@ python3 -m pip check
 ```bash
 cd /workspace
 git clone https://github.com/dreamzero0/dreamzero.git
-cd model/dreamzero
+cd dreamzero
 git checkout --detach ab790c198fbce33503358efbbd4187ce9a89adf3
 git status --short
 ```
@@ -50,6 +50,7 @@ git status --short
 - 3 个摄像头视角：`exterior_image_1_left`, `exterior_image_2_left`, `wrist_image_left`
 
 ```bash
+cd /workspace
 mkdir -p /workspace/datasets
 # You may need to set your HuggingFace token:
 # export HF_TOKEN=<YOUR_HUGGINGFACE_TOKEN>
@@ -90,13 +91,11 @@ modelscope download \
 
 ## 7. 通过 turbo-physai run 启动训练
 
-`turbo-physai run` 自动加载随包交付的 [OptimizationConfig](../../docs/zh/user_guide/optimization_config.md) 和 [RuntimeConfig](../../docs/zh/user_guide/runtime_config.md)，无需修改模型源码即可应用 DreamZero 优化。
+`turbo-physai run --model DreamZero -- <训练命令>` 会从已安装的 TurboPhysAI 包的 `turbo_physai/optimizations/models/dreamzero/configs/` 目录自动加载 `optimization.yaml` 和 `runtime.yaml`。`--` 后传入原始训练命令，`--log-report` 等 TurboPhysAI 选项放在 `--` 前。
 
 ### 7.1 单机八卡训练
 
-`run.sh` 基于官方 `dreamzer/scripts/train/droid_training_full_finetune.sh` 的单机八卡启动方式，使用 DreamZero 5B 训练配置，通过`bash turbo-physai run --model DreamZero`启动
-
-通过TurboPhysAI启动优化后的训练
+`run.sh` 基于官方 [`scripts/train/droid_training_full_finetune.sh`](../../../dreamzero/scripts/train/droid_training_full_finetune.sh) 的单机八卡启动方式，使用 DreamZero 5B 训练配置。脚本已包含 `--model DreamZero` 和 `--log-report`，可直接运行。
 
 ```bash
 export OUTPUT_DIR=/workspace/runs/dreamzero_droid_wan22_full

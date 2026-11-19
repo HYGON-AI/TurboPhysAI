@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import functools
+import os
 
 import torch
 import torch.nn.functional as F
@@ -51,12 +52,14 @@ _COMPILE_DEFAULTS = {"mode": "reduce-overhead", "fullgraph": True, "dynamic": Fa
 
 
 def compile_forward(original, options):
-    compile_kwargs = dict(_COMPILE_DEFAULTS)
-    compile_kwargs.update(options or {})
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+        return original
+
+    compile_kwargs = {**_COMPILE_DEFAULTS, **(options or {})}
     compiled = torch.compile(original, **compile_kwargs)
 
     @functools.wraps(original)
-    def forward(self, ids, mask=None):
-        return compiled(self, ids, mask)
+    def wrapped(*args, **kwargs):
+        return compiled(*args, **kwargs)
 
-    return forward
+    return wrapped

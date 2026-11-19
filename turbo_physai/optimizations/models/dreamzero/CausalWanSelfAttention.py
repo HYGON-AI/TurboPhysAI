@@ -5,10 +5,8 @@ and RoPE application run through torch.compile'd, tensor-only regions
 The stock implementation calls complex-valued RoPE helpers
 (rope_action_apply/causal_rope_action_apply, built on torch.polar) directly
 inside forward, which causes Inductor complex-operator fallbacks. This file keeps the exact teacher
-forcing / kv-cache control flow, but routes QKV projection and RoPE rotation
-through small real-valued (see real_rope.py), torch.compile'd functions
-instead, compiled once at import time -- no extra config flag or
-"already compiled" instance guard needed.
+forcing / kv-cache control flow and uses real-valued RoPE (see real_rope.py).
+The optimization Group can compile the QKV projection and rotation helpers.
 
 CausalWanModel's rope_params(...) buffers (self.freqs / freqs_action /
 freqs_state) must be recomputed in the real cos/sin layout for this to be
@@ -17,16 +15,16 @@ numerically consistent; see CausalWanModel.compile_real_rope_freqs.
 
 from __future__ import annotations
 
+import functools
 import os
 
 import torch
 
-from .real_rope import rope_qk_apply_real
+from .real_rope import rope_qk_apply_real as _apply_rope_qk
 
 ENABLE_TENSORRT = os.getenv("ENABLE_TENSORRT", "False").lower() == "true"
 
 _COMPILE_DEFAULTS = {"fullgraph": True, "dynamic": True}
-_apply_rope_qk = torch.compile(rope_qk_apply_real, **_COMPILE_DEFAULTS)
 
 
 def _project_qkv(self, x: torch.Tensor):
@@ -37,7 +35,21 @@ def _project_qkv(self, x: torch.Tensor):
     return q, k, v
 
 
-_project_qkv = torch.compile(_project_qkv, **_COMPILE_DEFAULTS)
+def compile_forward(original, options):
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+        return forward
+
+    compile_kwargs = {**_COMPILE_DEFAULTS, **(options or {})}
+    project_qkv = torch.compile(_project_qkv, **compile_kwargs)
+    apply_rope_qk = torch.compile(_apply_rope_qk, **compile_kwargs)
+
+    @functools.wraps(original)
+    def compiled_forward(self, *args, **kwargs):
+        return forward(
+            self, *args, **kwargs, project_qkv=project_qkv, apply_rope_qk=apply_rope_qk,
+        )
+
+    return compiled_forward
 
 
 def _prepare_rope_frequencies(
@@ -63,7 +75,7 @@ def _prepare_rope_frequencies(
 
 def _rotate_qk(
     self, q, k, v, freqs, freqs_action, freqs_state, action_register_length,
-    action_state_index=None,
+    action_state_index=None, *, apply_rope_qk=_apply_rope_qk,
 ):
     if ENABLE_TENSORRT:
         from groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk import (
@@ -84,11 +96,12 @@ def _rotate_qk(
     rotary_freqs = _prepare_rope_frequencies(
         self, freqs, freqs_action, freqs_state, action_register_length, action_state_index,
     )
-    return _apply_rope_qk(q, k, rotary_freqs, v.dtype)
+    return apply_rope_qk(q, k, rotary_freqs, v.dtype)
 
 
 def _rotate_teacher_forcing_qk(
     self, q, k, v, freqs, freqs_action, freqs_state, action_register_length,
+    *, apply_rope_qk=_apply_rope_qk,
 ):
     clean_length = (q.shape[1] - (action_register_length or 0)) // 2
     if ENABLE_TENSORRT:
@@ -107,7 +120,7 @@ def _rotate_teacher_forcing_qk(
     # Q/K already contain clean + noisy tokens: duplicate only the small
     # frequency table, not the activations, to rotate all four slices at once.
     rotary_freqs = torch.cat((freqs, noisy_freqs), dim=0)
-    rotated_q, rotated_k = _apply_rope_qk(q, k, rotary_freqs, v.dtype)
+    rotated_q, rotated_k = apply_rope_qk(q, k, rotary_freqs, v.dtype)
     return (
         rotated_q[:, :clean_length], rotated_k[:, :clean_length],
         rotated_q[:, clean_length:], rotated_k[:, clean_length:],
@@ -226,6 +239,9 @@ def forward(
     kv_cache: torch.Tensor | None = None,
     current_start_frame: int = 0,
     is_tf: bool = True,
+    *,
+    project_qkv=_project_qkv,
+    apply_rope_qk=_apply_rope_qk,
 ) -> tuple[torch.Tensor, torch.Tensor | None]:
     r"""
     Args:
@@ -235,7 +251,7 @@ def forward(
     """
     b, s, n, d = *x.shape[:2], self.num_heads, self.head_dim
 
-    q, k, v = _project_qkv(self, x)
+    q, k, v = project_qkv(self, x)
 
     updated_kv_cache: torch.Tensor | None = None
 
@@ -243,6 +259,7 @@ def forward(
         if is_tf:
             rq_context, rk_context, rq_noisy, rk_noisy = _rotate_teacher_forcing_qk(
                 self, q, k, v, freqs, freqs_action, freqs_state, action_register_length,
+                apply_rope_qk=apply_rope_qk,
             )
 
             # Calculate sequence dimensions
@@ -347,6 +364,7 @@ def forward(
         else:
             roped_query, roped_key = _rotate_qk(
                 self, q, k, v, freqs, freqs_action, freqs_state, action_register_length,
+                apply_rope_qk=apply_rope_qk,
             )
 
             # Calculate dynamic action and state horizons
@@ -373,7 +391,7 @@ def forward(
 
         roped_query, roped_key = _rotate_qk(
             self, q, k, v, freqs, freqs_action, freqs_state,
-            action_register_length, action_state_index,
+            action_register_length, action_state_index, apply_rope_qk=apply_rope_qk,
         )
 
         # split roped_query and roped_action_query (the last action_register_length tokens)

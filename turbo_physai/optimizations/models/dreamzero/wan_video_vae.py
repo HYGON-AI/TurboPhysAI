@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import functools
+import os
 
 import torch
 import torch.nn as nn
@@ -125,20 +126,22 @@ def init_channels_last(original, options):
     return __init__
 
 
-# compile `VideoVAE_.encode`/`VideoVAE38_.encode` 
+# Compile the encoder used by each VAE encode chunk.
 _COMPILE_DEFAULTS = {"dynamic": True}
 
 
 def _compile_block_forward(original, options):
-    compile_kwargs = dict(_COMPILE_DEFAULTS)
-    compile_kwargs.update(options or {})
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+        return original
+
+    compile_kwargs = {**_COMPILE_DEFAULTS, **(options or {})}
     compiled = torch.compile(original, **compile_kwargs)
 
     @functools.wraps(original)
-    def forward(self, x, feat_cache=None, feat_idx=[0]):
-        return compiled(self, x, feat_cache, feat_idx)
+    def wrapped(*args, **kwargs):
+        return compiled(*args, **kwargs)
 
-    return forward
+    return wrapped
 
 
 def compile_encoder3d_forward(original, options):

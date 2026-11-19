@@ -43,5 +43,3 @@ optimization_groups:
     enabled: true
   - id: dreamzero.image_encoder.compile_forward
     enabled: true
-  - id: dreamzero.wan2.1_attention.cache_cu_seqlens
-    enabled: true
