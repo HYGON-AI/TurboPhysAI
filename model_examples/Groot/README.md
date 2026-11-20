@@ -6,7 +6,7 @@
 
 ## 2. 优化接入基线
 
-TurboPhysAI 基于官方提交 `51d4c89f72fda44cbf77285c6a8114b52676b8a1` 接入，保持模型源码不变。本文使用 OpenCV CPU 解码，仅开启三个兼容 Group，其余优化关闭：
+TurboPhysAI 基于官方提交 `51d4c89f72fda44cbf77285c6a8114b52676b8a1` 接入，保持模型源码不变。本文使用 OpenCV CPU 解码。下表列出示例所需的兼容 Group，完整配置见[第 7 节](#7-通过-physai-启动训练)。
 
 | Group | 作用 |
 | --- | --- |
@@ -310,7 +310,7 @@ python3 -m turbo_physai.cli run --disable-numa --log-report \
   2>&1 | tee "$OUTPUT_DIR/train.log"
 ```
 
-退出码应为0，日志显示全部 18 项 Group 为 `applied`，训练达到 `10/10` 并输出 `Training completed!`。
+退出码应为0，日志显示全部 19 项 Group 为 `applied`，训练达到 `10/10` 并输出 `Training completed!`。
 
 ### 7.3 单机八卡训练
 

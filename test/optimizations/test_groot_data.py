@@ -12,7 +12,10 @@ from turbo_physai.optimizations.models.groot.data import (
     Bf16PixelValuesCollator,
     trainer_init_bf16_wrapper,
 )
-from turbo_physai.optimizations.models.groot.fixed_padding import fixed_padding_wrapper
+from turbo_physai.optimizations.models.groot.fixed_padding import (
+    fixed_padding_wrapper,
+    training_padding_wrapper,
+)
 
 
 # Pixel values bf16
@@ -73,6 +76,13 @@ def trainer(pad=7):
         processor=SimpleNamespace(tokenizer=SimpleNamespace(pad_token_id=pad))))
 
 
+def prepare_training_inputs(prepare, instance, batch):
+    def training_step(self, model, inputs):
+        return prepare(self, inputs)
+
+    return training_padding_wrapper(training_step, {})(instance, None, batch)
+
+
 def test_pad_156_left_pads_before_original_without_mutating_input():
     seen = []
     def original(self, inputs):
@@ -82,7 +92,7 @@ def test_pad_156_left_pads_before_original_without_mutating_input():
     ids = torch.tensor([[7, 4, 5], [6, 8, 9]])
     mask = torch.tensor([[0, 1, 1], [1, 1, 1]])
     batch = {"inputs": {"input_ids": ids, "attention_mask": mask, "state": torch.ones(2, 3)}}
-    result = wrapped(trainer(), batch)
+    result = prepare_training_inputs(wrapped, trainer(), batch)
     values = result["inputs"]
     assert values["input_ids"].shape == (2, 156)
     assert torch.all(values["input_ids"][:, :153] == 7)
@@ -97,21 +107,24 @@ def test_pad_156_left_pads_before_original_without_mutating_input():
 @pytest.mark.parametrize("width", [156, 157])
 def test_exact_limit_and_oversized_input(width):
     fn = fixed_padding_wrapper(lambda self, x: x, {})
+    instance = trainer()
     batch = {"inputs": {"input_ids": torch.ones((1, width), dtype=torch.long),
                         "attention_mask": torch.ones((1, width), dtype=torch.long)}}
     if width == 156:
-        assert fn(trainer(), batch)["inputs"]["input_ids"].shape == (1, 156)
+        assert prepare_training_inputs(fn, instance, batch)["inputs"]["input_ids"].shape == (1, 156)
     else:
         with pytest.raises(ValueError, match="156"):
-            fn(trainer(), batch)
+            prepare_training_inputs(fn, instance, batch)
+    assert fn(instance, batch) is batch
 
 
 @pytest.mark.parametrize("mask", [[[1, 0, 1]], [[0, 2, 1]]])
 def test_reject_invalid_attention_mask(mask):
     batch = {"inputs": {"input_ids": torch.ones((1, 3), dtype=torch.long),
                         "attention_mask": torch.tensor(mask)}}
+    fn = fixed_padding_wrapper(lambda self, x: x, {})
     with pytest.raises(ValueError, match="left-padded"):
-        fixed_padding_wrapper(lambda self, x: x, {})(trainer(), batch)
+        prepare_training_inputs(fn, trainer(), batch)
 
 
 def test_reject_unknown_fields_and_missing_tokenizer():
@@ -119,15 +132,16 @@ def test_reject_unknown_fields_and_missing_tokenizer():
                         "attention_mask": torch.ones((1, 2), dtype=torch.long)}}
     fn = fixed_padding_wrapper(lambda self, x: x, {})
     with pytest.raises(ValueError, match="pad token"):
-        fn(trainer(None), batch)
+        prepare_training_inputs(fn, trainer(None), batch)
     batch["inputs"]["unknown"] = 1
     with pytest.raises(ValueError, match="fields"):
-        fn(trainer(), batch)
+        prepare_training_inputs(fn, trainer(), batch)
 
 
 def test_pad_token_resolution_through_bf16_collator():
     instance = trainer()
     instance.data_collator = Bf16PixelValuesCollator(instance.data_collator)
     batch = {"inputs": {"input_ids": torch.tensor([[4]]), "attention_mask": torch.tensor([[1]])}}
-    result = fixed_padding_wrapper(lambda self, x: x, {})(instance, batch)
+    fn = fixed_padding_wrapper(lambda self, x: x, {})
+    result = prepare_training_inputs(fn, instance, batch)
     assert result["inputs"]["input_ids"][0, 0].item() == 7

@@ -1,7 +1,8 @@
 # Adapted from Isaac-GR00T, SPDX-License-Identifier: Apache-2.0
-"""Pad GR00T text inputs to width 156 at the trainer input boundary."""
+"""Pad GR00T training inputs to width 156 at the trainer input boundary."""
 
 from collections.abc import MutableMapping
+from contextvars import ContextVar
 from copy import copy
 from functools import wraps
 
@@ -13,12 +14,34 @@ _ALLOWED_FIELDS = frozenset({
     "input_ids", "attention_mask", "pixel_values", "image_grid_thw", "state",
     "action", "action_mask", "state_mask", "embodiment_id",
 })
+_WIDTH_NOT_PREPARED = -1
+_COLLATOR_WIDTH: ContextVar[int | None] = ContextVar("groot_collator_width", default=None)
+
+
+def get_collator_width() -> int | None:
+    width = _COLLATOR_WIDTH.get()
+    return None if width == _WIDTH_NOT_PREPARED else width
+
+
+def training_padding_wrapper(original, group_options):
+    """Enable padding only within a training step."""
+    @wraps(original)
+    def training_step(self, model, inputs, *args, **kwargs):
+        token = _COLLATOR_WIDTH.set(_WIDTH_NOT_PREPARED)
+        try:
+            return original(self, model, inputs, *args, **kwargs)
+        finally:
+            _COLLATOR_WIDTH.reset(token)
+
+    return training_step
 
 
 def fixed_padding_wrapper(original, group_options):
     """Wrap input preparation without changing the tokenizer or model."""
     @wraps(original)
     def prepare(self, inputs):
+        if _COLLATOR_WIDTH.get() is None:
+            return original(self, inputs)
         if (not isinstance(inputs, MutableMapping) or set(inputs) != {"inputs"}
                 or not isinstance(inputs["inputs"], MutableMapping)):
             raise ValueError("Unsupported batch structure for fixed sequence padding")
@@ -47,5 +70,6 @@ def fixed_padding_wrapper(original, group_options):
         padded_values["attention_mask"] = F.pad(mask, (extra, 0), value=0)
         padded_inputs = copy(inputs)
         padded_inputs["inputs"] = padded_values
+        _COLLATOR_WIDTH.set(ids.shape[1])
         return original(self, padded_inputs)
     return prepare

@@ -81,6 +81,7 @@ DISABLE_KV_CACHE = group(
 )
 
 _COMPILE = "turbo_physai.optimizations.models.groot.compile.compile_method_wrapper"
+_VL_DROPOUT = "turbo_physai.optimizations.models.groot.vl_padding_dropout"
 
 COMPILE_VISION = group(
     "groot.compile.qwen_vision_block",
@@ -108,6 +109,10 @@ COMPILE_VL = group(
         target="gr00t.model.modules.dit.SelfAttentionTransformer.forward",
         replacement=_COMPILE,
     ),
+    wrap(
+        target=f"{_VL_DROPOUT}.masked_vl_forward",
+        replacement=_COMPILE,
+    ),
 )
 
 COMPILE_TEXT = group(
@@ -127,12 +132,31 @@ PIXEL_VALUES_BF16 = group(
     ),
 )
 
+_FIXED_PADDING = "turbo_physai.optimizations.models.groot.fixed_padding"
+
 FIXED_PADDING = group(
     "groot.data.pad_156",
     wrap(
-        target="gr00t.experiment.trainer.Gr00tTrainer._prepare_inputs",
-        replacement="turbo_physai.optimizations.models.groot.fixed_padding.fixed_padding_wrapper",
+        target="gr00t.experiment.trainer.Gr00tTrainer.training_step",
+        replacement=f"{_FIXED_PADDING}.training_padding_wrapper",
     ),
+    wrap(
+        target="gr00t.experiment.trainer.Gr00tTrainer._prepare_inputs",
+        replacement=f"{_FIXED_PADDING}.fixed_padding_wrapper",
+    ),
+)
+
+FIXED_PADDING_VL_DROPOUT = group(
+    "groot.data.pad_156_vl_dropout",
+    wrap(
+        target="gr00t.model.gr00t_n1d7.gr00t_n1d7.Gr00tN1d7ActionHead.process_backbone_output",
+        replacement=f"{_VL_DROPOUT}.action_head_vl_dropout_wrapper",
+    ),
+    wrap(
+        target="gr00t.model.modules.dit.SelfAttentionTransformer.__init__",
+        replacement=f"{_VL_DROPOUT}.vl_dropout_init_wrapper",
+    ),
+    depends_on=("groot.data.pad_156",),
 )
 
 APEX_FUSED_ADAM = group(
