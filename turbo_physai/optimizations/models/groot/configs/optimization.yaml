@@ -227,7 +227,8 @@ optimization_groups:
   accuracy_only: false
 - id: groot.zero2.allgather_pipeline
   enabled: true
-  options: {}
+  options:
+    allow_checkpointing: true
   trust:
     source_hashes:
       transformers.trainer.Trainer.create_scheduler:
@@ -236,6 +237,10 @@ optimization_groups:
       - source-v1:d9e8badbbef826e41d9abf93362286df9075dbab02ab5e89276b5da8f6367acd
       deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.step:
       - source-v1:80b29d8459a480b5adf9214f857ee435fb22f80f699912c0fbf2991119c4a49f
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.state_dict:
+      - source-v1:2d20c625328e2b4cecba8764ff25f68ac83bc6c69b47e2d40df0eddbf04ce362
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.load_state_dict:
+      - source-v1:25ff5ad7f5c8a0fd8ebc38d67ea7569c206a2601f2bd42dfbb60a2fba2530380
     ast_hashes:
       transformers.trainer.Trainer.create_scheduler:
       - ast-v1:decfa248036f76096d7980bd0a6768400f8c004cef354946012f63b25db80e2e
@@ -243,6 +248,10 @@ optimization_groups:
       - ast-v1:c06dbd732f633d829ffcab7792ddf5c7226c0237ba38487bdf7a17e598ba48ec
       deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.step:
       - ast-v1:e7994de63dd34a1e1c136036a6a9781f6c652674cf27073cd76e640367881ad8
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.state_dict:
+      - ast-v1:5ae054f80ee1f6b6506308e0a1a28bcbeb2ae281db2941a4d09e31859d888889
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.load_state_dict:
+      - ast-v1:e945afecd12cbb3ef8c2c7d916c1ecbe0b72d5880610e14a0acd7077c78bb31e
   accuracy_only: false
 - id: groot.compat.opencv_video
   enabled: false

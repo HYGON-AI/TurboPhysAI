@@ -59,3 +59,5 @@ optimization_groups:
     enabled: true
   - id: groot.zero2.allgather_pipeline
     enabled: true
+    options:
+      allow_checkpointing: true

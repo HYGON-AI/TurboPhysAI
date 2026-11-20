@@ -40,6 +40,8 @@ def test_generated_config_matches_recipe_group_enablement():
     assert {k for k, v in config_groups.items() if not v} == {"groot.compat.opencv_video"}
     assert config_groups["groot.compat.training_config"]
     assert not config_groups["groot.compat.opencv_video"]
+    allgather = next(g for g in config["optimization_groups"] if g["id"] == "groot.zero2.allgather_pipeline")
+    assert allgather["options"]["allow_checkpointing"] is True
 
 
 @pytest.mark.model_deps

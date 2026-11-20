@@ -1,6 +1,7 @@
 # Adapted from Isaac-GR00T, SPDX-License-Identifier: Apache-2.0
 """Experimental ZeRO-2 optimizer-group AllGather pipeline."""
 from __future__ import annotations
+from collections.abc import Mapping
 from copy import copy
 from dataclasses import dataclass
 from functools import wraps
@@ -21,6 +22,7 @@ _HELPERS = {
  "_optimizer_step": "ast-v1:b61871fca9fdaa362502598398808d1e956b3d19e8c14185ba10fb6e78c2de28",
  "_update_model_bit16_weights": "ast-v1:f43fdc0f6651b0c60ab3a407ba88935b075f15515cbe3a914ed59bebff3b4ada",
 }
+_MANIFEST_KEY = "_turbo_physai_allgather_manifest"
 
 def _is_fused_adam_type(optimizer_type: type) -> bool:
     try:
@@ -455,24 +457,29 @@ def scheduler_wrapper(original, options):
 
 def train_wrapper(original, options):
     signature = inspect.signature(original)
+    allow_checkpointing = options.get("allow_checkpointing", False)
+    if not isinstance(allow_checkpointing, bool):
+        raise ValueError("allow_checkpointing must be boolean")
+
     @wraps(original)
     def train(self, *args, **kwargs):
-        bound = signature.bind_partial(self, *args, **kwargs)
-        if bound.arguments.get("resume_from_checkpoint"):
-            raise ValueError("AllGather pipeline does not support checkpoint resume")
         a = self.args
-        strategy = getattr(getattr(a, "save_strategy", None), "value", getattr(a, "save_strategy", None))
-        if strategy != "no" and not (strategy == "steps" and a.save_steps > a.max_steps > 0):
-            raise ValueError("AllGather pipeline cannot save checkpoints during training")
         if not a.bf16 or getattr(a, "fp16", False) or a.gradient_accumulation_steps != 1:
             raise ValueError("AllGather pipeline requires BF16 and gradient_accumulation_steps=1")
         if not self.is_deepspeed_enabled:
             raise ValueError("AllGather pipeline requires DeepSpeed ZeRO-2")
+        if not allow_checkpointing:
+            bound = signature.bind_partial(self, *args, **kwargs)
+            if bound.arguments.get("resume_from_checkpoint"):
+                raise ValueError("AllGather pipeline does not support checkpoint resume")
+            strategy = getattr(getattr(a, "save_strategy", None), "value", getattr(a, "save_strategy", None))
+            if strategy != "no" and not (strategy == "steps" and a.save_steps > a.max_steps > 0):
+                raise ValueError("AllGather pipeline cannot save checkpoints during training")
         return original(self, *args, **kwargs)
     return train
 
 
-def _validate_local(optimizer, expected_world):
+def _validate_layout(optimizer, expected_world):
     from deepspeed import comm
     if not dist.is_available() or not dist.is_initialized():
         raise RuntimeError("initialized distributed group required")
@@ -506,15 +513,19 @@ def _validate_local(optimizer, expected_world):
         layouts.append(describe_partition_layout(i, params, flat, partitions, comm.get_rank(group=group)))
     if [sum(p.numel() for p in group) for group in optimizer.bit16_groups] != [p["elements"] for p in plan]:
         raise RuntimeError("AllGather parameter groups do not match the regrouping plan")
-    # Compare optimizer options as well as group names and tensor layouts on
-    # every rank before issuing asynchronous collectives.
-    options = json.loads(json.dumps(
-        [{key: value for key, value in group.items() if key != "params"}
-         for group in inner.param_groups], allow_nan=False,
-    ))
-    return {"plan": plan, "optimizer_options": options,
+    return {"plan": plan,
             "optimizer_class": f"{type(inner).__module__}.{type(inner).__qualname__}",
             "layouts": [{k: v for k, v in item.items() if not k.startswith("local_")} for item in layouts]}
+
+
+def _validate_local(optimizer, expected_world):
+    record = _validate_layout(optimizer, expected_world)
+    # Ranks must agree on options during a step, including their current LR.
+    record["optimizer_options"] = json.loads(json.dumps(
+        [{key: value for key, value in group.items() if key != "params"}
+         for group in optimizer.optimizer.param_groups], allow_nan=False,
+    ))
+    return record
 
 
 def step_wrapper(original, options):
@@ -563,3 +574,88 @@ def step_wrapper(original, options):
             self._turbo_physai_allgather_failed = True
             raise
     return step
+
+
+def _checkpoint_manifest(optimizer, world):
+    from deepspeed import comm
+
+    if optimizer.elastic_checkpoint:
+        raise RuntimeError("AllGather pipeline checkpointing requires rigid ZeRO-2 partitions")
+    # Adam state and LR are restored by DeepSpeed. Verify only the layout into
+    # which the state will be loaded, including the offsets in this rank's shard.
+    layout = _validate_layout(optimizer, world)
+    return dict(
+        layout, version=1, world_size=world, rank=comm.get_rank(group=optimizer.dp_process_group),
+        partition_count=list(optimizer.partition_count),
+        group_paddings=list(optimizer.groups_padding),
+        parameter_slices=[
+            {name: [address.start, address.numel] for name, address in group.items()}
+            for group in optimizer._param_slice_mappings
+        ],
+    )
+
+
+def state_dict_wrapper(original, options):
+    """Check the step boundary and record the layout of the saved rank's shard."""
+    world = options.get("world_size", 8)
+    allow_checkpointing = options.get("allow_checkpointing", False)
+
+    @wraps(original)
+    def state_dict(self):
+        plan = getattr(self.optimizer, "_turbo_physai_allgather", None)
+        if plan is None and not allow_checkpointing:
+            return original(self)
+        if getattr(self, "_turbo_physai_pending_allgather", None) is not None:
+            raise RuntimeError("Cannot checkpoint AllGather optimizer with unfinished asynchronous work")
+        if getattr(self, "_turbo_physai_allgather_failed", False):
+            raise RuntimeError("Cannot checkpoint AllGather optimizer after a failed step")
+        manifest = _checkpoint_manifest(self, world)
+        result = original(self)
+        result[_MANIFEST_KEY] = manifest
+        return result
+    return state_dict
+
+
+def _validate_checkpoint_shard(optimizer, state_dict_list, checkpoint_folder, world):
+    if checkpoint_folder is not None:
+        raise RuntimeError("AllGather pipeline does not support universal checkpoint resume")
+    if not isinstance(state_dict_list, list) or len(state_dict_list) != world:
+        raise RuntimeError(f"AllGather resume requires a ZeRO checkpoint for {world} ranks")
+    current = _checkpoint_manifest(optimizer, world)
+    # DeepSpeed's rigid loader populates only this DP rank's entry.
+    state = state_dict_list[current["rank"]]
+    if not isinstance(state, Mapping):
+        raise RuntimeError("Missing local ZeRO optimizer checkpoint shard")
+    saved = state.get(_MANIFEST_KEY)
+    if not isinstance(saved, Mapping) or saved.get("version") != current["version"]:
+        raise RuntimeError("Checkpoint is missing a supported AllGather group-layout manifest")
+    differences = [key for key, value in current.items() if saved.get(key) != value]
+    if differences:
+        raise RuntimeError(f"AllGather optimizer-group layout differs in {', '.join(differences)}")
+
+
+def load_state_dict_wrapper(original, options):
+    world = options.get("world_size", 8)
+    allow_checkpointing = options.get("allow_checkpointing", False)
+
+    @wraps(original)
+    def load_state_dict(self, state_dict_list, load_optimizer_states=True, load_from_fp32_weights=False,
+                        checkpoint_folder=None, load_serial=None, param_shapes=None):
+        plan = getattr(self.optimizer, "_turbo_physai_allgather", None)
+        if allow_checkpointing or plan is not None:
+            error = None
+            try:
+                _validate_checkpoint_shard(self, state_dict_list, checkpoint_folder, world)
+            except Exception as exc:
+                error = f"{type(exc).__name__}: {exc}"
+            errors = [error]
+            if dist.is_available() and dist.is_initialized():
+                errors = [None] * dist.get_world_size()
+                dist.all_gather_object(errors, error)
+            failures = [f"rank {rank}: {reason}" for rank, reason in enumerate(errors) if reason is not None]
+            if failures:
+                raise RuntimeError("AllGather checkpoint validation failed: " + "; ".join(failures))
+        return original(self, state_dict_list, load_optimizer_states=load_optimizer_states,
+                        load_from_fp32_weights=load_from_fp32_weights, checkpoint_folder=checkpoint_folder,
+                        load_serial=load_serial, param_shapes=param_shapes)
+    return load_state_dict

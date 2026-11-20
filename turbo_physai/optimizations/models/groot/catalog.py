@@ -209,5 +209,13 @@ ZERO2_ALLGATHER = group(
         target="deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.step",
         replacement="turbo_physai.optimizations.models.groot.zero2_allgather.step_wrapper",
     ),
+    wrap(
+        target="deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.state_dict",
+        replacement="turbo_physai.optimizations.models.groot.zero2_allgather.state_dict_wrapper",
+    ),
+    wrap(
+        target="deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.load_state_dict",
+        replacement="turbo_physai.optimizations.models.groot.zero2_allgather.load_state_dict_wrapper",
+    ),
     compatibility_check="turbo_physai.optimizations.models.groot.zero2_allgather.allgather_compatibility",
 )

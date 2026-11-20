@@ -4,20 +4,20 @@
   "model_commit": "51d4c89f72fda44cbf77285c6a8114b52676b8a1",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "fa124692a4392f6d4eb25c099e4f66d6267ce61c20853671bbc406f54e93a6ab"
+    "sha256": "f6d10fc2bb15ef86fd82743bf84dadea2d3915e378f86e2d744bef0fb344ea62"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "package",
       "path": "optimizations/models/groot/configs/recipe.yaml",
-      "sha256": "867f0363e97b2ff57171e527dcd9977793113d3b33991b20353d550b852bd2c7"
+      "sha256": "964dae0e781dd272929f826ba76ff02d2b9a59495821ba1ede706a15f45e114d"
     },
     {
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/groot/catalog.py",
-      "sha256": "ae2449bdf21ef3692b573fa600efa8bbe7d54dd9ad556ad8cae20e58cbe476e8"
+      "sha256": "1c26aba96fa6db4dafd806095e4ef637a5b79d585c37dd43c78f1d9457b0dc69"
     }
   ]
 }

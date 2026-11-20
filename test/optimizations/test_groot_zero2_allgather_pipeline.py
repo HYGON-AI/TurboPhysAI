@@ -1,5 +1,6 @@
 """ZeRO-2 AllGather pipeline, optimizer regrouping and failure cleanup."""
 
+from copy import deepcopy
 from importlib.util import find_spec
 from types import SimpleNamespace
 
@@ -10,9 +11,11 @@ from turbo_physai.optimizations.models.groot.zero2_allgather import (
     GroupAllGatherPipeline,
     describe_partition_layout,
     launch_group_all_gather,
+    load_state_dict_wrapper,
     regroup_optimizer_parameter_groups,
     regroup_torch_optimizer,
     scheduler_wrapper,
+    state_dict_wrapper,
     step_wrapper,
     train_wrapper,
 )
@@ -90,6 +93,122 @@ def test_train_rejects_resume(keyword):
         return "started"
     with pytest.raises(ValueError, match="resume"):
         train_wrapper(original, {})(trainer, **keyword)
+
+
+def test_train_can_resume_with_periodic_saves_when_enabled():
+    trainer = _trainer(torch.optim.AdamW([torch.nn.Parameter(torch.ones(2))]))
+    trainer.args.save_steps = 2
+
+    def original(self, resume_from_checkpoint=None):
+        return resume_from_checkpoint
+
+    train = train_wrapper(original, {"allow_checkpointing": True})
+    assert train(trainer, resume_from_checkpoint="checkpoint-2") == "checkpoint-2"
+
+
+@pytest.fixture
+def zero_checkpoint(monkeypatch):
+    pytest.importorskip("deepspeed")
+    from deepspeed import comm
+    from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer
+    from deepspeed.utils.tensor_fragment import fragment_address
+
+    monkeypatch.setattr(torch.distributed, "is_initialized", lambda: True)
+    monkeypatch.setattr(torch.distributed, "get_world_size", lambda: 2)
+    monkeypatch.setattr(comm, "get_world_size", lambda group=None: 2)
+    monkeypatch.setattr(comm, "has_all_gather_into_tensor", lambda: True)
+
+    def gather(output, value):
+        output[:] = [value] * 2
+
+    monkeypatch.setattr(torch.distributed, "all_gather_object", gather)
+
+    def create(rank):
+        monkeypatch.setattr(comm, "get_rank", lambda group=None: rank)
+        master = torch.nn.Parameter(torch.full((2,), float(rank + 1)))
+        optimizer = torch.optim.AdamW([master], lr=0.01)
+        optimizer._turbo_physai_allgather = [{
+            "group_index": 0, "source_group_index": 0, "subgroup_index": 0,
+            "elements": 4, "parameter_names": ["layer.weight"],
+        }]
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step: step / 4)
+        flat = torch.zeros(4, dtype=torch.bfloat16)
+        zero = object.__new__(DeepSpeedZeroOptimizer)
+        zero.__dict__.update(
+            optimizer=optimizer, dtype=torch.bfloat16, cpu_offload=False, partition_gradients=True,
+            reduce_scatter=True, gradient_accumulation_steps=1, torch_autocast_gradscaler=False,
+            zenflow=False, dp_process_group=None, real_dp_process_group=[None],
+            bit16_groups=[[flat]], bit16_groups_flat=[flat],
+            parallel_partitioned_bit16_groups=[list(flat.chunk(2))],
+            loss_scaler=None, dynamic_loss_scale=False, overflow=False, clip_grad=1.0,
+            elastic_checkpoint=False, single_partition_of_fp32_groups=[master],
+            groups_padding=[0], partition_count=[2],
+            _param_slice_mappings=[{"layer.weight": fragment_address(start=0, numel=2)}],
+            _link_all_hp_params=lambda: None,
+        )
+        options = {"world_size": 2, "allow_checkpointing": True}
+        save = state_dict_wrapper(DeepSpeedZeroOptimizer.state_dict, options)
+        load = load_state_dict_wrapper(DeepSpeedZeroOptimizer.load_state_dict, options)
+        return zero, master, scheduler, save, load
+
+    return create
+
+
+@pytest.mark.model_deps
+@pytest.mark.parametrize("rank", [0, 1])
+@pytest.mark.parametrize("sparse_shards", [True, False])
+def test_allgather_checkpoint_restores_native_optimizer_and_lr(zero_checkpoint, tmp_path, rank, sparse_shards):
+    zero, master, scheduler, save, _ = zero_checkpoint(rank)
+
+    def update(zero, master, scheduler, gradient):
+        master.grad = torch.full_like(master, gradient)
+        zero.optimizer.step()
+        scheduler.step()
+
+    update(zero, master, scheduler, 0.1)
+    update(zero, master, scheduler, -0.2)
+    checkpoint_path = tmp_path / "optimizer.pt"
+    torch.save(save(zero), checkpoint_path)
+    checkpoint = torch.load(checkpoint_path, weights_only=False)
+    scheduler_state = deepcopy(scheduler.state_dict())
+    restored, restored_master, restored_scheduler, _, load = zero_checkpoint(rank)
+    assert restored.optimizer.param_groups[0]["lr"] != zero.optimizer.param_groups[0]["lr"]
+    shards = [None, None] if sparse_shards else [checkpoint, checkpoint]
+    shards[rank] = checkpoint
+    load(restored, shards, load_from_fp32_weights=True)
+    restored_scheduler.load_state_dict(scheduler_state)
+    torch.testing.assert_close(restored_master, master, rtol=0, atol=0)
+    assert restored.optimizer.param_groups[0]["lr"] == zero.optimizer.param_groups[0]["lr"]
+
+    update(zero, master, scheduler, 0.3)
+    update(restored, restored_master, restored_scheduler, 0.3)
+    torch.testing.assert_close(restored_master, master, rtol=0, atol=0)
+    torch.testing.assert_close(
+        restored.optimizer.state[restored_master], zero.optimizer.state[master], rtol=0, atol=0,
+    )
+    assert restored_scheduler.get_last_lr() == scheduler.get_last_lr()
+
+
+@pytest.mark.model_deps
+def test_allgather_checkpoint_rejects_changed_rank_local_parameter_slices(zero_checkpoint):
+    original, _, _, save, _ = zero_checkpoint(0)
+    checkpoint = save(original)
+    restored, _, _, _, load = zero_checkpoint(0)
+    restored._param_slice_mappings[0]["layer.weight"].start = 1
+    with pytest.raises(RuntimeError, match="layout"):
+        load(restored, [checkpoint, None], load_from_fp32_weights=True)
+    assert not restored.optimizer.state
+
+
+def test_allgather_checkpoint_rejects_pending_work_before_native_save():
+    optimizer = SimpleNamespace(_turbo_physai_allgather=[])
+    zero = SimpleNamespace(optimizer=optimizer, _turbo_physai_pending_allgather=object())
+
+    def native_save(self):
+        pytest.fail("native save was called with pending AllGather work")
+
+    with pytest.raises(RuntimeError, match="unfinished"):
+        state_dict_wrapper(native_save, {})(zero)
 
 
 def test_pipeline_waits_for_all_work_even_when_one_fails():
