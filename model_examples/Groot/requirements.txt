@@ -1,5 +1,5 @@
 # GR00T N1.7 LIBERO finetuning on the DTK 26.04 / Python 3.10 image.
-# Keep vendor torch, torchvision, DeepSpeed, FlashAttention and Triton from the image.
+# Use the vendor torch, torchvision, DeepSpeed, Apex, FlashAttention and Triton from the image.
 # Install with the vendor constraints generated in README.md, not upstream uv sync.
 numpy==1.26.3
 pandas==2.3.3

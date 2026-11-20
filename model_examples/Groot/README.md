@@ -96,12 +96,12 @@ test -f "$GROOT_OPT/configs/recipe.yaml"
 mkdir -p "$GROOT_CONFIG_DIR" "$DATA_ROOT/outputs" "$DATA_ROOT/logs"
 ```
 
-镜像提供 DTK 加速栈，额外依赖见 [requirements.txt](requirements.txt)。先锁定厂商包版本再安装，避免替换加速组件，不使用官方 `uv sync`，其 Python/CUDA 依赖与本文 DTK 环境不同。
+示例需要镜像中的 DTK 加速栈，包括厂商版 DeepSpeed 和 Apex。额外依赖见 [requirements.txt](requirements.txt)。先锁定厂商包版本再安装，避免替换加速组件，不使用官方 `uv sync`，其 Python/CUDA 依赖与本文 DTK 环境不同。
 
 ```bash
 python3 - <<'PY' > "$GROOT_CONFIG_DIR/vendor-constraints.txt"
 from importlib.metadata import version, PackageNotFoundError
-for name in ("torch", "torchvision", "torchaudio", "deepspeed", "flash-attn", "triton", "torchcodec"):
+for name in ("torch", "torchvision", "torchaudio", "deepspeed", "apex", "flash-attn", "triton", "torchcodec"):
     try:
         print(f"{name}=={version(name)}")
     except PackageNotFoundError:

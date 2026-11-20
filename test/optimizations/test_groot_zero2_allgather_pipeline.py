@@ -1,5 +1,6 @@
 """ZeRO-2 AllGather pipeline, optimizer regrouping and failure cleanup."""
 
+from importlib.util import find_spec
 from types import SimpleNamespace
 
 import pytest
@@ -477,10 +478,19 @@ def test_torch_optimizer_regroup_rejects_existing_state():
         raise AssertionError("optimizer groups cannot change after state creation")
 
 
-def test_fused_optimizer_group_step_matches_full_step_and_restores_lists(monkeypatch):
+@pytest.fixture
+def apex_fused_adam():
+    if find_spec("apex") is None:
+        pytest.skip("requires the DTK Apex FusedAdam build")
+    from apex.optimizers import fused_adam
+
+    return fused_adam
+
+
+@pytest.mark.model_deps
+def test_fused_optimizer_group_step_matches_full_step_and_restores_lists(monkeypatch, apex_fused_adam):
     """Exercise real Apex Python step with its GPU kernel replaced by CPU math."""
     import torch
-    import apex.optimizers.fused_adam as apex_module
     from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer
     from turbo_physai.optimizations.models.groot.zero2_allgather import _optimizer_step_for_group
 
@@ -495,13 +505,13 @@ def test_fused_optimizer_group_step_matches_full_step_and_restores_lists(monkeyp
                 param.mul_(1 - lr * weight_decay)
                 param.addcdiv_(mean, denom, value=-lr / (1 - beta1 ** step))
 
-    monkeypatch.setattr(apex_module, "multi_tensor_applier", cpu_apply)
+    monkeypatch.setattr(apex_fused_adam, "multi_tensor_applier", cpu_apply)
 
     def make_optimizer():
         parameters = [torch.nn.Parameter(torch.tensor([1.0, 2.0])),
                       torch.nn.Parameter(torch.tensor([3.0, 4.0, 5.0])),
                       torch.nn.Parameter(torch.tensor([6.0]))]
-        optimizer = apex_module.FusedAdam.__new__(apex_module.FusedAdam)
+        optimizer = apex_fused_adam.FusedAdam.__new__(apex_fused_adam.FusedAdam)
         torch.optim.Optimizer.__init__(optimizer, [{"params": [p]} for p in parameters],
             {"lr": .01, "betas": (.9, .99), "eps": 1e-8,
              "weight_decay": .01, "bias_correction": True})
@@ -545,14 +555,12 @@ def test_fused_optimizer_group_step_matches_full_step_and_restores_lists(monkeyp
     assert [g['step'] for g in actual.param_groups] == [3, 3, 3]
 
 
-def test_fused_group_adapter_restores_lists_if_step_raises(monkeypatch):
-    import pytest
-    import torch
-    import apex.optimizers.fused_adam as apex_module
+@pytest.mark.model_deps
+def test_fused_group_adapter_restores_lists_if_step_raises(apex_fused_adam):
     from turbo_physai.optimizations.models.groot.zero2_allgather import _optimizer_step_for_group
 
     param = torch.nn.Parameter(torch.ones(1))
-    optimizer = apex_module.FusedAdam.__new__(apex_module.FusedAdam)
+    optimizer = apex_fused_adam.FusedAdam.__new__(apex_fused_adam.FusedAdam)
     torch.optim.Optimizer.__init__(optimizer, [param], {})
     optimizer.adam_w_mode, optimizer.capturable, optimizer.master_weights = 1, False, False
     optimizer.param_groups_master = [{"params": [None]}]
