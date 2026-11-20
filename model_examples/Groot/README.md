@@ -6,83 +6,20 @@
 
 ## 2. 优化接入基线
 
-TurboPhysAI 基于官方提交 `51d4c89f72fda44cbf77285c6a8114b52676b8a1` 接入，保持模型源码不变。本文使用 OpenCV CPU 解码。下表列出示例所需的兼容 Group，完整配置见[第 7 节](#7-通过-physai-启动训练)。
-
-| Group | 作用 |
-| --- | --- |
-| `groot.compat.training_config` | 检查 TF32 支持情况，并通过 `VLM_MODEL_PATH` 使用本地 Cosmos。 |
-| `groot.compat.opencv_video` | 将训练的数据索引帧读取切换为 OpenCV。 |
-| `groot.dit.hip_math_sdpa` | HIP 环境下为动作 DiT 使用 Math SDPA，规避已观察到的数值异常。 |
+TurboPhysAI 的 GR00T 优化以 Isaac-GR00T 官方提交 `51d4c89f72fda44cbf77285c6a8114b52676b8a1` 为基线。本文使用 OpenCV 在 CPU 上解码视频。 [训练配置与启动步骤](#7-通过-physai-启动训练)
 
 ## 3. 构建训练环境
 
 ### 3.1 创建容器
 
-容器创建方式参见[安装指南](../../docs/zh/get_started/installation.md#创建容器)。在宿主机执行以下命令，将 `HOST_WORKSPACE` 替换为实际工作目录，该目录挂载为容器内的 `/workspace`：
+按照[安装指南](../../docs/zh/get_started/installation.md#使用配套镜像)，使用 VLA 配套镜像创建容器。下文命令均在容器内执行。
+
+### 3.2 准备 TurboPhysAI 源码和 GR00T 训练依赖
+
+将 `PHYS_ROOT` 设置为容器内包含 GR00T 优化子包的 TurboPhysAI 源码目录。编译环境要求见[安装指南](../../docs/zh/get_started/installation.md#从源码安装)。
 
 ```bash
-set -euo pipefail
-image=harbor.sourcefind.cn:5443/hcu/admin/base/custom:dit-vla-wm-base-ubuntu22.04-dtk26.04-torch2.10-py3.10
-export HOST_WORKSPACE=/path/to/groot-workspace
-mkdir -p "$HOST_WORKSPACE"
-
-docker pull "$image"
-docker run -dit \
-  --network=host \
-  --name=physai_groot \
-  --privileged \
-  --device=/dev/kfd \
-  --device=/dev/mkfd \
-  --device=/dev/dri \
-  --shm-size=128G \
-  --ulimit stack=-1:-1 \
-  --ulimit memlock=-1:-1 \
-  --workdir=/workspace \
-  -v /opt/hyhal:/opt/hyhal:ro \
-  -v "$HOST_WORKSPACE":/workspace \
-  --entrypoint /bin/bash \
-  "$image"
-
-docker exec -it physai_groot bash
-```
-
-**复用本地数据和权重：** 在 `docker run` 命令的 `--entrypoint` 之前增加对应只读挂载参数；数据源在容器内使用 `_h264_source` 路径，可写训练视图另建于工作区。源码按后文准备，无需单独挂载。
-
-| 资源 | 宿主机位置 |
-| --- | --- |
-| LIBERO H.264 训练数据 | `/public/home/zhaobx/Groot/data/libero_10_no_noops_1.0.0_lerobot_h264` |
-| GR00T 起始权重 | `/public/home/zhaobx/Groot/data/checkpoints/GR00T-N1.7-3B-local-cosmos` |
-| Cosmos 骨干权重 | `/public/home/zhaobx/Groot/data/checkpoints/nvidia/Cosmos-Reason2-2B` |
-
-```text
-  --mount type=bind,src=/public/home/zhaobx/Groot/data/libero_10_no_noops_1.0.0_lerobot_h264,dst=/workspace/data/libero_10_no_noops_1.0.0_lerobot_h264_source,readonly \
-  --mount type=bind,src=/public/home/zhaobx/Groot/data/checkpoints/GR00T-N1.7-3B-local-cosmos,dst=/workspace/data/checkpoints/GR00T-N1.7-3B-local-cosmos,readonly \
-  --mount type=bind,src=/public/home/zhaobx/Groot/data/checkpoints/nvidia/Cosmos-Reason2-2B,dst=/workspace/data/checkpoints/nvidia/Cosmos-Reason2-2B,readonly \
-```
-
-源目录需已存在，已有容器需重新创建才能增加挂载。下文均在容器内使用 Bash 执行。检查八卡设备并安装系统工具：
-
-```bash
-set -euo pipefail
-hy-smi
-python3 - <<'PY'
-import torch
-print(torch.__version__, torch.version.hip, torch.cuda.device_count())
-assert torch.version.hip and torch.cuda.is_available()
-assert torch.cuda.device_count() >= 8
-PY
-
-apt-get update
-apt-get install -y git git-lfs ffmpeg
-git lfs install
-```
-
-### 3.2 准备 TurboPhysAI 与训练依赖
-
-将包含 GR00T 优化子包的源码放到 `/workspace/TurboPhysA`，在源码目录编译原生扩展，后续直接从源码导入 TurboPhysAI。编译环境要求见[安装说明](../../docs/zh/get_started/installation.md#从源码安装)。
-
-```bash
-export PHYS_ROOT=/workspace/TurboPhysA
+export PHYS_ROOT=/workspace/TurboPhysAI
 export GROOT_OPT="$PHYS_ROOT/turbo_physai/optimizations/models/groot"
 export GROOT_MODEL="$PHYS_ROOT/model/Isaac-GR00T-official"
 export DATA_ROOT=/workspace/data
@@ -96,7 +33,7 @@ test -f "$GROOT_OPT/configs/recipe.yaml"
 mkdir -p "$GROOT_CONFIG_DIR" "$DATA_ROOT/outputs" "$DATA_ROOT/logs"
 ```
 
-示例需要镜像中的 DTK 加速栈，包括厂商版 DeepSpeed 和 Apex。额外依赖见 [requirements.txt](requirements.txt)。先锁定厂商包版本再安装，避免替换加速组件，不使用官方 `uv sync`，其 Python/CUDA 依赖与本文 DTK 环境不同。
+镜像已提供 DTK 版 PyTorch、DeepSpeed 和 Apex 等基础包。GR00T 训练还需要安装 [requirements.txt](requirements.txt) 中的额外依赖，安装前先锁定镜像中的厂商包版本，避免 pip 替换这些组件。
 
 ```bash
 python3 - <<'PY' > "$GROOT_CONFIG_DIR/vendor-constraints.txt"
@@ -112,28 +49,21 @@ PY
 python3 -m pip install --dry-run \
   -r "$PHYS_ROOT/model_examples/Groot/requirements.txt" \
   -c "$GROOT_CONFIG_DIR/vendor-constraints.txt"
-# 确认安装计划不会替换上述厂商加速包后执行。
+# 确认安装计划不会替换上述厂商加速包后执行
 python3 -m pip install \
   -r "$PHYS_ROOT/model_examples/Groot/requirements.txt" \
   -c "$GROOT_CONFIG_DIR/vendor-constraints.txt"
 
-# 在源码目录编译扩展，并让训练进程使用同一份源码。
+# 在源码目录编译扩展，并让训练进程使用同一份源码
 cd "$PHYS_ROOT"
 MAX_JOBS=8 python3 setup.py build_ext --inplace
 export PYTHONPATH="$PHYS_ROOT:$GROOT_MODEL${PYTHONPATH:+:$PYTHONPATH}"
-python3 - <<'CHECK_IMPORT'
-import torch
-import turbo_physai
-from turbo_physai import _C
-print("框架加载位置：", turbo_physai.__file__)
-print("原生扩展位置：", _C.__file__)
-CHECK_IMPORT
-python3 -m turbo_physai.cli --help
+python3 -c 'import torch, turbo_physai._C'
 ```
 
 ## 4. 准备模型源码
 
-在新机器获取官方仓库并锁定基线：
+准备源码，克隆 Isaac-GR00T 官方仓库并切换到基线提交。
 
 ```bash
 mkdir -p "$(dirname "$GROOT_MODEL")"
@@ -141,15 +71,9 @@ git clone https://github.com/NVIDIA/Isaac-GR00T.git "$GROOT_MODEL"
 git -C "$GROOT_MODEL" switch --detach 51d4c89f72fda44cbf77285c6a8114b52676b8a1
 ```
 
-已有官方源码时，跳过 clone 和切换提交，确认 `git -C "$GROOT_MODEL" rev-parse HEAD` 为上述提交且工作区干净。若出现 `dubious ownership`，执行：
-
-```bash
-git config --global --add safe.directory "$GROOT_MODEL"
-```
-
 ## 5. 准备 LIBERO 10 数据
 
-原始H.264资源通过 `$DATASET_SOURCE` 读取，训练统一使用 `$DATASET_DIR` 的可写元数据视图。已有资源时跳过下面的下载、转码和编码检查，但仍需执行末尾的“创建训练视图”。没有本地资源时下载并转码：
+原始H.264资源通过 `$DATASET_SOURCE` 读取，训练统一使用 `$DATASET_DIR` 的可写元数据视图。已有资源时跳过下面的下载、转码和编码检查，但仍需执行末尾的“创建训练视图”。从头准备数据时，转码和编码检查需要 `ffmpeg` 和 `ffprobe`。
 
 ```bash
 export DATASET_ORIGINAL="$DATA_ROOT/libero_10_no_noops_1.0.0_lerobot_original"
@@ -229,7 +153,7 @@ DATA_VIEW
 
 ## 6. 准备模型权重
 
-权重位置见第3.1节。已有权重时跳过下载，直接设置本地加载配置；否则先在 [Cosmos 模型页](https://huggingface.co/nvidia/Cosmos-Reason2-2B)获得访问资格，再执行：
+已有 GR00T 和 Cosmos 权重时，可直接设置下方的本地权重路径。需要下载时，先在 [Cosmos 模型页](https://huggingface.co/nvidia/Cosmos-Reason2-2B)获得访问资格，再执行：
 
 ```bash
 HF_HUB_OFFLINE=0 TRANSFORMERS_OFFLINE=0 hf auth login
@@ -258,7 +182,7 @@ export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 USE_WANDB=0
 
 ### 7.1 生成优化配置
 
-复制仓库 Recipe 生成独立配置，开启全部兼容项和优化项，不修改仓库原配置：
+复制内置 Recipe，生成启用全部 Group 的优化配置。
 
 ```bash
 python3 - <<'PY'
@@ -287,7 +211,7 @@ python3 -m turbo_physai.cli optimization check \
 
 ### 7.2 快速验证（单机八卡）
 
-运行10步，全局batch32、每卡4，BF16混合精度。使用官方入口，末步会保存checkpoint并另存最终模型，10步仅验证训练链路，不作为稳定性能或精度结论。
+使用全局 batch 32 和 BF16 运行 10 步，检查训练启动和末步保存。该示例仅保存模型权重。此前 HCU 数值对照覆盖 100 步。
 
 ```bash
 set -o pipefail
@@ -311,40 +235,21 @@ python3 -m turbo_physai.cli run --disable-numa --log-report \
   2>&1 | tee "$OUTPUT_DIR/train.log"
 ```
 
-退出码应为0，日志显示全部 19 项 Group 为 `applied`，训练达到 `10/10` 并输出 `Training completed!`。
+日志应显示 19 个 Group 为 `applied`、训练达到 `10/10` 并输出 `Training completed!`。
 
 ### 7.3 单机八卡训练
 
-正式训练使用官方入口，保留 checkpoint 与最终模型。AllGather pipeline 不支持训练期间保存 checkpoint，因此先关闭该项并重新生成配置：
+NVIDIA 的 LIBERO 10（Long）复现配方使用全局 batch 640、20,000 步。 [官方训练命令](https://github.com/NVIDIA/Isaac-GR00T/blob/51d4c89f72fda44cbf77285c6a8114b52676b8a1/examples/LIBERO/README.md#L39)
+
+使用第 7.1 节生成的配置，每 1,000 步保存完整 checkpoint。
 
 ```bash
-python3 - <<'PY'
-import os
-from pathlib import Path
-import yaml
-path = Path(os.environ["GROOT_CONFIG_DIR"]) / "recipe.yaml"
-recipe = yaml.safe_load(path.read_text())
-for group in recipe["optimization_groups"]:
-    if group["id"] == "groot.zero2.allgather_pipeline":
-        group["enabled"] = False
-path.write_text(yaml.safe_dump(recipe, sort_keys=False))
-PY
-python3 -m turbo_physai.cli optimization generate \
-  --recipe "$GROOT_CONFIG_DIR/recipe.yaml" --repo "$GROOT_MODEL" \
-  --commit 51d4c89f72fda44cbf77285c6a8114b52676b8a1 \
-  --output "$GROOT_CONFIG_DIR/optimization.yaml" --force
-```
-
-启动训练：
-
-```bash
-set -o pipefail
-export NUM_GPUS=8 GLOBAL_BATCH_SIZE=32 MAX_STEPS=10000
-export SAVE_STEPS=1000 DATALOADER_NUM_WORKERS=4 USE_WANDB=0
-export MASTER_PORT=29517
+set -euo pipefail
+export NUM_GPUS=8 GLOBAL_BATCH_SIZE=640 MAX_STEPS=20000 SAVE_STEPS=1000
 unset GR00T_DIT_SDPA_MODE
-OUTPUT_DIR="$DATA_ROOT/outputs/groot-opencv-train-$(date +%Y%m%d-%H%M%S)-$$"
-mkdir -p "$OUTPUT_DIR"
+
+RUN_DIR="$DATA_ROOT/outputs/groot-libero10-$(date +%Y%m%d-%H%M%S)-$$"
+mkdir -p "$RUN_DIR"
 cd "$GROOT_MODEL"
 python3 -m turbo_physai.cli run --disable-numa --log-report \
   --runtime-config "$GROOT_OPT/configs/runtime.yaml" \
@@ -355,8 +260,8 @@ python3 -m turbo_physai.cli run --disable-numa --log-report \
     --base-model-path "$BASE_MODEL_PATH" \
     --dataset-path "$DATASET_DIR" \
     --embodiment-tag LIBERO_PANDA --experiment-name libero10_finetune \
-    --output-dir "$OUTPUT_DIR" --state-dropout-prob 0.2 --save-only-model \
-  2>&1 | tee "$OUTPUT_DIR/train.log"
+    --output-dir "$RUN_DIR/checkpoints" --state-dropout-prob 0.2 \
+  2>&1 | tee "$RUN_DIR/train.log"
 ```
 
-训练参数为学习率 `1e-4`、weight decay `1e-5`、warmup `0.05`、梯度累积1；每1000步保存，最多保留5份checkpoint，结束时另存最终模型。`--save-only-model` 不保存优化器、调度器和RNG状态，需要精确续训时去掉该参数。
+续训时沿用相同的卡数、优化配置和 `RUN_DIR/checkpoints` 输出目录，在上述 `examples/finetune.sh` 命令末尾增加 `--resume-from-checkpoint`。使用原训练的 `RUN_DIR`，并将 `MAX_STEPS` 设置为续训的目标总步数。
