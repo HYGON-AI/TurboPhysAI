@@ -1,0 +1,45 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+
+metadata:
+  id: model.dreamzero.development.hcu
+  version: "0.1.0"
+  description: dreamzero optimization development config
+
+model:
+  name: DreamZero
+
+optimization_modules:
+  - turbo_physai.optimizations.models.dreamzero.catalog
+
+extends: []
+
+compatibility: {}
+
+# Add validated model-specific Group IDs here.
+optimization_groups:
+  - id: dreamzero.training.skip_unused_vae
+    enabled: true
+  - id: dreamzero.training.cache_train_mode
+    enabled: true
+  - id: dreamzero.training.freeze_gc_after_warmup
+    enabled: true
+  - id: dreamzero.dit.channels_last_gradient_checkpointing
+    enabled: true
+  - id: dreamzero.dit.fold_state_blocks
+    enabled: true
+  - id: dreamzero.dit.dense_flash_attention
+    enabled: true
+  - id: dreamzero.dit.real_rope_compile
+    enabled: true
+  - id: dreamzero.vae.channels_last
+    enabled: true
+  - id: dreamzero.vae.compile_encode
+    enabled: true
+  - id: dreamzero.text_encoder.wan_video_text_encoder
+    enabled: true
+  - id: dreamzero.image_encoder.compile_forward
+    enabled: true

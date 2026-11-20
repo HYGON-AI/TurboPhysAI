@@ -1,0 +1,14 @@
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+# Required by dreamzero.channels_last
+environment:
+  set:
+    MIOPEN_FIND_MODE: "1"
+    MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
+    PYTORCH_MIOPEN_SUGGEST_NHWC: "1"
+    ATTENTION_BACKEND: "torch"
+  unset: []
+
+process:
+  numa: true

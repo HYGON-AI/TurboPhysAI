@@ -1,0 +1,23 @@
+{
+  "schema_version": "turbophysai/generation-record/v2",
+  "generator": "turbo-physai optimization generate",
+  "model_commit": "ab790c198fbce33503358efbbd4187ce9a89adf3",
+  "config": {
+    "path": "optimization.yaml",
+    "sha256": "696a179fb170fbda86da467fa516194d3acf85a06d972cb31754f4636fdd4e51"
+  },
+  "inputs": [
+    {
+      "role": "recipe",
+      "base": "config",
+      "path": "recipe.yaml",
+      "sha256": "394ee900c517e1913a9c66ce28b8f683a28d4b0da5f6e8a306a69d43ae58acdb"
+    },
+    {
+      "role": "catalog",
+      "base": "package",
+      "path": "optimizations/models/dreamzero/catalog.py",
+      "sha256": "db6b52ec46df882e777b468d39c52494eddc902f5917a8f8c5003316e265b589"
+    }
+  ]
+}

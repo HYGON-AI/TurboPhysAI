@@ -1,0 +1,190 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.dreamzero.development.hcu
+  version: 0.1.0
+  description: dreamzero optimization development config
+model:
+  name: DreamZero
+compatibility:
+  commits:
+  - ab790c198fbce33503358efbbd4187ce9a89adf3
+optimization_groups:
+- id: dreamzero.training.skip_unused_vae
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.encode_image:
+      - source-v1:833ab9195122e7fe62ae28daffc78b8390e194682d83d2ed6f649cd2de93d44d
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.forward:
+      - source-v1:85d1cf8610d368a7ae849170c20945435dfb6d7269d188478ecdf8df4e3ca0e1
+    ast_hashes:
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.encode_image:
+      - ast-v1:4dadd336569bd88abcca143f3b75a706190eac54331fa39ece336920d409c8e1
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.forward:
+      - ast-v1:311cacce5fa313384346356bc1452225bbd8b6aef7c8d3a76767173e3a54234b
+  accuracy_only: false
+- id: dreamzero.training.cache_train_mode
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.train:
+      - source-v1:9e2ebb28709740467a7bd7c5898d3f2437b99f2c17079e249605adf3a77acb20
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.set_frozen_modules_to_eval_mode:
+      - source-v1:8db5780a3b53b628a715a83bf17a2d1c2ed79427a942471c05b006c77383708a
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.set_trainable_parameters:
+      - source-v1:76cafea12e6c2787d4fec538ef55a5e3982bc6b430d9cd8381b1e2f7a12d2125
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.inject_lora_after_loading:
+      - source-v1:86c921e29835381c846ab741821ac31470ed23678f06af13750315950a99bd7f
+    ast_hashes:
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.train:
+      - ast-v1:50b4af50bc5798893698073b411c13a5482bbb6a84d13ce128125c86c455d6b1
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.set_frozen_modules_to_eval_mode:
+      - ast-v1:cb400293ae65e466d3be12d0eb12eddf55d49c656ff6e5152b9a108e80446bf5
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.set_trainable_parameters:
+      - ast-v1:6f147d9eaccb4a1894e6b5915106a86e53c081000b6df7526b16d769762b8f88
+      groot.vla.model.dreamzero.action_head.wan_flow_matching_action_tf.WANPolicyHead.inject_lora_after_loading:
+      - ast-v1:d3a0ef50b1acde91053e4ab2f1bb1894bedb3e80cf468a8fd16390f533b599b2
+  accuracy_only: false
+- id: dreamzero.training.freeze_gc_after_warmup
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.experiment.experiment.VLATrainer.training_step:
+      - source-v1:32984032732cd62d378dcbb1c8f5a053ecdd63ac7110954a5cf640d3ca46bc05
+    ast_hashes:
+      groot.vla.experiment.experiment.VLATrainer.training_step:
+      - ast-v1:c2abe03b27cf50de9886a313382df869bf30e6d59586ee0ac73a1f3babb07e2b
+  accuracy_only: false
+- id: dreamzero.dit.channels_last_gradient_checkpointing
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanModel._forward_train:
+      - source-v1:b8c61d507df2d7024296666fa251b4989955d150522c13187c7eb771eb8fc87f
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanModel.init_weights:
+      - source-v1:04001e1331e073ceea58ab05de78e66cce1ca4e446cca15e270243faacab78c7
+    ast_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanModel._forward_train:
+      - ast-v1:ee1e21dfb9089f4a1ecc89c9a8143ea78131cd5b265c241c62d41bd244b91711
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanModel.init_weights:
+      - ast-v1:19b9635e7e46fa9318a050c9779e868ba60adaadc351c497d65facc4be4c7bf0
+  accuracy_only: false
+- id: dreamzero.dit.fold_state_blocks
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanSelfAttention._process_state_blocks:
+      - source-v1:674e9234f8b9f1687b15be3fb521face7753f38d9548fa81eb04d0a2e817f552
+    ast_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanSelfAttention._process_state_blocks:
+      - ast-v1:de8933074e719e19323ecb2c620501e1a0d1b9fdc163cf2047fe0cbc8a50bb94
+  accuracy_only: false
+- id: dreamzero.dit.dense_flash_attention
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.modules.attention.flash_attention:
+      - source-v1:d133829709f505c1af57fdee86bbffcc49d1b650975474dbe2141c565cb203fe
+    ast_hashes:
+      groot.vla.model.dreamzero.modules.attention.flash_attention:
+      - ast-v1:ac13bab0e9888f82122af345bcefaa2265837ac3ea3f58cb6f3290ba78a45f22
+  accuracy_only: false
+- id: dreamzero.dit.real_rope_compile
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanModel.__init__:
+      - source-v1:a1ac5abfad4edd480807426c580b7ebd89fb49f2997741d948e3eb08f1fa4e4d
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanSelfAttention.forward:
+      - source-v1:ac6b62eb6e356a51c452184966443565f4f7df6fe719cde99fe8d483641a18dc
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanAttentionBlock.forward:
+      - source-v1:8d5f260e7050e4b29dedab7a9814a85e24ead23d088fd457d53d99170957b68e
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanAttentionBlock.__init__:
+      - source-v1:10874af5fc6a332c9123ea3b01276c85e2129d57a85e15bd833db3f0585d2255
+    ast_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanModel.__init__:
+      - ast-v1:92116b3b3a97cc82c35855f052e2072c8d92b5c710f06554de309c89ab69c097
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanSelfAttention.forward:
+      - ast-v1:c7f28b85fb5da4d726f939a0899eca3d1823dce23bc389b375bc131f38c4b94d
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanAttentionBlock.forward:
+      - ast-v1:da746b98033a63971f9ac85852521fea2f65a9517209c3005153ae28270b0c1a
+      groot.vla.model.dreamzero.modules.wan_video_dit_action_casual_chunk.CausalWanAttentionBlock.__init__:
+      - ast-v1:d3637b6111edeabf1079e10fc1b13e6c152ab8019e5b6ae21777c7ae064c01ab
+  accuracy_only: false
+- id: dreamzero.vae.channels_last
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_vae.Resample.forward:
+      - source-v1:c81a89e8decbaff70d41076292d544fa43936754e6f3f5b4acdf53fb51faba73
+      groot.vla.model.dreamzero.modules.wan_video_vae.AttentionBlock.forward:
+      - source-v1:01632b2306bf254fc8b37d205b6a66ccc9a1924328f1782177dcf78f521219e4
+      groot.vla.model.dreamzero.modules.wan_video_vae.WanVideoVAE.encode:
+      - source-v1:27175a5e2c6579b0a29b9f7fae7a7ae2f5b653f262efe87a3a54169d6c67a12e
+      groot.vla.model.dreamzero.modules.wan_video_vae.WanVideoVAE38.__init__:
+      - source-v1:a5fb9237d8d18f6070b5e509443c10ce86bbe0aacec900aec416c9fd800b87b0
+    ast_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_vae.Resample.forward:
+      - ast-v1:11c264520bf11ea1e02d0fe7d0923699b8717fcb31dfb894eebf7c10b6ebac67
+      groot.vla.model.dreamzero.modules.wan_video_vae.AttentionBlock.forward:
+      - ast-v1:f7267a10d74f00d4e55ecb1c786141b6ecd242ae2c1c31b387fab69538915d64
+      groot.vla.model.dreamzero.modules.wan_video_vae.WanVideoVAE.encode:
+      - ast-v1:8f9b835c976b9e7e0f12dc2fc1c459baf386bd611ff0eee8a73a6bb1330dbef9
+      groot.vla.model.dreamzero.modules.wan_video_vae.WanVideoVAE38.__init__:
+      - ast-v1:dacbb533bbb1eeee9b9625be1d068e397a2bc9b66923c3d4778190432eccd924
+  accuracy_only: false
+- id: dreamzero.vae.compile_encode
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_vae.Encoder3d.forward:
+      - source-v1:873827a2e0f75489b25940ebeb6cbfd1cff033f14ff87160f36afe87aac50f8c
+      groot.vla.model.dreamzero.modules.wan_video_vae.Encoder3d_38.forward:
+      - source-v1:5466fcd75f7b12bf01e0f85c203a62eed55fa286334f232050b2d9c9dc79c7fd
+    ast_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_vae.Encoder3d.forward:
+      - ast-v1:b77f0add574f0fde97c7bdb49acee692ea73b58de6e80c5c4d218235c4148dba
+      groot.vla.model.dreamzero.modules.wan_video_vae.Encoder3d_38.forward:
+      - ast-v1:372736106ae5c917dd7f845b4943918533487030fc55dad0605fbf54a2e96cc9
+  accuracy_only: false
+- id: dreamzero.text_encoder.wan_video_text_encoder
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_text_encoder.T5Attention.forward:
+      - source-v1:d3683e6fba530052606e7a7c20550d1a7dbc40642babec17f0ac190a537eb10a
+      groot.vla.model.dreamzero.modules.wan_video_text_encoder.WanTextEncoder.forward:
+      - source-v1:dab69166aea58d13eb0b1ed61276ada7cfecad0ef44af6b0ff1125020689956f
+    ast_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_text_encoder.T5Attention.forward:
+      - ast-v1:77db77fa7b2261417f15ba84fe5b1041d86a1e5f6d57c4d065c1d032ce3db1df
+      groot.vla.model.dreamzero.modules.wan_video_text_encoder.WanTextEncoder.forward:
+      - ast-v1:d134a86f2b987ecd02a8cd2fd70242975a4e27efe6baefacfb6b71485f41e358
+  accuracy_only: false
+- id: dreamzero.image_encoder.compile_forward
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_image_encoder.VisionTransformer.forward:
+      - source-v1:fee33c6ccbfbcd29bc7256175a7a2758b3149f4dfe40c5cda4df8d126c360fc2
+    ast_hashes:
+      groot.vla.model.dreamzero.modules.wan_video_image_encoder.VisionTransformer.forward:
+      - ast-v1:b371cf510df2b1e8e68deffdee8b5e0c74ad91d12eacf514e00693f5ae999dc5
+  accuracy_only: false
+optimization_modules:
+- turbo_physai.optimizations.models.dreamzero.catalog

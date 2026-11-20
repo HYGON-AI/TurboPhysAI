@@ -100,6 +100,25 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 | `turbo_physai/optimizations/models/bevformer/mdc.py` | `mmcv/ops/modulated_deform_conv.py` | Modified |
 | `test/msda_reference.py` | `mmcv/ops/multi_scale_deform_attn.py` | Modified |
 
+### DreamZero (Alibaba Wan DiT / VAE / text encoder / policy head)
+
+- Repository: <https://github.com/dreamzero0/dreamzero>
+- Fixed commit: `ab790c198fbce33503358efbbd4187ce9a89adf3`
+- License: Apache-2.0 (DreamZero's own `LICENSE`, Copyright 2025 NVIDIA Corporation). DreamZero's `groot/vla/model/dreamzero/modules/attention.py` additionally carries an in-file `Copyright 2024-2025 The Alibaba Wan Team Authors.` notice inherited from Wan2.1.
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/dreamzero/attention.py` | `groot/vla/model/dreamzero/modules/attention.py` (`flash_attention`) | Modified |
+| `turbo_physai/optimizations/models/dreamzero/CausalWanAttentionBlock.py` | `groot/vla/model/dreamzero/modules/wan_video_dit_action_casual_chunk.py` (`CausalWanAttentionBlock.__init__`, `CausalWanAttentionBlock.forward`) | Modified |
+| `turbo_physai/optimizations/models/dreamzero/CausalWanModel.py` | `groot/vla/model/dreamzero/modules/wan_video_dit_action_casual_chunk.py` (`CausalWanModel.__init__`, `CausalWanModel.init_weights`, `CausalWanModel._forward_train`) | Modified |
+| `turbo_physai/optimizations/models/dreamzero/CausalWanSelfAttention.py` | `groot/vla/model/dreamzero/modules/wan_video_dit_action_casual_chunk.py` (`CausalWanSelfAttention.forward`, `CausalWanSelfAttention._process_state_blocks`) | Modified |
+| `turbo_physai/optimizations/models/dreamzero/wan_video_vae.py` | `groot/vla/model/dreamzero/modules/wan_video_vae.py` (`Resample.forward`, `AttentionBlock.forward`, `WanVideoVAE.encode`, `WanVideoVAE38.__init__`, `Encoder3d.forward`, `Encoder3d_38.forward`) | Modified |
+| `turbo_physai/optimizations/models/dreamzero/skip_unused_vae.py` | `groot/vla/model/dreamzero/action_head/wan_flow_matching_action_tf.py` (`WANPolicyHead.encode_image`, `WANPolicyHead.forward`) | Modified |
+| `turbo_physai/optimizations/models/dreamzero/text_encoder.py` | `groot/vla/model/dreamzero/modules/wan_video_text_encoder.py` (`T5Attention.forward`, `WanTextEncoder.forward`) | Modified |
+| `turbo_physai/optimizations/models/dreamzero/train_mode_cache.py` | `groot/vla/model/dreamzero/action_head/wan_flow_matching_action_tf.py` (`WANPolicyHead.train`, `WANPolicyHead.set_frozen_modules_to_eval_mode`) | Modified |
+
+The eight local files listed above currently carry no Hygon modification notice.
+
 The full Apache-2.0 text is in [third_party/licenses/Apache-2.0.txt](third_party/licenses/Apache-2.0.txt).
 
 ## Confirmed BSD-3-Clause derivations
