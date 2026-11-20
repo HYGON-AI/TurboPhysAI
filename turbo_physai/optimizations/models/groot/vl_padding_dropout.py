@@ -1,3 +1,7 @@
+# Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon from Isaac-GR00T, gr00t/model/gr00t_n1d7/gr00t_n1d7.py
+# and gr00t/model/modules/dit.py.
 # SPDX-License-Identifier: Apache-2.0
 """Fixed-width VL attention with Dropout executed at the collator width."""
 

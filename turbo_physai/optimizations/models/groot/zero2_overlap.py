@@ -1,4 +1,7 @@
-# Adapted from Isaac-GR00T, SPDX-License-Identifier: Apache-2.0
+# Copyright (c) Microsoft Corporation.
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon from DeepSpeed ZeRO-2, deepspeed/runtime/zero/stage_1_and_2.py.
+# SPDX-License-Identifier: Apache-2.0
 """Experimental ZeRO-2 overlap for the pinned DTK DeepSpeed build."""
 from __future__ import annotations
 import inspect

@@ -1,4 +1,5 @@
-# Adapted from Isaac-GR00T, SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
 import inspect
 from functools import wraps
 from collections.abc import MutableMapping

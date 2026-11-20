@@ -1,4 +1,6 @@
-# Adapted from Isaac-GR00T, Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES.
+# Copyright 2025 The Qwen Team and The HuggingFace Inc. team. All rights reserved.
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon from Transformers 4.57.3, src/transformers/models/qwen3_vl/modeling_qwen3_vl.py.
 # SPDX-License-Identifier: Apache-2.0
 
 import torch
