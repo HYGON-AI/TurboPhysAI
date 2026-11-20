@@ -5,10 +5,7 @@ schema_version: turbophysai/runtime-config/v1
 kind: RuntimeConfig
 
 environment:
-  # Local Cosmos checkpoint for the current workspace. Override with
-  # --set VLM_MODEL_PATH=/path/to/checkpoint on another machine.
   set:
-    VLM_MODEL_PATH: /workspace/data/checkpoints/nvidia/Cosmos-Reason2-2B
     HF_HUB_OFFLINE: "1"
     TRANSFORMERS_OFFLINE: "1"
     USE_WANDB: "0"

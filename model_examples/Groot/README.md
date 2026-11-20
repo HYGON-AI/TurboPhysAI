@@ -248,7 +248,7 @@ export BASE_MODEL_PATH="$BASE_MODEL_SOURCE"
 export VLM_MODEL_PATH="$DATA_ROOT/checkpoints/nvidia/Cosmos-Reason2-2B"
 ```
 
-复用已有权重前，确认 GR00T 权重目录的 `config.json` 中 `model_name` 和 `processor_config.json` 中 `processor_kwargs.model_name` 均指向该本地 Cosmos 路径。新下载的权重如不匹配，需先在可写副本中调整配置，再将 `BASE_MODEL_PATH` 指向该副本。训练前开启离线模式：
+确认 GR00T 权重目录的 `config.json` 中 `model_name` 指向本地 Cosmos 路径。路径需包含 `nvidia/Cosmos-Reason2`，供官方代码识别骨干类型。新下载的权重如不匹配，需先在可写副本中调整该字段，再将 `BASE_MODEL_PATH` 指向该副本。训练时 `VLM_MODEL_PATH` 也会传给处理器。训练前开启离线模式：
 
 ```bash
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 USE_WANDB=0
@@ -301,6 +301,7 @@ cd "$GROOT_MODEL"
 python3 -m turbo_physai.cli run --disable-numa --log-report \
   --runtime-config "$GROOT_OPT/configs/runtime.yaml" \
   --optimization-config "$GROOT_CONFIG_DIR/optimization.yaml" \
+  --set "VLM_MODEL_PATH=$VLM_MODEL_PATH" \
   --set VIDEO_DECODER_BACKEND=opencv -- \
   bash examples/finetune.sh \
     --base-model-path "$BASE_MODEL_PATH" \
@@ -348,6 +349,7 @@ cd "$GROOT_MODEL"
 python3 -m turbo_physai.cli run --disable-numa --log-report \
   --runtime-config "$GROOT_OPT/configs/runtime.yaml" \
   --optimization-config "$GROOT_CONFIG_DIR/optimization.yaml" \
+  --set "VLM_MODEL_PATH=$VLM_MODEL_PATH" \
   --set VIDEO_DECODER_BACKEND=opencv -- \
   bash examples/finetune.sh \
     --base-model-path "$BASE_MODEL_PATH" \
