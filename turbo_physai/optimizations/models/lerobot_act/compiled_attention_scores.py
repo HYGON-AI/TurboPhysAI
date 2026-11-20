@@ -82,7 +82,7 @@ def contract(kernel_name, source):
     signature = tuple(arg.arg for arg in node.args.args)
     if signature not in (_INPLACE, _OUT):
         raise ValueError(f"ACT softmax contract changed: signature for {kernel_name}")
-    if "'grid_type': 'Grid1D'" not in source or "cc='gfx938'" not in source:
+    if "'grid_type': 'Grid1D'" not in source or not any(f"cc='{arch}'" in source for arch in ("gfx936", "gfx938")):
         raise ValueError(f"ACT softmax contract changed: device or grid for {kernel_name}")
     inplace = signature == _INPLACE
     actual = _body_hash(node)
@@ -222,7 +222,7 @@ def wrap_async_triton(original, options):
             if shape not in _SHAPES:
                 raise ValueError(f"ACT score forward does not support {shape} at {kernel_name}")
             if shape == (620576, 902):
-                if (device_str not in ("cuda", "hip") or "cc='gfx938'" not in source_code
+                if (device_str not in ("cuda", "hip") or not any(f"cc='{arch}'" in source_code for arch in ("gfx936", "gfx938"))
                         or tuple(a.arg for a in node.args.args) != _FORWARD_ABI
                         or _body_hash(node) != _FORWARD_BODY):
                     raise ValueError(f"ACT score forward: unsupported 902 source or device at {kernel_name}")
