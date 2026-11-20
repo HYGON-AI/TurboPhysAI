@@ -1,0 +1,262 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.groot.development.hcu
+  version: 0.1.0
+  description: GR00T official 51d4c89 compatibility and HCU optimizations
+model:
+  name: groot
+compatibility:
+  commits:
+  - 51d4c89f72fda44cbf77285c6a8114b52676b8a1
+optimization_groups:
+- id: groot.compat.training_config
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      gr00t.experiment.experiment.run:
+      - source-v1:b4b8b3a07795ac26714d00a5ef6578a7de6e903b70e8a225ef3708c2e0b05d19
+    ast_hashes:
+      gr00t.experiment.experiment.run:
+      - ast-v1:a99a853eb6165b21f8485fa10b8a43248ab8f051166a79d30ac6c2af34bcff95
+  accuracy_only: false
+- id: groot.dit.hip_math_sdpa
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      gr00t.model.modules.dit._sdpa_context:
+      - source-v1:58230cea9b53a71c3158272c87c32f4e05b5b3947b3e9b90a8845451a1ca095e
+    ast_hashes:
+      gr00t.model.modules.dit._sdpa_context:
+      - ast-v1:984168abe672989fd131c67d1e6ea16940625efdd5fced7ed766ceea027b3b54
+  accuracy_only: false
+- id: groot.qwen.flash_attn_dynamo_disable
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.modeling_utils.AttentionInterface._global_mapping.flash_attention_2:
+      - source-v1:df7171a7be7e77b300a08c380d28d331853b2982bde83d5f8925bc741e461b35
+    ast_hashes:
+      transformers.modeling_utils.AttentionInterface._global_mapping.flash_attention_2:
+      - ast-v1:0c47c10cf6db2d2f3cd0804bb05baef1c47b6673f59f5907bbc59c04c3e91283
+  accuracy_only: false
+- id: groot.qwen.disable_kv_cache
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLTextModel.forward:
+      - source-v1:4930b1ab0bf30d78d96a45ec2d3ee222db5392901cff807a17061740727c50ac
+    ast_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLTextModel.forward:
+      - ast-v1:7b539c3875e69833acf7f02e0f9ad1bbc7434836528dc49016921e1a5189cb64
+  accuracy_only: false
+- id: groot.data.pad_156
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      gr00t.experiment.trainer.Gr00tTrainer.training_step:
+      - source-v1:6eb7e9a2bcfed6d8d66cfcd0d292405135043be8026b036863fe105d1eaaa7ab
+      gr00t.experiment.trainer.Gr00tTrainer._prepare_inputs:
+      - source-v1:2b040893a33c383172d0f79e09825a5333f75579694aa0adb1a004e48c379491
+    ast_hashes:
+      gr00t.experiment.trainer.Gr00tTrainer.training_step:
+      - ast-v1:5c311180b0f1caa4ff05a594ffd9c71f88187ba6a71cffec2a1a30ca8ada0172
+      gr00t.experiment.trainer.Gr00tTrainer._prepare_inputs:
+      - ast-v1:d46f32aa35f532362dfdb5b42f29475c389fde79648421b72aa2fad577323923
+  accuracy_only: false
+- id: groot.data.pad_156_vl_dropout
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      gr00t.model.gr00t_n1d7.gr00t_n1d7.Gr00tN1d7ActionHead.process_backbone_output:
+      - source-v1:4fb79fedd5255557e46c61b0c5cf62ab6f068ef960bd337007ca7b1243b1ccab
+      gr00t.model.modules.dit.SelfAttentionTransformer.__init__:
+      - source-v1:07415a2a87ae4f670938c84ebd2fa73f294f152ebaa996d5344504e2b682c6d8
+    ast_hashes:
+      gr00t.model.gr00t_n1d7.gr00t_n1d7.Gr00tN1d7ActionHead.process_backbone_output:
+      - ast-v1:9b698fdf21a7204422cc1f83a81c579654071ce9ed9f789367d21958f8cb0f7e
+      gr00t.model.modules.dit.SelfAttentionTransformer.__init__:
+      - ast-v1:828f236589a4f89c922c14397a1bbca271875d52f0721349d93553abe31f9de2
+  accuracy_only: false
+- id: groot.qwen.fast_pos_embed_interpolate
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLVisionModel.fast_pos_embed_interpolate:
+      - source-v1:61d301b0c88ebb06a6fd023eea0091919b5ef0e716d95739b5ec71c18955d96c
+    ast_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLVisionModel.fast_pos_embed_interpolate:
+      - ast-v1:7700dce19277a366bf881149fe4ad551992572f816451d6aa91e645602f9df30
+  accuracy_only: false
+- id: groot.qwen.rot_pos_emb
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLVisionModel.rot_pos_emb:
+      - source-v1:3b0683bc80d5b20ad54b6808af036bb29d6895d70065fb56d5b45fa5196c1338
+    ast_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLVisionModel.rot_pos_emb:
+      - ast-v1:31cf237becf9b97b1328c2f9269c8436bf07c8c9afc97992fd00f43c6cd8012b
+  accuracy_only: false
+- id: groot.qwen.get_rope_index
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLModel.get_rope_index:
+      - source-v1:867ac5bee949408e2d21ce6f716bb6bbffb5538d6c052a151554d8abfffec0a6
+    ast_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLModel.get_rope_index:
+      - ast-v1:fc5b6a88946d244f5e28e2ed9dede02690a1ed85f44dd9fe4c50c252a1f1feb8
+  accuracy_only: false
+- id: groot.compile.qwen_vision_block
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLVisionBlock.forward:
+      - source-v1:ec9b863b5af14e46c05a46e4501582fefb9267066e5a2c1c443b120bd2f62ac1
+    ast_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLVisionBlock.forward:
+      - ast-v1:9d6ac5df4fbf1400c13905ec01b3449c60eb8918067b4b1bcaec4ea27b8fea0c
+  accuracy_only: false
+- id: groot.compile.dit
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      gr00t.model.modules.dit.DiT.forward:
+      - source-v1:7b62d5f1ff1cc63f91dbdaf63bf7d13ea3ef106723d8e41ee328cd93aefcc0c9
+      gr00t.model.modules.dit.AlternateVLDiT.forward:
+      - source-v1:ae892ce058edead2d6d88d9619cb8bae117438fa8efa4208e332e93aca5eece0
+    ast_hashes:
+      gr00t.model.modules.dit.DiT.forward:
+      - ast-v1:2643c1ef50164aa5819a85cc31b00a786a049045df4a2bd137122ef6ad3a5f29
+      gr00t.model.modules.dit.AlternateVLDiT.forward:
+      - ast-v1:d205cc95f4ff19034cc81340af8f50de95c3e3d9ddff1da6b1711af61a1404c3
+  accuracy_only: false
+- id: groot.compile.vl
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      gr00t.model.modules.dit.SelfAttentionTransformer.forward:
+      - source-v1:ff0449444c128c410fa1049e1212fc5b8b6316f442cbe3fe530a3390e1dc06db
+      turbo_physai.optimizations.models.groot.vl_padding_dropout.masked_vl_forward:
+      - source-v1:79190c809536cdccf2755263508ac19d08b56661f3d8076aa2cb6c7883a63618
+    ast_hashes:
+      gr00t.model.modules.dit.SelfAttentionTransformer.forward:
+      - ast-v1:3cfff3ecabe31d9bf77c4ac34f54f3eb6e1b113101574d4acaaba505d89c240d
+      turbo_physai.optimizations.models.groot.vl_padding_dropout.masked_vl_forward:
+      - ast-v1:4e5f5a0870b93f82324162834ac03c47338105452f4e0dede53f96e114cec4bf
+  accuracy_only: false
+- id: groot.data.pixel_values_bf16
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      gr00t.experiment.trainer.Gr00tTrainer.__init__:
+      - source-v1:efefd83d313be6929a8bda7934b53a425976c164f597eb821b08f6492ffa1509
+    ast_hashes:
+      gr00t.experiment.trainer.Gr00tTrainer.__init__:
+      - ast-v1:17ed0211605effcf657bb06ef80da3cfd921c3d0417fb9628d67c7aabcf9f29a
+  accuracy_only: false
+- id: groot.optim.apex_fused_adam
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      gr00t.experiment.trainer.Gr00tTrainer.create_optimizer:
+      - source-v1:fbf23d7fd5befb1c9e160f2558bca9fde8ca61e5ce1532229fa82a6572dd8198
+    ast_hashes:
+      gr00t.experiment.trainer.Gr00tTrainer.create_optimizer:
+      - ast-v1:b2e0472d0791cb953590d52501d546045b3d8a6994d9ad41e0ccdcbb89ffc803
+  accuracy_only: false
+- id: groot.zero2.grad_reduce_overlap
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.__init__:
+      - source-v1:9c7dc5fb4dd45e4239523ff3c3fc4190e34c9284089fc7b728de3ae4cc6e0217
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.reduce_independent_p_g_buckets_and_remove_grads:
+      - source-v1:5f8288dd62441a9a806f7c490254bb4e59da08e784308887a6964873a9443bea
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.setup_buckets:
+      - source-v1:f844a862e97d613d7dc22df0ce8f0cc17545b88e1b3e83f0ff69cc67fc66b971
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.average_tensor:
+      - source-v1:ede6b0fed00157f5b2ce4b8da088cf4ab7e171664ba81481f36be0cfa1b2c6cd
+    ast_hashes:
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.__init__:
+      - ast-v1:8adfd2a8a18772e5a505d4237b269f8cad93bf9049c279f52fcd39a3e7a27197
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.reduce_independent_p_g_buckets_and_remove_grads:
+      - ast-v1:911e4e2462523d5e4ab65fab8558d525d5f515ff56188871d1597ff43cf9bcb1
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.setup_buckets:
+      - ast-v1:b312932772b7c725b7d25497207e9298e9c2059fa08898d5e75b64034a640a4b
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.average_tensor:
+      - ast-v1:a2002b38d03394688e3b1d9f22fb42b8b584671b48f1e40f02f6ccde9c4818ef
+  accuracy_only: false
+- id: groot.compile.qwen_text_layer
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLTextDecoderLayer.forward:
+      - source-v1:50e5988dacb8557aa04941d5046bfac800a4fa35dba44e1d4564a132c2dd2481
+    ast_hashes:
+      transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLTextDecoderLayer.forward:
+      - ast-v1:3383469cc87e4f6d388f528134ac3372f4cdacd0acf9adc2d0eef37cd719ba64
+  accuracy_only: false
+- id: groot.zero2.owner_reduce
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.allreduce_and_scatter:
+      - source-v1:b2a54dd6ad1d31370b6af8fad0d6a4c11a9c7af15f1d0f6fcbefb3efed9af8c4
+    ast_hashes:
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.allreduce_and_scatter:
+      - ast-v1:2551da0e64660b3f0d88e079190b9dd0174d9b8eba35d57868def78ed6172745
+  accuracy_only: false
+- id: groot.zero2.allgather_pipeline
+  enabled: true
+  options:
+    allow_checkpointing: true
+  trust:
+    source_hashes:
+      transformers.trainer.Trainer.create_scheduler:
+      - source-v1:058369a9d71ff6e478ac62057f683990ba4061aaab266d3989d60138c772985b
+      gr00t.experiment.trainer.Gr00tTrainer.train:
+      - source-v1:d9e8badbbef826e41d9abf93362286df9075dbab02ab5e89276b5da8f6367acd
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.step:
+      - source-v1:80b29d8459a480b5adf9214f857ee435fb22f80f699912c0fbf2991119c4a49f
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.state_dict:
+      - source-v1:2d20c625328e2b4cecba8764ff25f68ac83bc6c69b47e2d40df0eddbf04ce362
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.load_state_dict:
+      - source-v1:25ff5ad7f5c8a0fd8ebc38d67ea7569c206a2601f2bd42dfbb60a2fba2530380
+    ast_hashes:
+      transformers.trainer.Trainer.create_scheduler:
+      - ast-v1:decfa248036f76096d7980bd0a6768400f8c004cef354946012f63b25db80e2e
+      gr00t.experiment.trainer.Gr00tTrainer.train:
+      - ast-v1:c06dbd732f633d829ffcab7792ddf5c7226c0237ba38487bdf7a17e598ba48ec
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.step:
+      - ast-v1:e7994de63dd34a1e1c136036a6a9781f6c652674cf27073cd76e640367881ad8
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.state_dict:
+      - ast-v1:5ae054f80ee1f6b6506308e0a1a28bcbeb2ae281db2941a4d09e31859d888889
+      deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.load_state_dict:
+      - ast-v1:e945afecd12cbb3ef8c2c7d916c1ecbe0b72d5880610e14a0acd7077c78bb31e
+  accuracy_only: false
+- id: groot.compat.opencv_video
+  enabled: false
+  options: {}
+  trust: {}
+  accuracy_only: false
+optimization_modules:
+- turbo_physai.optimizations.models.groot.catalog

@@ -1,0 +1,63 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+
+metadata:
+  id: model.groot.development.hcu
+  version: "0.1.0"
+  description: GR00T official 51d4c89 compatibility and HCU optimizations
+
+model:
+  name: groot
+
+optimization_modules:
+  - turbo_physai.optimizations.models.groot.catalog
+
+compatibility: {}
+
+# Regenerate the optimization config after changing Group settings.
+optimization_groups:
+  # 兼容项
+  - id: groot.compat.training_config
+    enabled: true
+  - id: groot.compat.opencv_video  # 使用 OpenCV 解码
+    enabled: false
+  - id: groot.dit.hip_math_sdpa
+    enabled: true
+
+  # 编译配套适配项
+  - id: groot.qwen.flash_attn_dynamo_disable
+    enabled: true
+  - id: groot.qwen.disable_kv_cache
+    enabled: true
+
+  # 性能优化项
+  - id: groot.data.pad_156
+    enabled: true
+  - id: groot.data.pad_156_vl_dropout
+    enabled: true
+  - id: groot.qwen.fast_pos_embed_interpolate
+    enabled: true
+  - id: groot.qwen.rot_pos_emb
+    enabled: true
+  - id: groot.qwen.get_rope_index
+    enabled: true
+  - id: groot.compile.qwen_vision_block
+    enabled: true
+  - id: groot.compile.dit
+    enabled: true
+  - id: groot.compile.vl
+    enabled: true
+  - id: groot.data.pixel_values_bf16
+    enabled: true
+  - id: groot.optim.apex_fused_adam
+    enabled: true
+  - id: groot.zero2.grad_reduce_overlap
+    enabled: true
+  - id: groot.compile.qwen_text_layer
+    enabled: true
+  - id: groot.zero2.owner_reduce
+    enabled: true
+  - id: groot.zero2.allgather_pipeline
+    enabled: true
+    options:
+      allow_checkpointing: true

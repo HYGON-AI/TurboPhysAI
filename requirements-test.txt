@@ -4,3 +4,5 @@
 coverage==7.16.2
 diff-cover>=10.6
 pytest>=8.0
+# ZeRO-2 tests use the 0.18.4 API. DTK environments can supply the matching build.
+deepspeed==0.18.4
