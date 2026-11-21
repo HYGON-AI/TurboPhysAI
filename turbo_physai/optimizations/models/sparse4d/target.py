@@ -6,13 +6,27 @@ import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
 
 from mmdet.core.bbox.builder import BBOX_SAMPLERS
-from torch_linear_assignment import batch_linear_assignment
+from torch_linear_assignment import batch_linear_assignment as _batch_linear_assignment
 
 from projects.mmdet3d_plugin.core.box3d import *
 from projects.mmdet3d_plugin.models.base_target import BaseTargetWithDenoising
 
 
 __all__ = ["SparseBox3DTarget"]
+
+
+@torch.library.custom_op(
+    "turbo_physai::batch_linear_assignment", mutates_args=(), device_types=("cpu", "cuda")
+)
+def _batch_linear_assignment_op(cost: torch.Tensor) -> torch.Tensor:
+    return _batch_linear_assignment(cost.detach())
+
+
+@_batch_linear_assignment_op.register_fake
+def _batch_linear_assignment_fake(cost: torch.Tensor) -> torch.Tensor:
+    torch._check(cost.ndim == 3, lambda: "cost must have shape (batch, workers, tasks)")
+    # The solver returns one index per worker, including unmatched workers.
+    return cost.new_empty(cost.shape[:2], dtype=torch.long)
 
 
 @BBOX_SAMPLERS.register_module()
@@ -211,7 +225,7 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
         cls_target,
         gt_instance_id,
     ):
-        assignment = batch_linear_assignment(box_cost)  # [G*bs, W]
+        assignment = _batch_linear_assignment_op(box_cost)  # [G*bs, W]
         valid = assignment >= 0                          # [G*bs, W]
         safe_gt = assignment.clamp(min=0)                # [G*bs, W]
 
@@ -489,26 +503,26 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
         num_dn_groups = self.num_dn_groups
         bs, num_dn = dn_instance_feature.shape[:2]
         num_temp_dn = num_dn // num_dn_groups
-        temp_group_mask = (
-            torch.randperm(num_dn_groups) < self.num_temp_dn_groups
-        )
-        temp_group_mask = temp_group_mask.to(device=dn_anchor.device)
+        group_order = torch.randperm(num_dn_groups).argsort()
+        # Take the same groups in the same order as the boolean mask.
+        group_indices = group_order[:self.num_temp_dn_groups].sort().values
+        group_indices = group_indices.to(device=dn_anchor.device)
         dn_instance_feature = dn_instance_feature.detach().reshape(
             bs, num_dn_groups, num_temp_dn, -1
-        )[:, temp_group_mask]
+        ).index_select(1, group_indices)
         dn_anchor = dn_anchor.detach().reshape(
             bs, num_dn_groups, num_temp_dn, -1
-        )[:, temp_group_mask]
-        dn_cls_target = dn_cls_target.reshape(bs, num_dn_groups, num_temp_dn)[
-            :, temp_group_mask
-        ]
-        valid_mask = valid_mask.reshape(bs, num_dn_groups, num_temp_dn)[
-            :, temp_group_mask
-        ]
+        ).index_select(1, group_indices)
+        dn_cls_target = dn_cls_target.reshape(
+            bs, num_dn_groups, num_temp_dn
+        ).index_select(1, group_indices)
+        valid_mask = valid_mask.reshape(bs, num_dn_groups, num_temp_dn).index_select(
+            1, group_indices
+        )
         if dn_id_target is not None:
             dn_id_target = dn_id_target.reshape(
                 bs, num_dn_groups, num_temp_dn
-            )[:, temp_group_mask]
+            ).index_select(1, group_indices)
         self.dn_metas = dict(
             dn_instance_feature=dn_instance_feature,
             dn_anchor=dn_anchor,

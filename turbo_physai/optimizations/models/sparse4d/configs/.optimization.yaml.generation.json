@@ -4,14 +4,14 @@
   "model_commit": "24f1b03b4e03e9e5b2978c483b329bdaf1012be8",
   "config": {
     "path": "optimization.yaml",
-    "sha256": "3616706d1fbd7b2335aa7b92aa77aba3d72c396b816570f5a573da4feea7a370"
+    "sha256": "9114b4a865cae105faae722caca746d33cc44e974f1e0f2c4bed81347e981211"
   },
   "inputs": [
     {
       "role": "recipe",
       "base": "package",
       "path": "optimizations/models/sparse4d/configs/recipe.yaml",
-      "sha256": "e0a3fc7c12afc4a3e7a5a28e3f932ebe986968551decdb2afffb4856a36f9931"
+      "sha256": "9b3831a775ec8a2c4bfef822799afdb1ffc418187ef085d17edde07ea785762d"
     },
     {
       "role": "catalog",

@@ -92,12 +92,7 @@ optimization_groups:
 - id: sparse4d.detection3d_target_compile
   enabled: true
   options:
-    methods:
-      _box_cost_flat:
-        dynamic: true
-      _encode_flat:
-        dynamic: true
-    mode: max-autotune-no-cudagraphs
+    mode: default
   trust:
     source_hashes:
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._encode_flat:
@@ -109,11 +104,11 @@ optimization_groups:
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._box_cost_flat:
       - source-v1:66a0452d898f89a0547eb3aab87d17c6fe0d269090d27906834068d69eac7280
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._assign_and_scatter:
-      - source-v1:01fd03eb3e8bfd0d02656bcdabd7e45070d164bb681bad4d2e1f12742ecb5837
+      - source-v1:2d94063504ffc18173820cc072d858e71746bb11adb04e5c0f83547bc6f96ead
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._box_cost_fix:
       - source-v1:4d499788473799b39639639a4d9c0a740818b20f0bab54a9cc07ef42f3ec8220
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget.cache_dn:
-      - source-v1:e4cd36de108cbb60f456e81e8bdeb9f52b60a8aea0d407fb626023da065a0b3d
+      - source-v1:147f1bed1d2f13531a477187be299bbd998e912915259de982f2822fd4a0b302
     ast_hashes:
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._encode_flat:
       - ast-v1:e2d82f7048da4a9dc9cf9efbfd4a03aa3fcd36f16d723dfb903bf776e725d57c
@@ -124,11 +119,11 @@ optimization_groups:
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._box_cost_flat:
       - ast-v1:2f5a80e0b8c67ae031f0736f3c6f942b8ca0455166d988f921acbfc267fc649b
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._assign_and_scatter:
-      - ast-v1:8e92af916e6f997daad5c6a2016e816219e916d4861f75b4d5f3019e4436a783
+      - ast-v1:c0cd9224bce5fcc80db2dfb8ef5924d63b4e8e2b57e86dfd0960d46dc672429c
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._box_cost_fix:
       - ast-v1:9da61c1e2601f6b32309b49cb39cd7d85e3f15a4df90a4573d4dce44b336d8ff
       mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget.cache_dn:
-      - ast-v1:2ffdee6d0e282ed689aa5d64fca16fadb3eaf46df580a9d6b2d14b06d8d8f364
+      - ast-v1:9f39e6d1f11be728d62281aea64d4786ede0cf1ca3cd82a895d7c5feb29acd49
   accuracy_only: false
 - id: sparse4d.sparse4d_head
   enabled: true
