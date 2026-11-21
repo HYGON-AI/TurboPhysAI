@@ -125,6 +125,32 @@ DETECTION3D_TARGET = group(
     ),
 )
 
+# Resolve methods on the class installed by the registry override.
+DETECTION3D_TARGET_COMPILE = group(
+    "sparse4d.detection3d_target_compile",
+    *(
+        wrap(
+            target=(
+                "mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict."
+                f"SparseBox3DTarget.{method}"
+            ),
+            replacement=(
+                "turbo_physai.optimizations.models.sparse4d.compile."
+                "compile_target_wrapper"
+            ),
+        )
+        for method in (
+            "_encode_flat",
+            "encode_reg_target_fix",
+            "_compute_cls_diff",
+            "_box_cost_flat",
+            "_assign_and_scatter",
+            "_box_cost_fix",
+            "cache_dn",
+        )
+    ),
+)
+
 # Optimize Sparse4d head forward H2D
 SPARSE4D_HEAD = group(
     "sparse4d.sparse4d_head",

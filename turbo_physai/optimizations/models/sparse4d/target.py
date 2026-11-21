@@ -1,17 +1,4 @@
-"""Detection3D Target Optimization.
-
-Full replacement of ``projects.mmdet3d_plugin.models.detection3d.target``.
-Installed through ``replace_import`` (not a per-method ``replace``/``wrap``)
-because the optimized ``SparseBox3DTarget`` adds new private helper methods
-(``_encode_flat``, ``encode_reg_target_fix``, ``_compute_cls_diff``,
-``_box_cost_flat``, ``_assign_and_scatter``, ``_box_cost_fix``) that do not
-exist on the original class, and the class is registered into mmdet's
-``BBOX_SAMPLERS`` registry by name at import time: swapping the whole module
-before it is ever imported is what lets our ``@BBOX_SAMPLERS.register_module()``
-call register the optimized class under the ``SparseBox3DTarget`` name.
-"""
-
-import os
+"""SparseBox3DTarget replacement installed in mmdet's BBOX_SAMPLERS registry."""
 
 import torch
 import numpy as np
@@ -26,17 +13,6 @@ from projects.mmdet3d_plugin.models.base_target import BaseTargetWithDenoising
 
 
 __all__ = ["SparseBox3DTarget"]
-
-
-def is_compile(**compile_kwargs):
-    """Apply ``torch.compile`` unless ``TURBO_PHYSAI_DISABLE_TORCH_COMPILE=1``."""
-
-    def decorator(fn):
-        if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
-            return fn
-        return torch.compile(fn, **compile_kwargs)
-
-    return decorator
 
 
 @BBOX_SAMPLERS.register_module()
@@ -86,7 +62,6 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
         encoded = self._encode_flat(flat)
         return list(encoded.split(lengths, dim=0))
 
-    @is_compile(mode="max-autotune-no-cudagraphs", dynamic=True)
     def _encode_flat(self, box):
         return torch.cat(
             [
@@ -99,7 +74,6 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
             dim=-1,
         )
 
-    @is_compile(mode="max-autotune-no-cudagraphs")
     def encode_reg_target_fix(self, box_target, valid_mask):
 
         valid_mask = valid_mask.to(dtype=torch.bool)
@@ -180,7 +154,6 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
             ]
         return output_cls_target, output_box_target, output_reg_weights
 
-    @is_compile(mode="max-autotune-no-cudagraphs")
     def _compute_cls_diff(self, cls_pred):
         p = cls_pred.sigmoid()
         neg_cost = -(1 - p + self.eps).log() * (1 - self.alpha) * p.pow(self.gamma)
@@ -198,7 +171,6 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
                 cost.append(None)
         return cost
 
-    @is_compile(mode="max-autotune-no-cudagraphs", dynamic=True)
     def _box_cost_flat(self, pred_per_gt, flat_target, flat_weights, reg_weights):
         diff = torch.abs(pred_per_gt - flat_target[:, None, :])
         weighted = diff * flat_weights[:, None, :] * reg_weights
@@ -231,7 +203,6 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
         ]
 
 
-    @is_compile(mode="max-autotune-no-cudagraphs")
     def _assign_and_scatter(
         self,
         box_cost,
@@ -298,7 +269,6 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
             neg_valid_target,
         )
 
-    @is_compile(mode="max-autotune-no-cudagraphs")
     def _box_cost_fix(self, box_pred, box_target, instance_reg_weights):
 
         reg_weights = box_pred.new_tensor(self.reg_weights)
@@ -506,7 +476,6 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
         output[1] = torch.cat([anchor, output[1]], dim=1)
         return output
 
-    @is_compile(mode="max-autotune-no-cudagraphs")
     def cache_dn(
         self,
         dn_instance_feature,

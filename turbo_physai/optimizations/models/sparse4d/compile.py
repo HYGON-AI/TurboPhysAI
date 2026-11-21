@@ -4,6 +4,8 @@
 import functools
 import os
 
+from ....engine.contracts import to_primitive
+
 
 def compile_wrapper(original, options):
     import torch
@@ -34,3 +36,16 @@ def compile_class_wrapper(original, options):
         return original
     mode = options.get("mode", "max-autotune-no-cudagraphs")
     return torch.compile(original, mode=mode)
+
+
+def compile_target_wrapper(original, options):
+    """Compile a target method with shared and method-specific options."""
+    import torch
+
+    if os.getenv("TURBO_PHYSAI_DISABLE_TORCH_COMPILE", "0") == "1":
+        return original
+
+    compile_kwargs = to_primitive(options)
+    method_options = compile_kwargs.pop("methods", {})
+    compile_kwargs.update(method_options.get(original.__name__, {}))
+    return torch.compile(original, **compile_kwargs)

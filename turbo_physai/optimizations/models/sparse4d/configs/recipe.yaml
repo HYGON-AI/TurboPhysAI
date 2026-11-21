@@ -33,6 +33,10 @@ optimization_groups:
     enabled: true
   - id: sparse4d.detection3d_target
     enabled: true
+  - id: sparse4d.detection3d_target_compile
+    enabled: true
+    options:
+      mode: default
   - id: sparse4d.sparse4d_head
     enabled: true
   - id: sparse4d.grid_mask_h2d
