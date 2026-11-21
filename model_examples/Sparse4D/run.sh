@@ -10,8 +10,7 @@ export GLOO_SOCKET_IFNAME=ens47f0np0
 export NCCL_RINGS="N0 0 7 6 5 4 3 2 1 N0|N1 1 2 3 4 5 6 7 0 N1|N2 2 1 0 7 6 5 4 3 N2|N3 3 4 5 6 7 0 1 2 N3|N4 4 3 2 1 0 7 6 5 N4|N5 5 6 7 0 1 2 3 4 N5|N6 6 5 4 3 2 1 0 7 N6|N7 7 0 1 2 3 4 5 6 N7"
 
 turbo-physai run \
-  --optimization-config "/workspace/TurboPhysAI/turbo_physai/optimizations/models/sparse4d/configs/optimization.yaml" \
-  --runtime-config "/workspace/TurboPhysAI/turbo_physai/optimizations/models/sparse4d/configs/runtime.yaml" \
+  --model Sparse4D \
   --log-report \
   -- python -m torch.distributed.run \
     --nproc_per_node=8 \

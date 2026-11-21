@@ -5,7 +5,14 @@ with TurboPhysAI; the generated OptimizationConfig loads it through optimization
 """
 
 from turbo_physai import group, replace, wrap  # noqa: F401
-from turbo_physai.compatibility import registry_override  # noqa: F401
+from turbo_physai.compatibility import optional_import, registry_override  # noqa: F401
+
+
+# Let Sparse4D import ops before the deformable aggregation callable is replaced.
+DAF_IMPORT_COMPATIBILITY = group(
+    "sparse4d.daf_import_compatibility",
+    optional_import("projects.mmdet3d_plugin.ops.deformable_aggregation_ext"),
+)
 
 
 # Use FusedAdam optimizer for Sparse4D.

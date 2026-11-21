@@ -19,6 +19,8 @@ compatibility: {}
 
 # Add validated model-specific Group IDs here.
 optimization_groups:
+  - id: sparse4d.daf_import_compatibility
+    enabled: true
   - id: sparse4d.channels_last_and_cached_spatial_shape
     enabled: true
   - id: sparse4d.dataloader

@@ -18,11 +18,22 @@ TurboPhysAI 的 Sparse4D 优化基于官方仓库 commit `249ffbb695f4e9db628d95
 
 ### 3.2 安装 Sparse4D 训练依赖
 
-镜像已提供 HCU 版 PyTorch、Triton 和 FlashAttention，其余训练依赖见 [requirements.txt](requirements.txt)。将 `TURBO_PHYSAI_ROOT` 设置为容器内的 TurboPhysAI 仓库路径：
+镜像已提供不同mmcv环境包含 HCU 版 PyTorch、Triton 和 FlashAttention等包，Sparse4D训练使用mmcv1环境，启动训练前需要先激活训练环境
+```bash
+conda activate mmcv1
+```
+其余训练依赖见 [requirements.txt](requirements.txt)。
+
+
+将 `TURBO_PHYSAI_ROOT` 设置为容器内的 TurboPhysAI 仓库路径：
+
+```bash
+export TURBO_PHYSAI_ROOT="/workspace/TurboPhysAI"
+```
 
 
 ## 4. 准备模型源码
-
+获取Sparse4D源代码，切换到对应分支。
 ```bash
 cd /workspace
 git clone https://github.com/HorizonRobotics/Sparse4D.git
@@ -30,6 +41,46 @@ cd Sparse4D
 git checkout --detach 249ffbb695f4e9db628d953e2bf6d36de04bbb69
 git status --short
 ```
+直接运行Sparse4D源码需要编译deformalbe_aggregation CUDA op, 先查看GPU设备架构：
+```bash
+rocminfo | grep -o 'gfx[0-9a-z]*' | sort -u
+```
+执行编译：
+```bash
+cd /workspace/Sparse4D/projects/mmdet3d_plugin/ops
+export ROCM_HOME=/opt/dtk
+export PATH=$ROCM_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$ROCM_HOME/lib:$ROCM_HOME/lib64:$LD_LIBRARY_PATH
+# 使用对应 GPU 架构
+export PYTORCH_ROCM_ARCH="gfx936"
+export TLA_BUILD_CUDA=1
+export MAX_JOBS=8
+python3 setup.py develop
+```
+
+只使用TurboPhysAI运行优化后的代码，`turbo_physai.operators`中已包含针对HCU优化后的deformalbe_aggregation实现，无需编译，测试能否成功导入。
+```bash
+cd /workspace
+python -c "from turbo_physai.operators import deformable_aggregation_function; print('导入成功:', deformable_aggregation_function)"
+```
+
+使用HCU对target.py计算的优化，需要torch linear assignment的实现。下载源码并编译安装torch_linear_assignment包：
+```bash
+cd /workspace
+git clone https://github.com/ivan-chai/torch-linear-assignment.git
+cd torch-linear-assignment
+git checkout tags/0.0.6
+export ROCM_HOME=/opt/dtk
+export PATH=$ROCM_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$ROCM_HOME/lib:$ROCM_HOME/lib64:$LD_LIBRARY_PATH
+# 使用对应 GPU 架构
+export PYTORCH_ROCM_ARCH="gfx936"
+export TLA_BUILD_CUDA=1 \
+export MAX_JOBS=8 \
+python setup.py install
+python -c "from torch_linear_assignment import batch_linear_assignment; print('导入成功:', batch_linear_assignment)"
+```
+
 
 ## 5. 准备 NuScenes dataset 数据
 

@@ -8,8 +8,15 @@ model:
   name: Sparse4D
 compatibility:
   commits:
-  - 24f1b03b4e03e9e5b2978c483b329bdaf1012be8
+  - 249ffbb695f4e9db628d953e2bf6d36de04bbb69
 optimization_groups:
+- id: sparse4d.daf_import_compatibility
+  enabled: true
+  options: {}
+  trust:
+    source_hashes: {}
+    ast_hashes: {}
+  accuracy_only: false
 - id: sparse4d.channels_last_and_cached_spatial_shape
   enabled: true
   options: {}
