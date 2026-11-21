@@ -16,5 +16,17 @@ optimization_groups:
   trust:
     source_hashes: {}
     ast_hashes: {}
+  accuracy_only: false
+- id: mmcv.data_container_pin_memory
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch.utils.data._utils.pin_memory.pin_memory:
+      - source-v1:b4792b6ed0fa9508fa0cedee3f5ea89c8978b2ef5dc01c3573cd6ffe178a4478
+    ast_hashes:
+      torch.utils.data._utils.pin_memory.pin_memory:
+      - ast-v1:b4e42fd713e3ff169a85f58ce66e5716ca4ecfbacdcd77e3cb2ad71c09a32aa8
+  accuracy_only: false
 optimization_modules:
 - turbo_physai.optimizations.common.mmcv.catalog

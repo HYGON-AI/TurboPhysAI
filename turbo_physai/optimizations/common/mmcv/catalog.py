@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from ....engine.definitions import group, replace
+from ....engine.definitions import group, replace, wrap
 
 
 MDC = group(
@@ -52,4 +52,19 @@ MSDA = group(
 )
 
 
-__all__ = ["MDC", "MSDA"]
+# DataLoader(pin_memory=True) leaves mmcv DataContainer batches in pageable
+# memory because torch's pin_memory does not recognise them.  Wrap the
+# function the pin-memory thread calls so non-cpu_only containers are pinned.
+DATA_CONTAINER_PIN_MEMORY = group(
+    "mmcv.data_container_pin_memory",
+    wrap(
+        target="torch.utils.data._utils.pin_memory.pin_memory",
+        replacement=(
+            "turbo_physai.optimizations.common.mmcv.data_container."
+            "pin_memory_wrapper"
+        ),
+    ),
+)
+
+
+__all__ = ["DATA_CONTAINER_PIN_MEMORY", "MDC", "MSDA"]
