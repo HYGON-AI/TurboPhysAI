@@ -9,8 +9,8 @@
   "inputs": [
     {
       "role": "recipe",
-      "base": "package",
-      "path": "optimizations/models/sparse4d/configs/recipe.yaml",
+      "base": "config",
+      "path": "recipe.yaml",
       "sha256": "4dfb22cfe0f5ecc632447a84931e90b603e7438745e27ae832ce0563f3e0e839"
     },
     {

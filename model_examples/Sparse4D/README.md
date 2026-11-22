@@ -42,8 +42,8 @@ export PATH=$ROCM_HOME/bin:$PATH
 export LD_LIBRARY_PATH=$ROCM_HOME/lib:$ROCM_HOME/lib64:$LD_LIBRARY_PATH
 # 使用对应 GPU 架构
 export PYTORCH_ROCM_ARCH="gfx936"
-export TLA_BUILD_CUDA=1 \
-export MAX_JOBS=8 \
+export TLA_BUILD_CUDA=1
+export MAX_JOBS=8
 python setup.py install
 python -c "from torch_linear_assignment import batch_linear_assignment; print('导入成功:', batch_linear_assignment)"
 ```

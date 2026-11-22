@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
@@ -22,9 +21,7 @@ def target_classes():
     pytest.importorskip("scipy.optimize")
     pytest.importorskip("torch_linear_assignment")
 
-    from turbo_physai.engine.execution.replacements.registry_override import (
-        RegistryOverrideHandler,
-    )
+    from turbo_physai.engine.execution.replacements import default_handlers
     from turbo_physai.optimizations.models.sparse4d.catalog import DETECTION3D_TARGET
 
     with pytest.MonkeyPatch.context() as patch:
@@ -36,24 +33,16 @@ def target_classes():
         ).SparseBox3DTarget
 
         (spec,) = DETECTION3D_TARGET.specs
-        handler = RegistryOverrideHandler()
+        handler = default_handlers()[spec.mechanism]
         prepared = handler.prepare(spec, {})
-        name = upstream.__name__
-        # Restore the registry entry after testing the production override.
-        patch.setitem(registry.module_dict, name, registry.module_dict[name])
-        was_imported = spec.target in sys.modules
+        snapshot = handler.snapshot(prepared)
         try:
             handler.apply(prepared)
-            optimized = registry.get(name)
+            optimized = registry.get(upstream.__name__)
             assert optimized is not upstream
             yield upstream, optimized
         finally:
-            if not was_imported:
-                module = sys.modules.pop(spec.target, None)
-                parent_name, attr = spec.target.rsplit(".", 1)
-                parent = sys.modules[parent_name]
-                if module is not None and getattr(parent, attr, None) is module:
-                    delattr(parent, attr)
+            handler.restore(snapshot)
 
 
 def _ground_truth(device="cpu"):

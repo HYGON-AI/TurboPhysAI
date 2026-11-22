@@ -12,7 +12,6 @@ import numpy as np
 import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
 
-from mmdet.core.bbox.builder import BBOX_SAMPLERS
 from torch_linear_assignment import batch_linear_assignment as _batch_linear_assignment
 
 from projects.mmdet3d_plugin.core.box3d import *
@@ -36,7 +35,6 @@ def _batch_linear_assignment_fake(cost: torch.Tensor) -> torch.Tensor:
     return cost.new_empty(cost.shape[:2], dtype=torch.long)
 
 
-@BBOX_SAMPLERS.register_module()
 class SparseBox3DTarget(BaseTargetWithDenoising):
     def __init__(
         self,

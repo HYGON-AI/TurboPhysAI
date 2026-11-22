@@ -125,20 +125,22 @@ DEFORMABLE_AGGREGATION = group(
 # linear assignment.
 DETECTION3D_TARGET = group(
     "sparse4d.detection3d_target",
-    registry_override(
-        module="turbo_physai.optimizations.models.sparse4d.target",
-        registry="mmdet.core.bbox.builder.BBOX_SAMPLERS",
-        names=("SparseBox3DTarget",),
+    replace(
+        target=(
+            "projects.mmdet3d_plugin.models.detection3d.target."
+            "BBOX_SAMPLERS.module_dict.SparseBox3DTarget"
+        ),
+        replacement="turbo_physai.optimizations.models.sparse4d.target.SparseBox3DTarget",
     ),
 )
 
-# Resolve methods on the class installed by the registry override.
+# Resolve optimized methods during preparation, before the registry entry is replaced.
 DETECTION3D_TARGET_COMPILE = group(
     "sparse4d.detection3d_target_compile",
     *(
         wrap(
             target=(
-                "mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict."
+                "turbo_physai.optimizations.models.sparse4d.target."
                 f"SparseBox3DTarget.{method}"
             ),
             replacement=(
@@ -156,6 +158,7 @@ DETECTION3D_TARGET_COMPILE = group(
             "cache_dn",
         )
     ),
+    depends_on=("sparse4d.detection3d_target",),
 )
 
 # Optimize Sparse4d head forward H2D
@@ -173,6 +176,7 @@ SPARSE4D_HEAD = group(
             "turbo_physai.optimizations.models.sparse4d.sparse4d_head._get_weights"
         ),
     ),
+    depends_on=("sparse4d.detection3d_target",),
 )
 
 GRID_MASK_H2D = group(
