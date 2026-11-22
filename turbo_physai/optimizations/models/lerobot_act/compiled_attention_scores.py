@@ -1,8 +1,9 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Scoped ACT Inductor score kernels for the validated FP32 BS86 workload."""
+"""Scoped ACT Inductor score kernels for the supported FP32 layouts."""
 import ast
+import copy
 from dataclasses import dataclass
 import hashlib
 import functools
@@ -11,19 +12,19 @@ import re
 
 
 PREFIX = "triton_red_fused__softmax__softmax_backward_data_native_dropout_backward"
-HEADS = 688
+REFERENCE_HEADS = 688
 _PTRS = ("in_ptr0", "in_ptr1", "in_ptr2", "in_ptr3", "in_ptr4")
 _TILES = ("xnumel", "r0_numel", "XBLOCK", "R0_BLOCK")
 _INPLACE = ("in_out_ptr0", *_PTRS, *_TILES)
 _OUT = (*_PTRS, "out_ptr0", "out_ptr2", *_TILES)
 _SHAPES = {
-    (620576, 902): (902, 813696, 813632),
-    (68800, 902): (100, 90240, 90208),
-    (68800, 100): (100, 10112, 10016),
-    (70176, 102): (102, 10496, 10432),
+    (902, 902): (813696, 813632),
+    (100, 902): (90240, 90208),
+    (100, 100): (10112, 10016),
+    (102, 102): (10496, 10432),
 }
-# Body-only fingerprints from the ACT v8 Inductor cache, independent of the
-# device index in metadata and generated function name suffix.
+# Body-only fingerprints from the ACT v8 Inductor cache. Batch-dependent row
+# counts are normalized before comparison; device metadata is not included.
 _BODIES = {
     (68800, 100, True): "f74d745efb1c18bc5bea188659d213313760e715b500f1ebfcda4f6371292a47",
     (68800, 100, False): "fda5c9157d1def6930634705e1c978a02ab6d3458d047757bb300736cbeaa076",
@@ -41,10 +42,11 @@ class Case:
     mask_stride: int
     work_stride: int
     inplace: bool
+    heads: int
 
     @property
     def rows(self):
-        return self.queries * HEADS
+        return self.queries * self.heads
 
     @property
     def label(self):
@@ -74,22 +76,59 @@ def _body_hash(node):
     ).hexdigest()
 
 
+def _normalized_body_hash(node, rows):
+    clone = copy.deepcopy(node)
+    for stmt in clone.body:
+        if (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1
+                and isinstance(stmt.targets[0], ast.Name)
+                and stmt.targets[0].id == 'xnumel'
+                and isinstance(stmt.value, ast.Constant)):
+            stmt.value.value = rows
+    return _body_hash(clone)
+
+
+def _queries(node, width):
+    candidates = {q for q, w in _SHAPES if w == width}
+    observed = {
+        part.right.value for part in ast.walk(node)
+        if isinstance(part, ast.BinOp) and isinstance(part.op, (ast.Mod, ast.FloorDiv))
+        and isinstance(part.left, ast.Name) and part.left.id == 'xindex'
+        and isinstance(part.right, ast.Constant) and part.right.value in candidates
+    }
+    if len(observed) == 1:
+        return observed.pop()
+    if not observed and len(candidates) == 1:
+        return candidates.pop()
+    raise ValueError(f'ACT score backward has ambiguous query length for {width}')
+
+
+def _check_index_range(rows, queries, width, mask_stride, work_stride):
+    heads = rows // queries
+    if heads * max(queries * width, mask_stride, work_stride) >= 2**31:
+        raise ValueError('ACT score kernel tensor indexing exceeds the supported 32-bit range')
+
+
 def contract(kernel_name, source):
     node = _kernel_function(kernel_name, source)
     rows, width = _shape(node)
-    if (rows, width) not in _SHAPES:
+    if not isinstance(rows, int) or rows <= 0 or not isinstance(width, int):
+        raise ValueError(f"ACT score backward does not support {rows} rows × {width}")
+    queries = _queries(node, width)
+    if (queries, width) not in _SHAPES or rows % queries:
         raise ValueError(f"ACT score backward does not support {rows} rows × {width}")
     signature = tuple(arg.arg for arg in node.args.args)
     if signature not in (_INPLACE, _OUT):
         raise ValueError(f"ACT softmax contract changed: signature for {kernel_name}")
-    if "'grid_type': 'Grid1D'" not in source or not any(f"cc='{arch}'" in source for arch in ("gfx936", "gfx938")):
-        raise ValueError(f"ACT softmax contract changed: device or grid for {kernel_name}")
+    if "'grid_type': 'Grid1D'" not in source:
+        raise ValueError(f"ACT softmax contract changed: grid for {kernel_name}")
     inplace = signature == _INPLACE
-    actual = _body_hash(node)
-    if actual != _BODIES.get((rows, width, inplace)):
+    reference_rows = REFERENCE_HEADS * queries
+    actual = _normalized_body_hash(node, reference_rows)
+    if actual != _BODIES.get((reference_rows, width, inplace)):
         raise ValueError(f"ACT softmax contract changed: body for {kernel_name} {rows}x{width}")
-    queries, mask_stride, work_stride = _SHAPES[rows, width]
-    return Case(queries, width, mask_stride, work_stride, inplace), node
+    mask_stride, work_stride = _SHAPES[queries, width]
+    _check_index_range(rows, queries, width, mask_stride, work_stride)
+    return Case(queries, width, mask_stride, work_stride, inplace, rows // queries), node
 
 
 def rewrite_case(case, node, source):
@@ -141,15 +180,18 @@ def check_software_stack(context):
 
     if os.environ.get("TURBO_PHYSAI_DISABLE_TORCH_COMPILE") == "1":
         return CompatibilityResult(True, reason="compilation disabled explicitly")
-    import torch
-    import triton
-
-    expected = {"torch": "2.13.0", "hip": "7.2.26365", "triton": "3.7.0"}
-    actual = {"torch": str(torch.__version__), "hip": torch.version.hip, "triton": triton.__version__}
-    return CompatibilityResult(
-        actual == expected, expected=expected, actual=actual,
-        reason="ACT compiled score kernels require the validated HCU software stack",
-    )
+    try:
+        from torch._inductor.async_compile import AsyncCompile
+        from torch._inductor.runtime import triton_heuristics
+        from torch._inductor.runtime.triton_helpers import libdevice, max2
+        import triton
+    except ImportError as error:
+        return CompatibilityResult(False, reason=f"ACT score compiler support unavailable: {error}")
+    available = all(callable(item) for item in (
+        getattr(AsyncCompile, 'triton', None), getattr(triton_heuristics, 'fixed_config', None),
+        getattr(triton, 'jit', None), max2,
+    )) and hasattr(libdevice, 'exp')
+    return CompatibilityResult(available, reason="ACT score compiler capabilities")
 
 
 class ScoreForward:
@@ -160,10 +202,11 @@ class ScoreForward:
         self._trace = trace
 
     def run(self, x, seed, shift, denom, keep, prob, seed_offset, rows, width, *, stream):
-        if (rows, width) != (620576, 902):
+        if width != 902 or rows <= 0 or rows % 902:
             raise ValueError(f"ACT score forward: unexpected launch shape {rows} × {width}")
         if (keep.stride(0), prob.stride(0)) != (813696, 813632):
             raise ValueError("ACT score forward: unexpected mask/probability stride")
+        _check_index_range(rows, 902, width, 813696, 813632)
         import torch
         import triton
 
@@ -219,12 +262,16 @@ def wrap_async_triton(original, options):
         if re.fullmatch(rf"{_FORWARD}_\d+", kernel_name):
             node = _kernel_function(kernel_name, source_code)
             shape = _shape(node)
-            if shape not in _SHAPES:
+            rows, width = shape
+            if not isinstance(rows, int) or rows <= 0 or not isinstance(width, int):
                 raise ValueError(f"ACT score forward does not support {shape} at {kernel_name}")
-            if shape == (620576, 902):
-                if (device_str not in ("cuda", "hip") or not any(f"cc='{arch}'" in source_code for arch in ("gfx936", "gfx938"))
+            queries = _queries(node, width)
+            if rows % queries:
+                raise ValueError(f"ACT score forward has inconsistent shape {shape} at {kernel_name}")
+            if (queries, width) == (902, 902):
+                if (device_str not in ("cuda", "hip")
                         or tuple(a.arg for a in node.args.args) != _FORWARD_ABI
-                        or _body_hash(node) != _FORWARD_BODY):
+                        or _normalized_body_hash(node, 620576) != _FORWARD_BODY):
                     raise ValueError(f"ACT score forward: unsupported 902 source or device at {kernel_name}")
                 return ScoreForward(kernel_name, trace)
         if optimize_backward and re.fullmatch(rf"{PREFIX}_\d+", kernel_name):

@@ -17,7 +17,7 @@
       "role": "catalog",
       "base": "package",
       "path": "optimizations/models/lerobot_act/catalog.py",
-      "sha256": "449fd6deddda57d41a5788f5c48c46d6c74815ee5737910da51b49e35751b8a3"
+      "sha256": "f4d2745769eaf6529bf8a0c9b759c471b180715c50d01bbce781067b5d142202"
     }
   ]
 }

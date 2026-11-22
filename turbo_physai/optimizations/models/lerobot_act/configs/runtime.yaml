@@ -11,8 +11,8 @@ environment:
     MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: '1'
     PYTORCH_MIOPEN_SUGGEST_NHWC: '1'
     TORCHINDUCTOR_COMPILE_THREADS: '1'
-    TORCHINDUCTOR_CACHE_DIR: /workspace/act_runs/inductor_cache1
-    TRITON_CACHE_DIR: /workspace/act_runs/triton_cache1
+    TORCHINDUCTOR_CACHE_DIR: /workspace/act_runs/inductor_cache
+    TRITON_CACHE_DIR: /workspace/act_runs/triton_cache
     TOKENIZERS_PARALLELISM: 'false'
     HIP_BUFFER_EXTRA_SIZE: '0'
     #TORCHINDUCTOR_BENCHMARK_FUSION: '1'

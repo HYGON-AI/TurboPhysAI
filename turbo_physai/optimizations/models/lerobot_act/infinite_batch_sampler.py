@@ -8,19 +8,37 @@ import functools
 from lerobot.datasets.sampler import EpisodeAwareSampler
 
 
+def _episode_sampler(loader):
+    batch_sampler = loader.batch_sampler
+    sampler = getattr(batch_sampler, 'sampler', None)
+    if isinstance(sampler, EpisodeAwareSampler):
+        return sampler
+    return getattr(getattr(batch_sampler, 'batch_sampler', None), 'sampler', None)
+
+
+def supports_resume_epoch(self, epoch):
+    """Restrict the global Accelerate hook to ACT's sampler."""
+    del epoch
+    return isinstance(_episode_sampler(self), EpisodeAwareSampler)
+
+
+def supports_continuous_batches(self):
+    """Leave BatchSamplerShard users with other samplers unchanged."""
+    return isinstance(getattr(self.batch_sampler, 'sampler', None), EpisodeAwareSampler)
+
+
 def preserve_resume_epoch_wrapper(original, options):
     """Preserve a checkpoint's sampler state across Accelerate's initial set_epoch."""
     del options
 
     @functools.wraps(original)
     def wrapped(self, epoch):
-        shard = self.batch_sampler
-        sampler = getattr(getattr(shard, 'batch_sampler', None), 'sampler', None)
-        if not isinstance(sampler, EpisodeAwareSampler):
-            raise TypeError('ACT resume requires EpisodeAwareSampler in DataLoaderShard')
+        sampler = _episode_sampler(self)
         state = sampler.state_dict()
+        unsharded = getattr(self.batch_sampler, 'sampler', None) is sampler
         result = original(self, epoch)
-        if epoch == 0 and (state['epoch'] != 0 or state['start_index'] != 0):
+        if ((epoch == 0 and (state['epoch'] != 0 or state['start_index'] != 0))
+                or (unsharded and state['epoch'] > epoch)):
             sampler.load_state_dict(state)
         return result
 
@@ -34,8 +52,6 @@ def continuous_batches_wrapper(original, options):
     @functools.wraps(original)
     def wrapped(self):
         sampler = self.batch_sampler.sampler
-        if not isinstance(sampler, EpisodeAwareSampler):
-            raise TypeError('ACT continuous batches requires EpisodeAwareSampler')
         if self.split_batches or not self.even_batches or self.drop_last:
             raise ValueError('ACT continuous batches requires split_batches=False, even_batches=True, drop_last=False')
         if len(self) == 0:

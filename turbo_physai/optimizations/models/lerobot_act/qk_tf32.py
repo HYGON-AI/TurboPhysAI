@@ -1,6 +1,6 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
-"""TF32 QK multiplication for unmasked ACT attention on HCU.
+"""TF32 QK multiplication for ACT attention on HCU.
 
 The forward uses TF32 inputs with FP32 accumulation. Backward uses the
 standard Torch BMM implementation and supports first-order gradients only.
@@ -12,6 +12,7 @@ import torch
 import torch.nn.functional as F
 import triton
 import triton.language as tl
+
 
 
 @triton.jit
@@ -87,8 +88,36 @@ def qk_bmm(query, key):
     return _qk_op(query, key)
 
 
+def supports_attention_qk_tf32(query, key, value, embed_dim_to_check, num_heads,
+                               in_proj_weight, in_proj_bias, bias_k, bias_v,
+                               add_zero_attn, dropout_p, out_proj_weight,
+                               out_proj_bias, training=True, key_padding_mask=None,
+                               need_weights=True, attn_mask=None,
+                               use_separate_proj_weight=False, q_proj_weight=None,
+                               k_proj_weight=None, v_proj_weight=None, static_k=None,
+                               static_v=None, average_attn_weights=True, is_causal=False):
+    """Dispatch packed ACT attention, including key-padding masks."""
+    return bool(
+        query.is_cuda and query.dtype == torch.float32 and query.ndim == 3
+        and key.ndim == 3 and value.ndim == 3 and need_weights
+        and not is_causal and attn_mask is None
+        and (key_padding_mask is None or (
+            key_padding_mask.ndim == 2
+            and key_padding_mask.shape == (query.shape[1], key.shape[0])
+            and key_padding_mask.device == query.device
+            and key_padding_mask.dtype in (torch.bool, torch.float32)))
+        and not add_zero_attn and bias_k is None and bias_v is None
+        and static_k is None and static_v is None and not use_separate_proj_weight
+        and in_proj_weight is not None and key.shape == value.shape
+        and query.shape[1] == key.shape[1]
+        and query.shape[2] == key.shape[2] == embed_dim_to_check
+        and num_heads > 0 and embed_dim_to_check % num_heads == 0
+        and 0.0 <= dropout_p <= 1.0
+    )
+
+
 def attention_qk_tf32_wrapper(original, options):
-    """Replace the packed, batched ACT attention math path without changing dropout."""
+    """Replace the packed ACT attention math path."""
     if options:
         raise ValueError("lerobot_act.qk_tf32 does not accept options")
 
@@ -99,19 +128,6 @@ def attention_qk_tf32_wrapper(original, options):
                 q_proj_weight=None, k_proj_weight=None, v_proj_weight=None,
                 static_k=None, static_v=None, average_attn_weights=True,
                 is_causal=False):
-        supported = (
-            query.is_cuda and query.dtype == torch.float32 and query.ndim == 3
-            and key.ndim == 3 and value.ndim == 3 and need_weights
-            and not is_causal and attn_mask is None and not add_zero_attn
-            and bias_k is None and bias_v is None and static_k is None and static_v is None
-            and not use_separate_proj_weight and in_proj_weight is not None
-            and key.shape == value.shape and query.shape[1] == key.shape[1]
-            and query.shape[2] == key.shape[2] == embed_dim_to_check
-            and embed_dim_to_check % num_heads == 0 and 0.0 <= dropout_p <= 1.0
-            and (key_padding_mask is None or key_padding_mask.shape == (key.shape[1], key.shape[0]))
-        )
-        if not supported:
-            raise ValueError("ACT QK TF32 supports only batched FP32 packed-projection attention with weights; unsupported attention input or options")
         target_len, batch, embed_dim = query.shape
         source_len = key.shape[0]
         head_dim = embed_dim_to_check // num_heads
@@ -120,15 +136,15 @@ def attention_qk_tf32_wrapper(original, options):
         k = k.view(source_len, batch * num_heads, head_dim).transpose(0, 1)
         v = v.view(source_len, batch * num_heads, head_dim).transpose(0, 1)
         q = q * math.sqrt(1.0 / float(head_dim))
-        if key_padding_mask is None:
-            scores = qk_bmm(q, k.transpose(-2, -1))
-        else:
-            mask = F._canonical_mask(mask=key_padding_mask, mask_name="key_padding_mask",
-                                     other_type=None, other_name="", target_type=query.dtype,
-                                     check_other=False)
-            mask = mask.view(batch, 1, 1, source_len).expand(-1, num_heads, -1, -1)
-            scores = torch.baddbmm(mask.reshape(batch * num_heads, 1, source_len),
-                                    q, k.transpose(-2, -1))
+        scores = qk_bmm(q, k.transpose(-2, -1))
+        if key_padding_mask is not None:
+            scores = scores.view(batch, num_heads, target_len, source_len)
+            mask = key_padding_mask[:, None, None, :]
+            if mask.dtype == torch.bool:
+                scores = scores.masked_fill(mask, float('-inf'))
+            else:
+                scores = scores + mask
+            scores = scores.view(batch * num_heads, target_len, source_len)
         probs = F.softmax(scores, dim=-1)
         if dropout_p > 0.0:
             probs = F.dropout(probs, p=dropout_p, training=training)

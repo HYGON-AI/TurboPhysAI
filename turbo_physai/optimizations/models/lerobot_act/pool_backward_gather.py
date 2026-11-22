@@ -75,12 +75,6 @@ def mark_act_pool(act):
     setattr(pool, _MARKER, True)
 
 
-def _pair(value):
-    if value is None:
-        return None
-    return (value, value) if isinstance(value, int) else tuple(value)
-
-
 def max_pool_backward_gather_wrapper(original, options):
     del options
 
@@ -89,20 +83,10 @@ def max_pool_backward_gather_wrapper(original, options):
         if not getattr(self, _MARKER, False):
             return original(self, value)
         checks = (
-            (self.training, 'pool must be in training mode'),
-            (_pair(self.kernel_size) == (3, 3), 'kernel_size must be 3x3'),
-            (_pair(self.stride) == (2, 2), 'stride must be 2x2'),
-            (_pair(self.padding) == (1, 1), 'padding must be 1x1'),
-            (_pair(self.dilation) == (1, 1), 'dilation must be 1x1'),
-            (not self.ceil_mode, 'ceil_mode must be false'),
-            (not self.return_indices, 'return_indices must be false'),
             (value.ndim == 4, 'input must be four-dimensional'),
             (value.ndim > 0 and value.shape[0] > 0, 'batch must be nonempty'),
-            (tuple(value.shape[1:]) == (64, 240, 320), 'input C/H/W must be 64/240/320'),
             (value.numel() < 2**31, 'input must have fewer than 2**31 elements'),
             (value.is_cuda, 'device must be HCU/CUDA'),
-            (value.dtype == torch.float32, 'dtype must be float32'),
-            (value.requires_grad, 'input must require gradients'),
             (value.is_contiguous(memory_format=torch.channels_last), 'input must be channels_last'),
         )
         failures = [reason for valid, reason in checks if not valid]

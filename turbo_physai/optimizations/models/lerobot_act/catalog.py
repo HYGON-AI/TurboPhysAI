@@ -75,6 +75,7 @@ QK_TF32 = group(
     wrap(
         target="torch.nn.functional.multi_head_attention_forward",
         replacement=f"{BASE}.qk_tf32.attention_qk_tf32_wrapper",
+        runtime_condition=f"{BASE}.qk_tf32.supports_attention_qk_tf32",
     ),
 )
 
@@ -99,6 +100,7 @@ H2D_PREFETCH_STREAM = group(
     replace(
         target="accelerate.data_loader.DataLoaderShard.__iter__",
         replacement=f"{BASE}.h2d_prefetch_stream.prefetch_dataloader_iter",
+        runtime_condition=f"{BASE}.h2d_prefetch_stream.supports_prefetch_dataloader",
     ),
     depends_on=("lerobot_act.nonblocking_h2d",),
 )
@@ -128,10 +130,12 @@ INFINITE_BATCH_SAMPLER = group(
     wrap(
         target="accelerate.data_loader.DataLoaderShard.set_epoch",
         replacement=f"{BASE}.infinite_batch_sampler.preserve_resume_epoch_wrapper",
+        runtime_condition=f"{BASE}.infinite_batch_sampler.supports_resume_epoch",
     ),
     wrap(
         target="accelerate.data_loader.BatchSamplerShard.__iter__",
         replacement=f"{BASE}.infinite_batch_sampler.continuous_batches_wrapper",
+        runtime_condition=f"{BASE}.infinite_batch_sampler.supports_continuous_batches",
     ),
 )
 
