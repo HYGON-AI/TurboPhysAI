@@ -1,10 +1,14 @@
+# Derived from Sparse4D: projects/mmdet3d_plugin/models/sparse4d_head.py;
+# projects/mmdet3d_plugin/models/blocks.py
+# Sparse4D commit 249ffbb695f4e9db628d953e2bf6d36de04bbb69.
+# Copyright (c) 2024 Horizon Robotics
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon.
+
 """Sparse4DHead Optimization.
 
-Drop the per-sample ``.cuda()`` call when building ``gt_instance_id`` in
-``forward``: only copy the numpy ``instance_id`` into a CPU tensor here, and
-let the host->device transfer happen once, batched, inside
-``target.get_dn_anchors`` (see
-``turbo_physai.optimizations.models.sparse4d.target``).
+Leave instance IDs on the CPU for samplers that batch the device transfer.
 """
 
 from typing import List, Union
@@ -42,9 +46,6 @@ def forward(self, feature_maps: Union[torch.Tensor, List], metas: dict):
     temp_dn_reg_target = None
     if self.training and hasattr(self.sampler, "get_dn_anchors"):
         if "instance_id" in metas["img_metas"][0]:
-            # 只从 numpy 拷成 CPU tensor，不在这里逐样本 .cuda()。
-            # host→device 的搬运统一放到 target.get_dn_anchors 中，
-            # 批量搬运一次，避免每个样本单独同步一次 H2D。
             gt_instance_id = [
                 torch.from_numpy(x["instance_id"])
                 for x in metas["img_metas"]

@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+# Derived from Sparse4D: tools/dist_train.sh
+# Sparse4D commit 249ffbb695f4e9db628d953e2bf6d36de04bbb69.
+# Copyright (c) 2024 Horizon Robotics
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon.
+
+set -o pipefail
+
 cd /workspace/Sparse4D || exit 1
 
 export HIP_VISIBLE_DEVICES=0,1,2,3,4,5,6,7

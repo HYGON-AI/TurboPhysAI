@@ -1,3 +1,10 @@
+# Derived from Sparse4D: projects/mmdet3d_plugin/models/detection3d/target.py
+# Sparse4D commit 249ffbb695f4e9db628d953e2bf6d36de04bbb69.
+# Copyright (c) 2024 Horizon Robotics
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon.
+
 """SparseBox3DTarget replacement installed in mmdet's BBOX_SAMPLERS registry."""
 
 import torch

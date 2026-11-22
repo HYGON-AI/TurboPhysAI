@@ -113,11 +113,27 @@ The complete PyTorch v2.7.1 license text is in [third_party/licenses/PyTorch-BSD
 
 ## Confirmed MIT derivations
 
-| Component | turbo_physai paths | Upstream repository and fixed commit | Upstream paths | License | NOTICE |
-| --- | --- | --- | --- | --- | --- |
-| Sparse4D | `turbo_physai/operators/deformable_aggregation.py`; `kernel/deformable_aggregation/DeformableAggregation.cu` | <https://github.com/HorizonRobotics/Sparse4D> @ `249ffbb695f4e9db628d953e2bf6d36de04bbb69` | `projects/mmdet3d_plugin/ops/deformable_aggregation.py`; `projects/mmdet3d_plugin/ops/src/deformable_aggregation_cuda.cu` | MIT | No `NOTICE` file identified at the fixed baseline. |
+### Sparse4D
 
-The complete Sparse4D license text is in [third_party/licenses/Sparse4D-MIT.txt](third_party/licenses/Sparse4D-MIT.txt).
+- Repository: <https://github.com/HorizonRobotics/Sparse4D>
+- Fixed commit: `249ffbb695f4e9db628d953e2bf6d36de04bbb69`
+- License: MIT
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/operators/deformable_aggregation.py` | `projects/mmdet3d_plugin/ops/deformable_aggregation.py` | Modified |
+| `kernel/deformable_aggregation/DeformableAggregation.cu` | `projects/mmdet3d_plugin/ops/src/deformable_aggregation_cuda.cu` | Modified |
+| `model_examples/Sparse4D/run.sh` | `tools/dist_train.sh` | Modified |
+| `model_examples/Sparse4D/sparse4dv4_bs18.py` | `projects/configs/sparse4dv3_temporal_r50_1x8_bs6_256x704.py` | Modified |
+| `turbo_physai/optimizations/models/sparse4d/blocks.py` | `projects/mmdet3d_plugin/models/blocks.py` | Modified |
+| `turbo_physai/optimizations/models/sparse4d/channels_last.py` | `projects/mmdet3d_plugin/models/sparse4d.py`; `projects/mmdet3d_plugin/ops/__init__.py` | Modified |
+| `turbo_physai/optimizations/models/sparse4d/detection3d_blocks.py` | `projects/mmdet3d_plugin/models/detection3d/detection3d_blocks.py` | Modified |
+| `turbo_physai/optimizations/models/sparse4d/grid_mask.py` | `projects/mmdet3d_plugin/models/grid_mask.py` | Modified |
+| `turbo_physai/optimizations/models/sparse4d/instance_bank.py` | `projects/mmdet3d_plugin/models/instance_bank.py` | Modified |
+| `turbo_physai/optimizations/models/sparse4d/sparse4d_head.py` | `projects/mmdet3d_plugin/models/sparse4d_head.py`; `projects/mmdet3d_plugin/models/blocks.py` | Modified |
+| `turbo_physai/optimizations/models/sparse4d/target.py` | `projects/mmdet3d_plugin/models/detection3d/target.py` | Modified |
+
+No `NOTICE` file was present in the listed upstream baseline. The complete Sparse4D license text is in [third_party/licenses/Sparse4D-MIT.txt](third_party/licenses/Sparse4D-MIT.txt).
 
 ## Confirmed third-party dependencies
 

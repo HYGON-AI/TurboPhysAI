@@ -1,3 +1,10 @@
+# Derived from Sparse4D: projects/configs/sparse4dv3_temporal_r50_1x8_bs6_256x704.py
+# Sparse4D commit 249ffbb695f4e9db628d953e2bf6d36de04bbb69.
+# Copyright (c) 2024 Horizon Robotics
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon.
+
 """
 mAP: 0.4647
 mATE: 0.5403

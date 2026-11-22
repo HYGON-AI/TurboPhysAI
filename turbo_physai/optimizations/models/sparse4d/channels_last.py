@@ -1,3 +1,11 @@
+# Derived from Sparse4D: projects/mmdet3d_plugin/models/sparse4d.py;
+# projects/mmdet3d_plugin/ops/__init__.py
+# Sparse4D commit 249ffbb695f4e9db628d953e2bf6d36de04bbb69.
+# Copyright (c) 2024 Horizon Robotics
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Modified by Hygon.
+
 """Use channels-last image features and cache Sparse4D packing metadata."""
 
 import functools
