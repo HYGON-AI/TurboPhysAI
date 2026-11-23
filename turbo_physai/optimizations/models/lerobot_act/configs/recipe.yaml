@@ -38,7 +38,5 @@ optimization_groups:
     enabled: true
   - id: lerobot_act.infinite_batch_sampler
     enabled: true
-  - id: lerobot_act.vae_no_clone
-    enabled: true
   - id: lerobot_act.apex_fused_adamw
     enabled: true

@@ -15,10 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Modified by Hygon.
-# ACT policy loss adapted from https://github.com/huggingface/lerobot,
-# src/lerobot/policies/act/modeling_act.py at 3f2179f3b69708b6ad009b2e7685dd9d05269ee1.
-# The original Hygon wrapper portions retain their BSD-3-Clause license.
-"""Defer ACT metric scalar reads to the logging boundary."""
+
+"""Defer ACT loss metric scalar reads to the logging boundary."""
 
 import functools
 

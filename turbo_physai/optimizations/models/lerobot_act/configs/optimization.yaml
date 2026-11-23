@@ -169,17 +169,6 @@ optimization_groups:
       accelerate.data_loader.BatchSamplerShard.__iter__:
       - ast-v1:fa52fff2a4f8e333de8cdfe6cb8b0cf780c7c206faa4753de50701a2d3046931
   accuracy_only: false
-- id: lerobot_act.vae_no_clone
-  enabled: true
-  options: {}
-  trust:
-    source_hashes:
-      lerobot.policies.act.modeling_act.ACT.forward:
-      - source-v1:b07a945bf46ca50ad36bc2873f88ea42f6a8bcad03e29cb6da75976f12a249a2
-    ast_hashes:
-      lerobot.policies.act.modeling_act.ACT.forward:
-      - ast-v1:1e4f55bbb7809acd9fcabd7efe953da14301b0a63251b829b8376713315236d8
-  accuracy_only: false
 - id: lerobot_act.apex_fused_adamw
   enabled: true
   options: {}

@@ -139,14 +139,6 @@ INFINITE_BATCH_SAMPLER = group(
     ),
 )
 
-VAE_NO_CLONE = group(
-    "lerobot_act.vae_no_clone",
-    wrap(
-        target=f"{ACT}.ACT.forward",
-        replacement=f"{BASE}.vae_no_clone.vae_no_clone_wrapper",
-    ),
-)
-
 APEX_FUSED_ADAMW = group(
     "lerobot_act.apex_fused_adamw",
     wrap(

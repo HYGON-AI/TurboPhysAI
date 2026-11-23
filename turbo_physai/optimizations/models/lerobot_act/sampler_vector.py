@@ -1,7 +1,5 @@
 # Copyright 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
-# The index mapping is adapted from a local ACT-H20 experiment whose ownership
-# and license remain to be confirmed before distribution.
 
 """Vectorized shuffled ACT sampling, preserving sampler order and resume state."""
 

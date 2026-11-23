@@ -13,10 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Adapted from Hugging Face Accelerate 1.15.0, src/accelerate/data_loader.py
-# https://github.com/huggingface/accelerate at 6afc1e5ee217051fde702b23de2813344dc0fd33.
 # Modified by Hygon.
+
 """Copy-stream prefetch for the ACT Accelerate training DataLoader."""
 
 import torch
