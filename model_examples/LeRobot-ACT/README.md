@@ -82,7 +82,11 @@ TORCH_HOME=/workspace/act_assets/ckpt/LeRobot-ACT/torch \
 
 启动训练参数：
 
-- Turbo 训练使用 8 卡、每卡 batch size 86、8 个 worker、prefetch factor 2，运行 100000 步。
+- `GPU_IDS`：使用的卡号，当前为 8 卡。
+- `--batch_size`：每卡的 batch size，当前为 86。
+- `--num_workers`：每个训练进程的数据加载 worker 数，当前为 8。
+- `--prefetch_factor`：每个 worker 预取的 batch 数，当前为 2。
+- `--steps`：训练总步数，当前为 100000。
 - `--dataset.repo_id`：数据集在 Hugging Face Hub 上的仓库标识。
 - `--dataset.root`：数据集在容器内的本地路径，需与下载数据时的 `local_dir` 一致。
 - `--dataset.revision`：指定数据集仓库的版本，此处为下载时使用的 commit；它不是 LeRobot 模型源码的 commit。使用已有本地数据时，需自行确保本地数据与该版本一致。
