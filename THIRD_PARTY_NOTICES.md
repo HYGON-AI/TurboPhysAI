@@ -165,4 +165,4 @@ All previously identified source files now have a direct upstream path and a fix
 
 ## Hygon modification notice
 
-Where Apache-2.0 source code was modified, the source file retains the upstream copyright and license notice, then adds Hygon copyright and `Modified by Hygon.`. The notice does not change the upstream license.
+Where Apache-2.0 source code was modified, the source file retains the upstream copyright and license notice and indicates Hygon modifications. The notice does not change the upstream license.
