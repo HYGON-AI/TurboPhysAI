@@ -80,7 +80,7 @@ TORCH_HOME=/workspace/act_assets/ckpt/LeRobot-ACT/torch \
 
 在 `/usr/local/bin/python3` 环境中进行训练。
 
-数据集参数：
+启动训练参数：
 
 - Turbo 训练使用 8 卡、每卡 batch size 86、8 个 worker、prefetch factor 2，运行 100000 步。
 - `--dataset.repo_id`：数据集在 Hugging Face Hub 上的仓库标识。
@@ -91,8 +91,6 @@ TORCH_HOME=/workspace/act_assets/ckpt/LeRobot-ACT/torch \
 
 - `TORCHINDUCTOR_CACHE_DIR`：TorchInductor 编译产物的缓存目录，当前配置为 `/workspace/act_runs/inductor_cache`。
 - `TRITON_CACHE_DIR`：Triton kernel 编译产物的缓存目录，当前配置为 `/workspace/act_runs/triton_cache`。
-
-后续训练在缓存保留且编译条件兼容时可复用这些产物，减少重复编译；模型、输入尺寸、软件或设备等条件变化可能导致重新编译。
 
 ```bash
 cd /workspace/lerobot
