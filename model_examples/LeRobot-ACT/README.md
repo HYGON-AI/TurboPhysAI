@@ -113,3 +113,16 @@ env -u PYTHONPATH HIP_VISIBLE_DEVICES="${GPU_IDS}" \
       --output_dir="/workspace/act_runs/turbo_${GPU_COUNT}gpu_bs${BATCH_SIZE}_${STAMP}" \
   2>&1 | tee -a "/workspace/act_runs/ACT_${GPU_COUNT}gpu_bs${BATCH_SIZE}_${STAMP}.log"
 ```
+
+数据集参数：
+
+- `--dataset.repo_id`：数据集在 Hugging Face Hub 上的仓库标识。
+- `--dataset.root`：数据集在容器内的本地路径，需与下载数据时的 `local_dir` 一致。
+- `--dataset.revision`：指定数据集仓库的版本，此处为下载时使用的 commit；它不是 LeRobot 模型源码的 commit。使用已有本地数据时，需自行确保本地数据与该版本一致。
+
+编译缓存由 [runtime.yaml](../../turbo_physai/optimizations/models/lerobot_act/configs/runtime.yaml) 设置：
+
+- `TORCHINDUCTOR_CACHE_DIR`：TorchInductor 编译产物的缓存目录，当前配置为 `/workspace/act_runs/inductor_cache`。
+- `TRITON_CACHE_DIR`：Triton kernel 编译产物的缓存目录，当前配置为 `/workspace/act_runs/triton_cache`。
+
+后续训练在缓存保留且编译条件兼容时可复用这些产物，减少重复编译；模型、输入尺寸、软件或设备等条件变化可能导致重新编译。
