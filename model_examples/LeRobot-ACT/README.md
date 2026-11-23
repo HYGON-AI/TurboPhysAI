@@ -89,7 +89,7 @@ TORCH_HOME=/workspace/act_assets/ckpt/LeRobot-ACT/torch \
 - `--steps`：训练总步数，当前为 100000。
 - `--dataset.repo_id`：数据集在 Hugging Face Hub 上的仓库标识。
 - `--dataset.root`：数据集在容器内的本地路径，需与下载数据时的 `local_dir` 一致。
-- `--dataset.revision`：指定数据集仓库的版本，此处为下载时使用的 commit；它不是 LeRobot 模型源码的 commit。使用已有本地数据时，需自行确保本地数据与该版本一致。
+- `--dataset.revision`：指定数据集版本，应与本地数据下载时使用的版本保持一致。
 - 日志：命令末尾的 `tee -a` 将训练输出保存到 `/workspace/act_runs/ACT_${GPU_COUNT}gpu_bs${BATCH_SIZE}_${STAMP}.log`。
 - 权重：默认启用 checkpoint 保存，每 20000 step 及最后一步自动保存；可通过 `--save_checkpoint` 控制是否保存、`--save_freq` 设置间隔。`--output_dir` 指定输出目录，权重位于该目录下的 `checkpoints/<step>/pretrained_model/model.safetensors`。
 
