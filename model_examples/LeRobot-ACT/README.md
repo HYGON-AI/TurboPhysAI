@@ -78,12 +78,11 @@ TORCH_HOME=/workspace/act_assets/ckpt/LeRobot-ACT/torch \
 
 ## 6. 运行训练
 
-Turbo 训练使用 8 卡、每卡 batch size 86、8 个 worker、prefetch factor 2，运行 100000 步。
-
 需安装包含 ACT 优化的 TurboPhysAI 版本；`--model lerobot_act` 使用该安装包内的优化和运行时配置。请确保 `turbo-physai` 和 `torchrun` 属于同一 Python 3.12 环境。
 
 数据集参数：
 
+- Turbo 训练使用 8 卡、每卡 batch size 86、8 个 worker、prefetch factor 2，运行 100000 步。
 - `--dataset.repo_id`：数据集在 Hugging Face Hub 上的仓库标识。
 - `--dataset.root`：数据集在容器内的本地路径，需与下载数据时的 `local_dir` 一致。
 - `--dataset.revision`：指定数据集仓库的版本，此处为下载时使用的 commit；它不是 LeRobot 模型源码的 commit。使用已有本地数据时，需自行确保本地数据与该版本一致。
