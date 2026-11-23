@@ -1,4 +1,4 @@
-# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 """Use Apex FusedAdam in AdamW mode for the LeRobot ACT optimizer."""
 

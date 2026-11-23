@@ -1,6 +1,4 @@
 # Copyright 2021 The HuggingFace Team. All rights reserved.
-# Copyright 2026 Hygon Information Technology Co., Ltd.
-# SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Modified by Hygon.
+# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+# Modified by Hygon Information Technology Co., Ltd., 2026.
 
 """Copy-stream prefetch for the ACT Accelerate training DataLoader."""
 

@@ -1,4 +1,4 @@
-# Copyright 2026 Hygon Information Technology Co., Ltd.
+# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Scoped ACT Inductor score kernels for the supported FP32 layouts."""

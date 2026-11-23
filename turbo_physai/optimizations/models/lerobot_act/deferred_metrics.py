@@ -1,7 +1,5 @@
 # Copyright 2024 Tony Z. Zhao and The HuggingFace Inc. team. All rights reserved.
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
-# Copyright 2026 Hygon Information Technology Co., Ltd.
-# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Modified by Hygon.
+# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# Modified by Hygon Information Technology Co., Ltd., 2026.
 
 """Defer ACT loss metric scalar reads to the logging boundary."""
 
