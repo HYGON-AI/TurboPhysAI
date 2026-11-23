@@ -80,7 +80,7 @@ TORCH_HOME=/workspace/act_assets/ckpt/LeRobot-ACT/torch \
 
 在 `/usr/local/bin/python3` 环境中进行训练。
 
-启动训练参数：
+启动命令中的关键参数：
 
 - `GPU_IDS`：使用的卡号，当前为 8 卡。
 - `--batch_size`：每卡的 batch size，当前为 86。
