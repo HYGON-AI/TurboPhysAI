@@ -14,3 +14,5 @@ optimization_modules:
 optimization_groups:
   - id: mmcv.msda
     enabled: true
+  - id: mmcv.data_container_pin_memory
+    enabled: true

@@ -1,0 +1,53 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+
+metadata:
+  id: model.sparse4d.development.hcu
+  version: "0.1.0"
+  description: sparse4d optimization development config
+
+model:
+  name: Sparse4D
+
+optimization_modules:
+  - turbo_physai.optimizations.models.sparse4d.catalog
+  - turbo_physai.optimizations.common.mmcv.catalog
+
+extends: []
+
+compatibility: {}
+
+# Add validated model-specific Group IDs here.
+optimization_groups:
+  - id: sparse4d.daf_import_compatibility
+    enabled: true
+  - id: sparse4d.channels_last_and_cached_spatial_shape
+    enabled: true
+  - id: sparse4d.dataloader
+    enabled: true
+  - id: sparse4d.fused_adam
+    enabled: true
+  - id: sparse4d.detection3d_blocks
+    enabled: true
+    options:
+      mode: default
+  - id: sparse4d.deformable_aggregation
+    enabled: true
+  - id: sparse4d.detection3d_target
+    enabled: true
+  - id: sparse4d.detection3d_target_compile
+    enabled: true
+    options:
+      mode: default
+  - id: sparse4d.sparse4d_head
+    enabled: true
+  - id: sparse4d.grid_mask_h2d
+    enabled: true
+  - id: sparse4d.instance_bank_h2d
+    enabled: true
+  - id: sparse4d.compile
+    enabled: true
+    options:
+      mode: default
+  - id: mmcv.data_container_pin_memory
+    enabled: true

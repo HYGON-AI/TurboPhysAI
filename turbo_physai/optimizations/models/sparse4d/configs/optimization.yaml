@@ -1,0 +1,205 @@
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.sparse4d.development.hcu
+  version: 0.1.0
+  description: sparse4d optimization development config
+model:
+  name: Sparse4D
+compatibility:
+  commits:
+  - 249ffbb695f4e9db628d953e2bf6d36de04bbb69
+optimization_groups:
+- id: sparse4d.daf_import_compatibility
+  enabled: true
+  options: {}
+  trust:
+    source_hashes: {}
+    ast_hashes: {}
+  accuracy_only: false
+- id: sparse4d.channels_last_and_cached_spatial_shape
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.sparse4d.Sparse4D.__init__:
+      - source-v1:e14c4d2a151c16c605ec7e6e1b17ac0a14ca0a23c6f444c71034a7f78585853d
+      projects.mmdet3d_plugin.models.sparse4d.Sparse4D.extract_feat:
+      - source-v1:6cc40806d88b408f37674878866d77c8dafc819d2a95499e04a54a96feccc7f0
+      projects.mmdet3d_plugin.ops.feature_maps_format:
+      - source-v1:e1e8eab107b15d936e4a2fb81493889ec7a72d4214dc9dab33bc8e643ed5ce60
+    ast_hashes:
+      projects.mmdet3d_plugin.models.sparse4d.Sparse4D.__init__:
+      - ast-v1:6aab8c99978fe062241322c23b384540049ec6e25422c056b08a2f7885fcf2cd
+      projects.mmdet3d_plugin.models.sparse4d.Sparse4D.extract_feat:
+      - ast-v1:6ce24e3b4c2aabe46c5e4c064bd3999dfab8f6c16d31b7474e02fb5ab6abc77d
+      projects.mmdet3d_plugin.ops.feature_maps_format:
+      - ast-v1:05f78eba34dd58dc495e806698c4f9bd215a65e90e837db7f68c71034a0f83cc
+  accuracy_only: false
+- id: sparse4d.dataloader
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.datasets.builder.DataLoader:
+      - source-v1:a96ac635e1df52490221f61dafcbb35003db6337fa82423dc1cd91c8108494fa
+    ast_hashes:
+      projects.mmdet3d_plugin.datasets.builder.DataLoader:
+      - ast-v1:732236c6153407ba156f7a2e58b5bf1b52bf56ac59c5f727f903633d0af6356b
+  accuracy_only: false
+- id: sparse4d.fused_adam
+  enabled: true
+  options: {}
+  trust:
+    source_hashes: {}
+    ast_hashes: {}
+  accuracy_only: false
+- id: sparse4d.detection3d_blocks
+  enabled: true
+  options:
+    mode: default
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.detection3d.detection3d_blocks.SparseBox3DEncoder.forward:
+      - source-v1:ecf70020c83e7f7f1fa25420a9c1a2567c5fbeee2a0b6666a6f1251944b65940
+      projects.mmdet3d_plugin.models.detection3d.detection3d_blocks.SparseBox3DKeyPointsGenerator.forward:
+      - source-v1:63146913289288f734d94e8d3620e478b75fffe3495bdbdb77ed7cb93b2e22fb
+      projects.mmdet3d_plugin.models.detection3d.detection3d_blocks.SparseBox3DKeyPointsGenerator.anchor_projection:
+      - source-v1:92be247ec9ec3e7a8f1772645347a1ec1ee430c8193bc6c9e2e26bd314ed2c60
+      projects.mmdet3d_plugin.models.detection3d.detection3d_blocks.SparseBox3DRefinementModule.forward:
+      - source-v1:1801599b4728b9be2814941d1e6919cc6e4dbd621a7aeb47a84e66d8930919ea
+    ast_hashes:
+      projects.mmdet3d_plugin.models.detection3d.detection3d_blocks.SparseBox3DEncoder.forward:
+      - ast-v1:135a883415d257bb57802135dfc3589c0286abed827cd14eae9074a7bbed48ba
+      projects.mmdet3d_plugin.models.detection3d.detection3d_blocks.SparseBox3DKeyPointsGenerator.forward:
+      - ast-v1:696d72ad11fbe753b810fafb91b6dd57ddeecc3e4d6b1e4300106c9ab73d510d
+      projects.mmdet3d_plugin.models.detection3d.detection3d_blocks.SparseBox3DKeyPointsGenerator.anchor_projection:
+      - ast-v1:80a8840c0f8efa9366b088f469f7e13cc1d4b041832726de79346bad67ec4341
+      projects.mmdet3d_plugin.models.detection3d.detection3d_blocks.SparseBox3DRefinementModule.forward:
+      - ast-v1:4c3b59f50d844001673183934311ae3e9cd83a11864a579bc982af4587deee00
+  accuracy_only: false
+- id: sparse4d.deformable_aggregation
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.ops.deformable_aggregation_function:
+      - source-v1:24c0a075de0a523a7e2a92bb911d59177b276ab446e0aeb149af280f7d617c26
+    ast_hashes:
+      projects.mmdet3d_plugin.ops.deformable_aggregation_function:
+      - ast-v1:9c3ea58e189333f2f78cb3fa40579cadccdb2a6a30c84b613c958fe733cb5684
+  accuracy_only: false
+- id: sparse4d.detection3d_target
+  enabled: true
+  options: {}
+  trust:
+    source_hashes: {}
+    ast_hashes: {}
+  accuracy_only: false
+- id: sparse4d.detection3d_target_compile
+  enabled: true
+  options:
+    mode: default
+  trust:
+    source_hashes:
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._encode_flat:
+      - source-v1:faae0fae0961423c80cfdd9a08df10db604a76128fd66e61f7a2827006722ca4
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget.encode_reg_target_fix:
+      - source-v1:d8835459fdadf922524b4b0612c455cf790d53db3d187389f368959d4ca0306b
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._compute_cls_diff:
+      - source-v1:3fa1a4076a52932a2fa8116b294e81344ffdfa2441417de86f023f8aa9db42d4
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._box_cost_flat:
+      - source-v1:66a0452d898f89a0547eb3aab87d17c6fe0d269090d27906834068d69eac7280
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._assign_and_scatter:
+      - source-v1:2d94063504ffc18173820cc072d858e71746bb11adb04e5c0f83547bc6f96ead
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._box_cost_fix:
+      - source-v1:4d499788473799b39639639a4d9c0a740818b20f0bab54a9cc07ef42f3ec8220
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget.cache_dn:
+      - source-v1:147f1bed1d2f13531a477187be299bbd998e912915259de982f2822fd4a0b302
+    ast_hashes:
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._encode_flat:
+      - ast-v1:e2d82f7048da4a9dc9cf9efbfd4a03aa3fcd36f16d723dfb903bf776e725d57c
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget.encode_reg_target_fix:
+      - ast-v1:5b579161269805a8ff687ea9052133823584af8a6a6235c59fbf2f8377634e5a
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._compute_cls_diff:
+      - ast-v1:70aaec9a361a7d67cc0b9b2001b5dbfc602e68e33f6d94a1a1d97227b557eace
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._box_cost_flat:
+      - ast-v1:2f5a80e0b8c67ae031f0736f3c6f942b8ca0455166d988f921acbfc267fc649b
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._assign_and_scatter:
+      - ast-v1:c0cd9224bce5fcc80db2dfb8ef5924d63b4e8e2b57e86dfd0960d46dc672429c
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget._box_cost_fix:
+      - ast-v1:9da61c1e2601f6b32309b49cb39cd7d85e3f15a4df90a4573d4dce44b336d8ff
+      mmdet.core.bbox.builder.BBOX_SAMPLERS.module_dict.SparseBox3DTarget.cache_dn:
+      - ast-v1:9f39e6d1f11be728d62281aea64d4786ede0cf1ca3cd82a895d7c5feb29acd49
+  accuracy_only: false
+- id: sparse4d.sparse4d_head
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.sparse4d_head.Sparse4DHead.forward:
+      - source-v1:f248daf45d344f6483ca95eda68ce6ca11e4b30797106c5b5bc2266880cf1033
+      projects.mmdet3d_plugin.models.blocks.DeformableFeatureAggregation._get_weights:
+      - source-v1:5bd9c9fcd1fd0b88d4014366915744d729343b9fd322e618dd66e39c2c79a3c0
+    ast_hashes:
+      projects.mmdet3d_plugin.models.sparse4d_head.Sparse4DHead.forward:
+      - ast-v1:a2262b639024c1855f544d3448d8951cdf37a552a1b21fcfc4bbc74f87f4a884
+      projects.mmdet3d_plugin.models.blocks.DeformableFeatureAggregation._get_weights:
+      - ast-v1:d046549b62d24e2a5f4461a1583a39a0fa5ac43098a67b36a476d10b3f78fdb3
+  accuracy_only: false
+- id: sparse4d.grid_mask_h2d
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.grid_mask.GridMask.forward:
+      - source-v1:c57e1fd9c7c0caf077ce0d1afc99b1845e839fa8735ae976d51f6ed33ca62bf2
+    ast_hashes:
+      projects.mmdet3d_plugin.models.grid_mask.GridMask.forward:
+      - ast-v1:e260b55719111985b24e0128f42408b5a5ecb190fe7dc2b8b798c05f827551bc
+  accuracy_only: false
+- id: sparse4d.instance_bank_h2d
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.instance_bank.InstanceBank.get:
+      - source-v1:4edb2353aacf392d262e2dab92ca615d6f3a3e4f972e4910c6604fee8ca4e36b
+    ast_hashes:
+      projects.mmdet3d_plugin.models.instance_bank.InstanceBank.get:
+      - ast-v1:14be6bb5c332c3fed621c51ccfb091260605870086bae8e400850c946adfccc3
+  accuracy_only: false
+- id: sparse4d.compile
+  enabled: true
+  options:
+    mode: default
+  trust:
+    source_hashes:
+      mmdet.models.backbones.resnet.ResNet:
+      - source-v1:7ede6e644794c696c9f4fbb5efde165f3af767f5b843a3665ac41d0f287291f6
+      mmdet.models.necks.fpn.FPN:
+      - source-v1:b5c6e19179b54e53d0ca1728b9537fe9b220d98c167798018c247d25f64415f5
+      projects.mmdet3d_plugin.models.blocks.AsymmetricFFN.forward:
+      - source-v1:e45a59b71da92299cd32a3136cbbe3c9e38d11baa898afba8640be72105ce588
+    ast_hashes:
+      mmdet.models.backbones.resnet.ResNet:
+      - ast-v1:5feb4f5a7acc86089b60bf22fc13ba4e45dcfe1c5fea7ab933c47d21b3e56bb9
+      mmdet.models.necks.fpn.FPN:
+      - ast-v1:543388327f87389526e2b347ed2f6eecd86f5cc811d099d29269153870f19726
+      projects.mmdet3d_plugin.models.blocks.AsymmetricFFN.forward:
+      - ast-v1:95c0b90c119a4a6f182ebfc476ae156d72751488f1b37e8fb47b049368aa5648
+  accuracy_only: false
+- id: mmcv.data_container_pin_memory
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch.utils.data._utils.pin_memory.pin_memory:
+      - source-v1:b4792b6ed0fa9508fa0cedee3f5ea89c8978b2ef5dc01c3573cd6ffe178a4478
+    ast_hashes:
+      torch.utils.data._utils.pin_memory.pin_memory:
+      - ast-v1:b4e42fd713e3ff169a85f58ce66e5716ca4ecfbacdcd77e3cb2ad71c09a32aa8
+  accuracy_only: false
+optimization_modules:
+- turbo_physai.optimizations.models.sparse4d.catalog
+- turbo_physai.optimizations.common.mmcv.catalog
