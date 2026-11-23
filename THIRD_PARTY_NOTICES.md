@@ -87,6 +87,26 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 | `turbo_physai/optimizations/models/bevformer/training.py` | `projects/mmdet3d_plugin/bevformer/apis/train.py` | Modified |
 | `turbo_physai/optimizations/models/bevformer/tsa.py` | `projects/mmdet3d_plugin/bevformer/modules/temporal_self_attention.py` | Modified |
 
+### LeRobot ACT
+
+- Repository: <https://github.com/huggingface/lerobot>
+- Fixed commit: `3f2179f3b69708b6ad009b2e7685dd9d05269ee1`
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/lerobot_act/deferred_metrics.py` | `src/lerobot/policies/act/modeling_act.py` | Modified |
+
+### LeRobot ACT / Hugging Face Accelerate
+
+- Repository: <https://github.com/huggingface/accelerate>
+- Fixed commit: `6afc1e5ee217051fde702b23de2813344dc0fd33` (v1.15.0)
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/lerobot_act/h2d_prefetch_stream.py` | `src/accelerate/data_loader.py` | Modified |
+
 ### MMCV
 
 - Repository: <https://github.com/open-mmlab/mmcv>
@@ -146,11 +166,3 @@ All previously identified source files now have a direct upstream path and a fix
 ## Hygon modification notice
 
 Where Apache-2.0 source code was modified, the source file retains the upstream copyright and license notice, then adds Hygon copyright and `Modified by Hygon.`. The notice does not change the upstream license.
-
-## LeRobot ACT / Hugging Face Accelerate
-
-The following file is adapted from Accelerate 1.15.0 under Apache-2.0.
-
-| Local file | Direct upstream source | Upstream file | HYGON modification |
-| --- | --- | --- | --- |
-| `turbo_physai/optimizations/models/lerobot_act/h2d_prefetch_stream.py` | <https://github.com/huggingface/accelerate> @ `6afc1e5ee217051fde702b23de2813344dc0fd33` | `src/accelerate/data_loader.py` | Adapted for asynchronous H2D prefetch |
