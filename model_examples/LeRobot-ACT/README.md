@@ -78,7 +78,7 @@ TORCH_HOME=/workspace/act_assets/ckpt/LeRobot-ACT/torch \
 
 ## 6. 运行训练
 
-需安装包含 ACT 优化的 TurboPhysAI 版本；`--model lerobot_act` 使用该安装包内的优化和运行时配置。请确保 `turbo-physai` 和 `torchrun` 属于同一 Python 3.12 环境。
+在 `/usr/local/bin/python3` 环境中进行训练。
 
 数据集参数：
 
