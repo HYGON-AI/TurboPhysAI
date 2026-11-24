@@ -1,7 +1,10 @@
 """ZeRO-2 AllGather pipeline, optimizer regrouping and failure cleanup."""
 
 from copy import deepcopy
+from datetime import timedelta
+from importlib import import_module
 from importlib.util import find_spec
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -200,6 +203,20 @@ def test_allgather_checkpoint_rejects_changed_rank_local_parameter_slices(zero_c
     assert not restored.optimizer.state
 
 
+@pytest.mark.model_deps
+def test_rank_count_fallback_rejects_pipelined_checkpoint(zero_checkpoint):
+    original, _, _, save, _ = zero_checkpoint(0)
+    checkpoint = save(original)
+    restored, _, _, _, _ = zero_checkpoint(0)
+
+    def native_load(*args, **kwargs):
+        pytest.fail("native load was called with an AllGather checkpoint")
+
+    load = load_state_dict_wrapper(native_load, {"world_size": 8, "strict": False})
+    with pytest.raises(RuntimeError, match="Cannot load an AllGather checkpoint"):
+        load(restored, [checkpoint, None])
+
+
 def test_allgather_checkpoint_rejects_pending_work_before_native_save():
     optimizer = SimpleNamespace(_turbo_physai_allgather=[])
     zero = SimpleNamespace(optimizer=optimizer, _turbo_physai_pending_allgather=object())
@@ -209,6 +226,104 @@ def test_allgather_checkpoint_rejects_pending_work_before_native_save():
 
     with pytest.raises(RuntimeError, match="unfinished"):
         state_dict_wrapper(native_save, {})(zero)
+
+
+def _exercise_rank_mismatch_checkpoint(rank, directory, phase):
+    import os
+
+    import deepspeed
+    from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer
+
+    from turbo_physai.optimizations.models.groot.zero2_allgather import _MANIFEST_KEY
+
+    torch.set_num_threads(1)
+    os.environ.update(LOCAL_RANK=str(rank), RANK=str(rank), WORLD_SIZE="2")
+    directory = Path(directory)
+    torch.distributed.init_process_group(
+        "gloo", init_method=(directory / f"{phase}.store").as_uri(),
+        rank=rank, world_size=2, timeout=timedelta(seconds=45),
+    )
+    # Use Gloo without building DeepSpeed's optional CPU shared-memory extension.
+    import_module("deepspeed.comm.torch").build_shm_op = lambda: None
+    deepspeed.init_distributed("gloo", auto_mpi_discovery=False, dist_init_required=False)
+
+    options = dict(world_size=8, strict=False, allow_checkpointing=True, group_elements=64)
+
+    def create(fallback):
+        torch.manual_seed(12)
+        model = torch.nn.Sequential(torch.nn.Linear(8, 8), torch.nn.Linear(8, 8))
+        optimizer = torch.optim.AdamW(model.parameters(), lr=0.003, fused=False)
+
+        def create_scheduler(self, optimizer):
+            return torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step: 1 - step / 10)
+
+        scheduler = scheduler_wrapper(create_scheduler, options) if fallback else create_scheduler
+        engine, _, _, _ = deepspeed.initialize(
+            model=model, optimizer=optimizer, lr_scheduler=scheduler(_trainer(optimizer), optimizer),
+            config={
+                "train_micro_batch_size_per_gpu": 1,
+                "gradient_accumulation_steps": 1,
+                "bf16": {"enabled": True},
+                "zero_allow_untested_optimizer": True,
+                "zero_optimization": {"stage": 2, "reduce_scatter": True, "overlap_comm": False},
+            },
+        )
+        return engine
+
+    def update(engine, step):
+        generator = torch.Generator().manual_seed(100 + 10 * rank + step)
+        batch = torch.randn(1, 8, generator=generator).bfloat16()
+        engine.backward(engine(batch).float().square().mean())
+        engine.step()
+
+    def snapshot(engine):
+        return {
+            "model": engine.module.state_dict(),
+            "master_weights": engine.optimizer.single_partition_of_fp32_groups,
+            "adamw": engine.optimizer.optimizer.state_dict(),
+            "scheduler": engine.lr_scheduler.state_dict(),
+            "steps": engine.global_steps,
+        }
+
+    reference = directory / f"reference-{rank}.pt"
+    checkpoint = str(directory / "checkpoint")
+    try:
+        if phase == "save":
+            baseline = create(fallback=False)
+            update(baseline, 0)
+            update(baseline, 1)
+            torch.save(snapshot(baseline), reference)
+
+        DeepSpeedZeroOptimizer.step = step_wrapper(DeepSpeedZeroOptimizer.step, options)
+        DeepSpeedZeroOptimizer.state_dict = state_dict_wrapper(DeepSpeedZeroOptimizer.state_dict, options)
+        DeepSpeedZeroOptimizer.load_state_dict = load_state_dict_wrapper(DeepSpeedZeroOptimizer.load_state_dict, options)
+        engine = create(fallback=True)
+
+        if phase == "save":
+            update(engine, 0)
+            assert engine.save_checkpoint(checkpoint, tag="step-1")
+            assert _MANIFEST_KEY not in engine.optimizer.state_dict()
+        else:
+            loaded, _ = engine.load_checkpoint(checkpoint, tag="step-1")
+            assert loaded and engine.global_steps == 1
+            update(engine, 1)
+            expected = torch.load(reference, map_location="cpu", weights_only=False)
+            torch.testing.assert_close(snapshot(engine), expected, rtol=0, atol=0)
+        assert len(engine.optimizer.optimizer.param_groups) == 1
+    finally:
+        torch.distributed.destroy_process_group()
+
+
+@pytest.mark.model_deps
+def test_rank_mismatch_falls_back_and_resumes_native_checkpoint(tmp_path, monkeypatch):
+    if find_spec("deepspeed") is None or not torch.distributed.is_gloo_available():
+        pytest.skip("requires DeepSpeed and Gloo")
+    monkeypatch.setenv("DS_ACCELERATOR", "cpu")
+    monkeypatch.setenv("OMP_NUM_THREADS", "1")
+    for phase in ("save", "resume"):
+        torch.multiprocessing.spawn(
+            _exercise_rank_mismatch_checkpoint, args=(str(tmp_path), phase), nprocs=2,
+        )
 
 
 def test_pipeline_waits_for_all_work_even_when_one_fails():

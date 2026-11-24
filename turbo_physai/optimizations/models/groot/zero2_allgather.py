@@ -435,6 +435,15 @@ def allgather_compatibility(context):
         return CompatibilityResult(compatible=False, reason=f"AllGather compatibility check failed: {exc}")
 
 
+def _rank_count_fallback(options):
+    return (
+        options.get("strict", True) is False
+        and dist.is_available()
+        and dist.is_initialized()
+        and dist.get_world_size() != options.get("world_size", 8)
+    )
+
+
 def scheduler_wrapper(original, options):
     signature = inspect.signature(original)
     target = options.get("group_elements", 100_000_000)
@@ -442,6 +451,10 @@ def scheduler_wrapper(original, options):
         raise ValueError("group_elements must be a positive integer")
     @wraps(original)
     def create(self, *args, **kwargs):
+        # DeepSpeed partitions the optimizer after scheduler creation. Keep its
+        # native group layout when we already know the pipeline will fall back.
+        if _rank_count_fallback(options):
+            return original(self, *args, **kwargs)
         bound = signature.bind(self, *args, **kwargs)
         bound.apply_defaults()
         optimizer = bound.arguments.get("optimizer") or self.optimizer
@@ -466,6 +479,8 @@ def train_wrapper(original, options):
 
     @wraps(original)
     def train(self, *args, **kwargs):
+        if _rank_count_fallback(options):
+            return original(self, *args, **kwargs)
         a = self.args
         if not a.bf16 or getattr(a, "fp16", False) or a.gradient_accumulation_steps != 1:
             raise ValueError("AllGather pipeline requires BF16 and gradient_accumulation_steps=1")
@@ -605,13 +620,16 @@ def state_dict_wrapper(original, options):
 
     @wraps(original)
     def state_dict(self):
+        fallback = _rank_count_fallback(options)
         plan = getattr(self.optimizer, "_turbo_physai_allgather", None)
-        if plan is None and not allow_checkpointing:
+        if plan is None and not allow_checkpointing and not fallback:
             return original(self)
         if getattr(self, "_turbo_physai_pending_allgather", None) is not None:
             raise RuntimeError("Cannot checkpoint AllGather optimizer with unfinished asynchronous work")
         if getattr(self, "_turbo_physai_allgather_failed", False):
             raise RuntimeError("Cannot checkpoint AllGather optimizer after a failed step")
+        if fallback:
+            return original(self)
         manifest = _checkpoint_manifest(self, world)
         result = original(self)
         result[_MANIFEST_KEY] = manifest
@@ -644,11 +662,19 @@ def load_state_dict_wrapper(original, options):
     @wraps(original)
     def load_state_dict(self, state_dict_list, load_optimizer_states=True, load_from_fp32_weights=False,
                         checkpoint_folder=None, load_serial=None, param_shapes=None):
+        # DeepSpeed loads the optimizer before its first step in the new run.
+        fallback = _rank_count_fallback(options)
         plan = getattr(self.optimizer, "_turbo_physai_allgather", None)
-        if allow_checkpointing or plan is not None:
+        if allow_checkpointing or plan is not None or fallback:
             error = None
             try:
-                _validate_checkpoint_shard(self, state_dict_list, checkpoint_folder, world)
+                if fallback:
+                    if isinstance(state_dict_list, (list, tuple)) and any(
+                        isinstance(shard, Mapping) and _MANIFEST_KEY in shard for shard in state_dict_list
+                    ):
+                        raise RuntimeError("Cannot load an AllGather checkpoint in native rank-count fallback")
+                else:
+                    _validate_checkpoint_shard(self, state_dict_list, checkpoint_folder, world)
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
             errors = [error]
