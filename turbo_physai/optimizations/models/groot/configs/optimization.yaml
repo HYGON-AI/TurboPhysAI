@@ -63,22 +63,15 @@ optimization_groups:
       - source-v1:6eb7e9a2bcfed6d8d66cfcd0d292405135043be8026b036863fe105d1eaaa7ab
       gr00t.experiment.trainer.Gr00tTrainer._prepare_inputs:
       - source-v1:2b040893a33c383172d0f79e09825a5333f75579694aa0adb1a004e48c379491
-    ast_hashes:
-      gr00t.experiment.trainer.Gr00tTrainer.training_step:
-      - ast-v1:5c311180b0f1caa4ff05a594ffd9c71f88187ba6a71cffec2a1a30ca8ada0172
-      gr00t.experiment.trainer.Gr00tTrainer._prepare_inputs:
-      - ast-v1:d46f32aa35f532362dfdb5b42f29475c389fde79648421b72aa2fad577323923
-  accuracy_only: false
-- id: groot.data.pad_156_vl_dropout
-  enabled: true
-  options: {}
-  trust:
-    source_hashes:
       gr00t.model.gr00t_n1d7.gr00t_n1d7.Gr00tN1d7ActionHead.process_backbone_output:
       - source-v1:4fb79fedd5255557e46c61b0c5cf62ab6f068ef960bd337007ca7b1243b1ccab
       gr00t.model.modules.dit.SelfAttentionTransformer.__init__:
       - source-v1:07415a2a87ae4f670938c84ebd2fa73f294f152ebaa996d5344504e2b682c6d8
     ast_hashes:
+      gr00t.experiment.trainer.Gr00tTrainer.training_step:
+      - ast-v1:5c311180b0f1caa4ff05a594ffd9c71f88187ba6a71cffec2a1a30ca8ada0172
+      gr00t.experiment.trainer.Gr00tTrainer._prepare_inputs:
+      - ast-v1:d46f32aa35f532362dfdb5b42f29475c389fde79648421b72aa2fad577323923
       gr00t.model.gr00t_n1d7.gr00t_n1d7.Gr00tN1d7ActionHead.process_backbone_output:
       - ast-v1:9b698fdf21a7204422cc1f83a81c579654071ce9ed9f789367d21958f8cb0f7e
       gr00t.model.modules.dit.SelfAttentionTransformer.__init__:

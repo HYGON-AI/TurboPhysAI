@@ -235,7 +235,7 @@ python3 -m turbo_physai.cli run --disable-numa --log-report \
   2>&1 | tee "$OUTPUT_DIR/train.log"
 ```
 
-日志应显示 19 个 Group 为 `applied`、训练达到 `10/10` 并输出 `Training completed!`。
+日志应显示 18 个 Group 为 `applied`、训练达到 `10/10` 并输出 `Training completed!`。
 
 ### 7.3 单机八卡训练
 

@@ -144,10 +144,6 @@ FIXED_PADDING = group(
         target="gr00t.experiment.trainer.Gr00tTrainer._prepare_inputs",
         replacement=f"{_FIXED_PADDING}.fixed_padding_wrapper",
     ),
-)
-
-FIXED_PADDING_VL_DROPOUT = group(
-    "groot.data.pad_156_vl_dropout",
     wrap(
         target="gr00t.model.gr00t_n1d7.gr00t_n1d7.Gr00tN1d7ActionHead.process_backbone_output",
         replacement=f"{_VL_DROPOUT}.action_head_vl_dropout_wrapper",
@@ -156,7 +152,6 @@ FIXED_PADDING_VL_DROPOUT = group(
         target="gr00t.model.modules.dit.SelfAttentionTransformer.__init__",
         replacement=f"{_VL_DROPOUT}.vl_dropout_init_wrapper",
     ),
-    depends_on=("groot.data.pad_156",),
 )
 
 APEX_FUSED_ADAM = group(

@@ -33,8 +33,6 @@ optimization_groups:
   # 性能优化项
   - id: groot.data.pad_156
     enabled: true
-  - id: groot.data.pad_156_vl_dropout
-    enabled: true
   - id: groot.qwen.fast_pos_embed_interpolate
     enabled: true
   - id: groot.qwen.rot_pos_emb

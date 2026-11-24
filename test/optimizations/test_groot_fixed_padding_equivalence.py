@@ -1,4 +1,4 @@
-"""Does left padding (``groot.data.pad_156``) change the model's numerics?
+"""Numerical equivalence of fixed sequence padding in GR00T.
 
 The baseline action head calls ``vl_self_attention(backbone_features)`` without an attention mask,
 while ``AlternateVLDiT`` receives ``encoder_attention_mask`` and ignores masked positions. These
@@ -51,11 +51,9 @@ def batch():
     }
 
 
-def run(vl, dit, batch, *, padded, use_vl_self_attention):
+def run_dit(dit, batch, *, padded):
     prefix = "padded_" if padded else ""
     features = batch[f"{prefix}features"]
-    if use_vl_self_attention:
-        features = vl(features)
     output, _ = dit(
         hidden_states=batch["action"], encoder_hidden_states=features,
         timestep=batch["timestep"], encoder_attention_mask=batch[f"{prefix}attention"],
@@ -71,9 +69,9 @@ def parameter_gradients(module, loss):
 
 
 def test_dit_cross_attention_ignores_left_padded_positions(modules, batch):
-    vl, dit = modules
-    plain = run(vl, dit, batch, padded=False, use_vl_self_attention=False)
-    padded = run(vl, dit, batch, padded=True, use_vl_self_attention=False)
+    _, dit = modules
+    plain = run_dit(dit, batch, padded=False)
+    padded = run_dit(dit, batch, padded=True)
     torch.testing.assert_close(padded, plain, rtol=1e-4, atol=1e-5)
     plain_grads = parameter_gradients(dit, plain.square().mean())
     padded_grads = parameter_gradients(dit, padded.square().mean())
@@ -91,24 +89,9 @@ def test_vl_self_attention_output_depends_on_padding(modules, batch):
     assert relative > 1e-3, f"expected padding to change the output, relative difference {relative:.2e}"
 
 
-def test_pad_156_changes_loss_and_gradients_through_vl_self_attention(modules, batch):
-    vl, dit = modules
-    plain = run(vl, dit, batch, padded=False, use_vl_self_attention=True)
-    padded = run(vl, dit, batch, padded=True, use_vl_self_attention=True)
-    relative = (padded - plain).norm() / plain.norm()
-    assert relative > 1e-3, f"relative output difference {relative:.2e}"
-    plain_grads = parameter_gradients(vl, plain.square().mean())
-    padded_grads = parameter_gradients(vl, padded.square().mean())
-    # Global norms: per-parameter ratios are dominated by parameters whose gradient is near zero.
-    difference = torch.cat([(padded_grads[n] - g).flatten() for n, g in plain_grads.items()]).norm()
-    reference = torch.cat([g.flatten() for g in plain_grads.values()]).norm()
-    relative = difference / reference
-    assert relative > 1e-3, f"expected vl_self_attention gradients to change, relative {relative:.2e}"
-
-
 @pytest.mark.model_deps
 @pytest.mark.parametrize("compile_vl", [False, True])
-def test_fixed_width_vl_preserves_native_width_dropout(monkeypatch, compile_vl):
+def test_pad_156_preserves_native_width_vl_numerics(monkeypatch, compile_vl):
     from gr00t.experiment.trainer import Gr00tTrainer
     from gr00t.model.gr00t_n1d7.gr00t_n1d7 import Gr00tN1d7ActionHead
 
@@ -117,7 +100,7 @@ def test_fixed_width_vl_preserves_native_width_dropout(monkeypatch, compile_vl):
     from turbo_physai.engine.execution.replacements import default_handlers
     from turbo_physai.optimizations.models.groot import catalog
 
-    declarations = [catalog.FIXED_PADDING, catalog.FIXED_PADDING_VL_DROPOUT]
+    declarations = [catalog.FIXED_PADDING]
     if compile_vl:
         declarations.append(catalog.COMPILE_VL)
     enabled_ids = [group.group_id for group in declarations]
