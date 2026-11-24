@@ -1,0 +1,74 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+
+metadata:
+  id: model.maptrv2.development.hcu
+  version: "0.1.0"
+  description: MapTRv2 HCU optimization recipe (validated reference port)
+
+model:
+  name: maptrv2
+
+optimization_modules:
+  - turbo_physai.optimizations.models.maptrv2.catalog
+
+# The reference implementation swaps MSDeformAttn's ``ext_module`` for LightOp.
+# ``framework.mmcv.hcu`` carries exactly that one Group (``mmcv.msda``) plus the
+# module that declares it; it is deliberately not ``common.hcu.base``, which
+# would also pull in the six ``mmdet3d.*`` Groups that have no counterpart in
+# the MapTRv2 reference.
+extends:
+  - framework.mmcv.hcu
+
+compatibility: {}
+
+optimization_groups:
+  # Compatibility: HCU layout, environment-dependent registry fixes, and evaluation.
+  # training also contains performance settings (channels-last / cuDNN benchmark).
+  - id: maptrv2.training
+    enabled: true
+  - id: maptrv2.bev_pool_fix
+    enabled: true
+  - id: maptrv2.efficientnet
+    enabled: true
+  - id: maptrv2.spconv_registry
+    enabled: true
+  - id: maptrv2.eval_compat
+    enabled: true
+
+  # Data pipeline: pinned memory and vectorized annotation processing.
+  - id: maptrv2.data
+    enabled: true
+  - id: maptrv2.datacontainer_pin
+    enabled: true
+  - id: maptrv2.pv_mask
+    enabled: true
+  - id: maptrv2.dataset_vectorization
+    enabled: true
+
+  # Optimizer and operator acceleration.
+  - id: maptrv2.fused_adamw
+    enabled: true
+  # Inherited from framework.mmcv.hcu; keep its switch explicit here.
+  - id: mmcv.msda
+    enabled: true
+  # Broadcast L1 matching cost instead of cdist(p=1).
+  - id: maptrv2.match_cost
+    enabled: true
+
+  # Training computation: remove redundant work and device synchronization.
+  - id: maptrv2.sync_elimination
+    enabled: true
+
+  # Compilation: Dynamo-safe augmentation, static matching, and tensor boundaries.
+  - id: maptrv2.grid_mask
+    enabled: true
+  - id: maptrv2.assigner
+    enabled: true
+  - id: maptrv2.reference_boundaries
+    enabled: true
+  - id: maptrv2.compile
+    enabled: true
