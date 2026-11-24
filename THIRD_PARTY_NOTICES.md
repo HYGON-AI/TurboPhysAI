@@ -87,6 +87,26 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 | `turbo_physai/optimizations/models/bevformer/training.py` | `projects/mmdet3d_plugin/bevformer/apis/train.py` | Modified |
 | `turbo_physai/optimizations/models/bevformer/tsa.py` | `projects/mmdet3d_plugin/bevformer/modules/temporal_self_attention.py` | Modified |
 
+### LeRobot ACT
+
+- Repository: <https://github.com/huggingface/lerobot>
+- Fixed commit: `3f2179f3b69708b6ad009b2e7685dd9d05269ee1`
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/lerobot_act/deferred_metrics.py` | `src/lerobot/policies/act/modeling_act.py` | Modified |
+
+### LeRobot ACT / Hugging Face Accelerate
+
+- Repository: <https://github.com/huggingface/accelerate>
+- Fixed commit: `6afc1e5ee217051fde702b23de2813344dc0fd33` (v1.15.0)
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/lerobot_act/h2d_prefetch_stream.py` | `src/accelerate/data_loader.py` | Modified |
+
 ### MMCV
 
 - Repository: <https://github.com/open-mmlab/mmcv>

@@ -1,0 +1,23 @@
+{
+  "schema_version": "turbophysai/generation-record/v2",
+  "generator": "turbo-physai optimization generate",
+  "model_commit": "3f2179f3b69708b6ad009b2e7685dd9d05269ee1",
+  "config": {
+    "path": "optimization.yaml",
+    "sha256": "b426948ae4240a16a8c0b75c9a4712e17471e7d3325f20aa43a85868fcb05187"
+  },
+  "inputs": [
+    {
+      "role": "recipe",
+      "base": "package",
+      "path": "optimizations/models/lerobot_act/configs/recipe.yaml",
+      "sha256": "6a3c4abcc13aafdc01fc9fbaa3a566035ec59c0403cc714a640b18953eb407ef"
+    },
+    {
+      "role": "catalog",
+      "base": "package",
+      "path": "optimizations/models/lerobot_act/catalog.py",
+      "sha256": "3b3dc34c7525321d9e3b03b3a5df167b2ed115f7642cc1b60d4991bebfcc781d"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+process:
+  numa: true
+environment:
+  set:
+    DISABLE_ADDMM_CUDA_LT: "1"
+    MIOPEN_FIND_MODE: '1'
+    MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: '1'
+    PYTORCH_MIOPEN_SUGGEST_NHWC: '1'
+    TORCHINDUCTOR_COMPILE_THREADS: '1'
+    TORCHINDUCTOR_CACHE_DIR: /workspace/act_runs/inductor_cache
+    TRITON_CACHE_DIR: /workspace/act_runs/triton_cache
+    TOKENIZERS_PARALLELISM: 'false'
+    HIP_BUFFER_EXTRA_SIZE: '0'
+    #TORCHINDUCTOR_BENCHMARK_FUSION: '1'

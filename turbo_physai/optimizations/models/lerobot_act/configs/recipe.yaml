@@ -1,0 +1,42 @@
+# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.lerobot_act.optimized
+  version: '1.0.0'
+  description: LeRobot ACT optimizations
+model:
+  name: LeRobot-ACT
+optimization_modules:
+  - turbo_physai.optimizations.models.lerobot_act.catalog
+optimization_groups:
+  - id: lerobot_act.channels_last_pool
+    enabled: true
+  - id: lerobot_act.backbone_compile
+    enabled: true
+  - id: lerobot_act.no_attn_average
+    enabled: true
+  - id: lerobot_act.module_compile
+    enabled: true
+  # FP32 attention at BS86/rank on the validated gfx938 Torch/Triton stack.
+  - id: lerobot_act.compiled_attention_scores
+    enabled: true
+  - id: lerobot_act.qk_tf32
+    enabled: true
+  - id: lerobot_act.ddp_options
+    enabled: true
+    options:
+      static_graph: true
+  - id: lerobot_act.nonblocking_h2d
+    enabled: true
+  - id: lerobot_act.h2d_prefetch_stream
+    enabled: true
+  - id: lerobot_act.deferred_metrics
+    enabled: true
+  - id: lerobot_act.sampler_vector
+    enabled: true
+  - id: lerobot_act.infinite_batch_sampler
+    enabled: true
+  - id: lerobot_act.apex_fused_adamw
+    enabled: true
