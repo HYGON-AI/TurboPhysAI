@@ -429,9 +429,7 @@ def test_step_strict_false_falls_back_on_validation_failure(monkeypatch):
     assert optimizer._turbo_physai_allgather["activated"] is False
 
 
-# Zero2 allgather pipeline reference
-
-# Adapted from Isaac-GR00T, SPDX-License-Identifier: Apache-2.0
+# ZeRO-2 AllGather pipeline reference tests.
 
 def test_pipeline_overflow_clears_gradients_without_updating_or_gathering():
     from types import SimpleNamespace
