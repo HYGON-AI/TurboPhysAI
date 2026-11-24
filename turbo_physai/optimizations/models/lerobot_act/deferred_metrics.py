@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# SPDX-License-Identifier: Apache-2.0
 # Modified by Hygon Information Technology Co., Ltd., 2026.
 
 """Defer ACT loss metric scalar reads to the logging boundary."""
