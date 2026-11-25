@@ -1,0 +1,281 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.maptrv2.development.hcu
+  version: 0.1.0
+  description: MapTRv2 HCU optimization recipe (validated reference port)
+model:
+  name: maptrv2
+compatibility:
+  commits:
+  - e03f097abef19e1ba3fed5f471a8d80fbfa0a064
+optimization_groups:
+- id: mmcv.msda
+  enabled: true
+  options: {}
+  trust:
+    source_hashes: {}
+    ast_hashes: {}
+  accuracy_only: false
+- id: maptrv2.training
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.bevformer.apis.mmdet_train.custom_train_detector:
+      - source-v1:34a5db05a4523d74c44669be65b0e3167fd7a9f247b554635513368e88070e92
+      mmcv.parallel.distributed.MMDistributedDataParallel._run_ddp_forward:
+      - source-v1:f4e196a85655850dbae1bf752ea1519a86083ba518b95a34cc5afbcf76bb5274
+      mmcv.runner.dist_utils.init_dist:
+      - source-v1:c35d9a9de1e441b6992609a30b61663d26318b43e756e0093de43f94d7805ab8
+    ast_hashes:
+      projects.mmdet3d_plugin.bevformer.apis.mmdet_train.custom_train_detector:
+      - ast-v1:09220ef496650fbec6b6bcae9ebf4264ba7ea748dbae0b98b9f02258d5706a43
+      mmcv.parallel.distributed.MMDistributedDataParallel._run_ddp_forward:
+      - ast-v1:7d601b5fefa14e6288d8b597d1b68043025af1567dc704226bdd24c17faab5d9
+      mmcv.runner.dist_utils.init_dist:
+      - ast-v1:b0100c145cd9df73481c241110f7e045300275eae7c08b0cb9d598f6fa9c5c78
+  accuracy_only: false
+- id: maptrv2.bev_pool_fix
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.maptr.modules.encoder.BaseTransform.bev_pool:
+      - source-v1:e06d404df30ac59e8d826e60cbb378382be1f622d954eca7c32c397ed245d4f0
+    ast_hashes:
+      projects.mmdet3d_plugin.maptr.modules.encoder.BaseTransform.bev_pool:
+      - ast-v1:f28bb5f5942e70bd6f9e03c51aa500f0ea0c8e3e2a40242222199ef3ecec9176
+  accuracy_only: false
+- id: maptrv2.efficientnet
+  enabled: true
+  options: {}
+  trust:
+    source_hashes: {}
+    ast_hashes: {}
+  accuracy_only: false
+- id: maptrv2.spconv_registry
+  enabled: true
+  options: {}
+  trust:
+    source_hashes: {}
+    ast_hashes: {}
+  accuracy_only: false
+- id: maptrv2.eval_compat
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.datasets.map_utils.tpfp_chamfer.custom_polyline_score:
+      - source-v1:5940ed886d5bf77bdf0763ad06ab3eaf22b3eb9a36d701293643e6b0ed818517
+    ast_hashes:
+      projects.mmdet3d_plugin.datasets.map_utils.tpfp_chamfer.custom_polyline_score:
+      - ast-v1:68758ea2b5a72b73b45adc5d93add21a2f1f0a25ea9515cda5f35c8c295f1e4e
+  accuracy_only: false
+- id: maptrv2.data
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.datasets.builder.build_dataloader:
+      - source-v1:8c7061493d142d6bf3e6524d4e7f5ec5f0b4fc0931aaf356aa4e3b9974e1aed9
+    ast_hashes:
+      projects.mmdet3d_plugin.datasets.builder.build_dataloader:
+      - ast-v1:bf985ea31b75f97862ffacdd8310e2908b7a3ea6f9025f999da007ef3fb0294c
+  accuracy_only: false
+- id: maptrv2.datacontainer_pin
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      torch.utils.data._utils.pin_memory.pin_memory:
+      - source-v1:ff389a72e1df2b748e87b40e4177450dcf1b99297d2e092cfd3827f918ee436c
+    ast_hashes:
+      torch.utils.data._utils.pin_memory.pin_memory:
+      - ast-v1:04a60bd36cc1263e8460282fe996479357c7b8c2ffc8dac42080a487732a9529
+  accuracy_only: false
+- id: maptrv2.pv_mask
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.datasets.nuscenes_offlinemap_dataset.VectorizedLocalMap.line_ego_to_pvmask:
+      - source-v1:5548a9e2280f2c0653b92539f6b0fce897ddc3e99793aa183facd57f44961ef7
+      projects.mmdet3d_plugin.datasets.nuscenes_offlinemap_dataset.VectorizedLocalMap.line_ego_to_mask:
+      - source-v1:115db58a65257178123c6ce7e3ecca0de49911cdc23ba0caa18e8ccac3ded2d2
+      projects.mmdet3d_plugin.datasets.nuscenes_offlinemap_dataset.VectorizedLocalMap.gen_vectorized_samples:
+      - source-v1:3655e7acbead0560066b111690c68ab5fac09d41e6be1cb089c1dffa0f05acbf
+    ast_hashes:
+      projects.mmdet3d_plugin.datasets.nuscenes_offlinemap_dataset.VectorizedLocalMap.line_ego_to_pvmask:
+      - ast-v1:c085aff682d6cbc3ca2d2a8e61bf8209d6eeed963b2c94e5adfd0c4ed264669f
+      projects.mmdet3d_plugin.datasets.nuscenes_offlinemap_dataset.VectorizedLocalMap.line_ego_to_mask:
+      - ast-v1:c2caf1cc9752b888c51178b74c07e711ec4034fab3632fd7a247c7ff554d0396
+      projects.mmdet3d_plugin.datasets.nuscenes_offlinemap_dataset.VectorizedLocalMap.gen_vectorized_samples:
+      - ast-v1:3b5d934af83d058dcd635523240b54f232bfdd80891708c63c1eb67d7b97fc81
+  accuracy_only: false
+- id: maptrv2.dataset_vectorization
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.datasets.nuscenes_offlinemap_dataset.LiDARInstanceLines.shift_fixed_num_sampled_points_v2:
+      - source-v1:876efb1b499779dcf6f36b03fc3082f1bd09b4f3cd89875e82073e2e2733b883
+    ast_hashes:
+      projects.mmdet3d_plugin.datasets.nuscenes_offlinemap_dataset.LiDARInstanceLines.shift_fixed_num_sampled_points_v2:
+      - ast-v1:d55af6421a714368426166fbc2aeac7cb9644ea8f176c5f03a3136c9276e55cc
+  accuracy_only: false
+- id: maptrv2.fused_adamw
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.bevformer.apis.mmdet_train.build_optimizer:
+      - source-v1:943a9ae0974bea38b39539d619785134ce180821a846d32eef668abb35193894
+    ast_hashes:
+      projects.mmdet3d_plugin.bevformer.apis.mmdet_train.build_optimizer:
+      - ast-v1:94c928355e011ae0cc750d4efcb653a278665c1aaf7050678981ebb3c95a21b1
+  accuracy_only: false
+- id: maptrv2.match_cost
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.maptr.losses.map_loss.OrderedPtsL1Cost.__call__:
+      - source-v1:b3d9225938a60f8f0d43f9ec404e643e5c192614387e58922f7a24f51da3d00b
+    ast_hashes:
+      projects.mmdet3d_plugin.maptr.losses.map_loss.OrderedPtsL1Cost.__call__:
+      - ast-v1:2b56652c34d87e86ae66256609b8ed12328329dc5c1d8d3a141fb9170b1428af
+  accuracy_only: false
+- id: maptrv2.sync_elimination
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.MapTRv2Head.loss_single:
+      - source-v1:edc5acd03832b95c73a101c55ed454f023f7584485882d9595a8acea2e6d3626
+      projects.mmdet3d_plugin.maptr.dense_heads.maptr_head.MapTRHead.loss_single:
+      - source-v1:523c6ee6a57848ba17929ec08fb3c9c822f8213b6c344c1a33faf973357331ee
+      projects.mmdet3d_plugin.bevformer.dense_heads.bevformer_head.BEVFormerHead.loss_single:
+      - source-v1:9617b0e1a90790580f39706b1a1d77afc726e55724e34c86c3ea0730a6a60950
+      projects.mmdet3d_plugin.bevformer.modules.encoder.BEVFormerEncoder.point_sampling:
+      - source-v1:9f2ce9f7a5afcab5b66b85bbdeffd24af7b4514dab4ec03abb33a1ea0342daca
+    ast_hashes:
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.MapTRv2Head.loss_single:
+      - ast-v1:e37b0b3d8249fa25c1e25a7ade2b0352d14a7c367625c7dae5d1c4f5c1e422c9
+      projects.mmdet3d_plugin.maptr.dense_heads.maptr_head.MapTRHead.loss_single:
+      - ast-v1:2ffa223a91cda10cf8f8bedb4356dfbda1f6a889135cd6776d62b1c0b8382bd6
+      projects.mmdet3d_plugin.bevformer.dense_heads.bevformer_head.BEVFormerHead.loss_single:
+      - ast-v1:7522719d89b33a8e602085234ba04280c94e69663661c3ca50fc2d49fd105280
+      projects.mmdet3d_plugin.bevformer.modules.encoder.BEVFormerEncoder.point_sampling:
+      - ast-v1:9c0b806c2c9ccaa4c5649ca742af1d686af4fe14fdff7fa2a541a61173567549
+  accuracy_only: false
+- id: maptrv2.grid_mask
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.models.utils.grid_mask.GridMask.forward:
+      - source-v1:39874d1cb8e5ee26ce483c23d292d79dcae3890f0065c60dc3ce8db1da98d4da
+    ast_hashes:
+      projects.mmdet3d_plugin.models.utils.grid_mask.GridMask.forward:
+      - ast-v1:0be0ed899f1ca91b43fb78d7e424a6e3460c36fe65fb1f615dc721850d3c2b2e
+  accuracy_only: false
+- id: maptrv2.assigner
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.maptr.assigners.maptr_assigner.MapTRAssigner.assign:
+      - source-v1:7c44b6cd477ad6e351565dcac8bddedb3b7fb4144bf991a9b4451554774b37fb
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.MapTRv2Head.loss:
+      - source-v1:73f64fdc667a93d3f21160b09ecc9b91cd66bbf9579e3ef89ff1fddbcf39b86c
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.MapTRv2Head._get_target_single:
+      - source-v1:1c475175f26eef7eb67e6a580dde0cb2ad9cc8e5786bd0638a042f85c3f57e6e
+    ast_hashes:
+      projects.mmdet3d_plugin.maptr.assigners.maptr_assigner.MapTRAssigner.assign:
+      - ast-v1:d8e8dd00a7a6e48fab5879a155e011b4c39e433b82d0604040a2f4ff3d19f94c
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.MapTRv2Head.loss:
+      - ast-v1:b12db6d4af187b34c3003792ccb593461233dcf3e5767da2b1a8730e8b790cd7
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.MapTRv2Head._get_target_single:
+      - ast-v1:03faf0f09e7e26df66b02a47d9e8162b77e24f8ef632a5b7770a2dd6aea25b60
+  accuracy_only: false
+- id: maptrv2.reference_boundaries
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.maptr.modules.encoder.BaseTransform.get_geometry_v1:
+      - source-v1:f0214bc98fa4172110cc3f69228af905a92b3020972dfdd7cf14fc849cfc911d
+      projects.mmdet3d_plugin.maptr.modules.encoder.BaseTransform.forward:
+      - source-v1:f00a2596e7a507f6c873ceed211dab7b174ffa4462823d43594f908b1377a8e0
+      projects.mmdet3d_plugin.maptr.modules.encoder.LSSTransform.forward:
+      - source-v1:94286800d16799cb8ea1c5aff65d3e924aa1f79fa715a40c0b022a35eda2a066
+      projects.mmdet3d_plugin.maptr.modules.transformer.MapTRPerceptionTransformer.forward:
+      - source-v1:4acc81e42ccf3b938b9287766d1419077919ee7ca4fb7a2a0afe8c665285969b
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.MapTRv2Head.forward:
+      - source-v1:8623a98ed68d7ba889d62858c652a21b468d913df734dd24e04693a08bf3353a
+    ast_hashes:
+      projects.mmdet3d_plugin.maptr.modules.encoder.BaseTransform.get_geometry_v1:
+      - ast-v1:02fbf3eba4c641c509a266524449da2f4212df5dd7eb2fadd9df84e8c62da7d8
+      projects.mmdet3d_plugin.maptr.modules.encoder.BaseTransform.forward:
+      - ast-v1:39b1a17ae8e635047d20fa2954bff5ef75800bf2aba752e83e7b2149acae5e8c
+      projects.mmdet3d_plugin.maptr.modules.encoder.LSSTransform.forward:
+      - ast-v1:870da562109ddbedbc4f5b3f0e71c6038d036a9b108d93450af7465471a71163
+      projects.mmdet3d_plugin.maptr.modules.transformer.MapTRPerceptionTransformer.forward:
+      - ast-v1:0ea823805f53d5420bf33579b2d32a2dcc3920029dbb2780632360f342f1817c
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.MapTRv2Head.forward:
+      - ast-v1:8e68a603878fa82d11c474d10a828bd1cacd1ee427e155503d23929ca749eb10
+  accuracy_only: false
+- id: maptrv2.compile
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      projects.mmdet3d_plugin.maptr.modules.transformer.MapTRPerceptionTransformer.format_feats:
+      - source-v1:3945ffbe930cbf397255c0fcb7d542a61b2cb663ba3291b80eb47aa622da8930
+      projects.mmdet3d_plugin.maptr.modules.decoder.MapTRDecoder.forward:
+      - source-v1:b44c6236d27037150a4eb6851e4f3b33877b9f145fa74a07714a421c6f9512ae
+      projects.mmdet3d_plugin.maptr.detectors.maptrv2.MapTRv2.extract_img_feat:
+      - source-v1:bbb89e54dc1d137fee58c72753015f88d923e6d706eb0099b31d13ccb3ad78e3
+      projects.mmdet3d_plugin.maptr.modules.encoder.LSSTransform.get_cam_feats:
+      - source-v1:47297d964cd284b6c448c61b29391d5440d2b88ee89728286f84652c6809ade1
+      projects.mmdet3d_plugin.maptr.modules.encoder.LSSTransform.get_mlp_input:
+      - source-v1:be9fa45b2cd46427ad0c1876a4521c8f6d6af354fb603b380799e6b3756993ae
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.normalize_3d_pts:
+      - source-v1:01b024f006fafd1b7cbebc3cd1fc39615bd6fe2720fc46a12c2190c43f2fb97d
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.normalize_2d_bbox:
+      - source-v1:2e4a08996851f4eb81eab4b6ac171c0e3d95e482f82731fc8c9e3171a3c4e04b
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.normalize_2d_pts:
+      - source-v1:acc6fe90c6eb1f4398a32c4999f53290bd993bb33d559dd34e052dd3513c9edc
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.denormalize_2d_bbox:
+      - source-v1:bc108561b13a6e0f99c8c7c70266cddb30cbd6fc862d1e5b85e9c5c23ec1998d
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.denormalize_2d_pts:
+      - source-v1:e8d15a8594d787c6feae73afa7afcaf2df8f17afb3c7ab020905918e064f1840
+    ast_hashes:
+      projects.mmdet3d_plugin.maptr.modules.transformer.MapTRPerceptionTransformer.format_feats:
+      - ast-v1:5e332eb5c71616338d8e890bb47377c2ff0c6ab8169a0fa47a5590507e16e47f
+      projects.mmdet3d_plugin.maptr.modules.decoder.MapTRDecoder.forward:
+      - ast-v1:7da252d082794c9f4892ed10f3a0b3de0f60ad90a072fe480ad60eed6f3e3044
+      projects.mmdet3d_plugin.maptr.detectors.maptrv2.MapTRv2.extract_img_feat:
+      - ast-v1:da75ffd854c6edecd1a233c00239d4a835092364b284c91398eb99d078ccb52a
+      projects.mmdet3d_plugin.maptr.modules.encoder.LSSTransform.get_cam_feats:
+      - ast-v1:959f60b80a4c49dff84cf3013668c572f92c958e32efbda06258d35b8bad6553
+      projects.mmdet3d_plugin.maptr.modules.encoder.LSSTransform.get_mlp_input:
+      - ast-v1:c48adf2d1a352a2f68756d73b2bc488e81547bd4c0713e895da634b9aa4c7dc9
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.normalize_3d_pts:
+      - ast-v1:6cdbec214e3e669ea2d5620a080aea0f99cba1bbbcaccc1a622deb88ada170fd
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.normalize_2d_bbox:
+      - ast-v1:b63ed09a703a23e52224bd8ae3cc5df930503c66a0a247afb06e7142aa74abb2
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.normalize_2d_pts:
+      - ast-v1:910118fd597d30476958c773c0a287f3d3090d2c87d67c540d292e435901811c
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.denormalize_2d_bbox:
+      - ast-v1:e63af06ba7deb409ac8fa5709a1202aa13ccd550488fa0d067bfe8af67c50b64
+      projects.mmdet3d_plugin.maptr.dense_heads.maptrv2_head.denormalize_2d_pts:
+      - ast-v1:8bf3a62c9941bff02294ee6a018295da3268b7c6dec1904c456b244fa81f6a87
+  accuracy_only: false
+optimization_modules:
+- turbo_physai.optimizations.common.mmcv.catalog
+- turbo_physai.optimizations.models.maptrv2.catalog

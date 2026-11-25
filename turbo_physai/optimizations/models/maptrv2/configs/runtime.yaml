@@ -1,0 +1,33 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+# Self-contained defaults taken from the validated MapTRv2 launch script.
+# They are not universal requirements: MIOpen/Inductor values are tuning
+# defaults, while NCCL values assume the validated eight-card topology.
+environment:
+  set:
+    # MIOpen / rocBLAS settings used by the MapTRv2 launch recipe.
+    PYTORCH_MIOPEN_SUGGEST_NHWC: "1"
+    MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
+    MIOPEN_FIND_MODE: "1"
+    ROCBLAS_MATH_MODE: "1"
+
+    # RCCL defaults for the validated eight-card topology.
+    # Override these for a different NIC/GPU topology.
+    NCCL_TOPO_FILE: "null"
+    NCCL_ALGO: Ring
+    NCCL_RINGS: "N0 0 7 6 5 4 3 2 1 N0|N1 1 2 3 4 5 6 7 0 N1|N2 2 1 0 7 6 5 4 3 N2|N3 3 4 5 6 7 0 1 2 N3|N4 4 3 2 1 0 7 6 5 N4|N5 5 6 7 0 1 2 3 4 N5|N6 6 5 4 3 2 1 0 7 N6|N7 7 0 1 2 3 4 5 6 N7"
+    ALLREDUCE_STREAM_WITH_COMPUTE: "1"
+    HSA_FORCE_FINE_GRAIN_PCIE: "1"
+
+    # Inductor layout and tuning settings.
+    TORCHINDUCTOR_LAYOUT_OPTIMIZATION: "1"
+    TORCHINDUCTOR_COORDINATE_DESCENT_TUNING: "1"
+    # Inductor conv autotuning backend used by the maptrv2.compile group.
+    TORCHINDUCTOR_MAX_AUTOTUNE_CONV_BACKENDS: ATEN
+
+process:
+  numa: true

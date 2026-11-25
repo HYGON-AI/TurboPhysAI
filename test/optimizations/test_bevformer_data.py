@@ -60,13 +60,24 @@ def _install_framework_stubs():
         "mmdet.datasets": datasets,
         "mmdet.datasets.samplers": samplers,
     }
+    installed = []
     for name, module in modules.items():
-        sys.modules.setdefault(name, module)
+        if name not in sys.modules:
+            sys.modules[name] = module
+            installed.append(name)
+    return installed
 
 
-_install_framework_stubs()
-
-from turbo_physai.optimizations.models.bevformer import data
+# ``data`` binds these names at import time, so the stubs are only needed while
+# it is imported. Leaving them in sys.modules would shadow the real mmcv/mmdet
+# for every test module collected afterwards (e.g. ``from mmcv.runner import
+# force_fp32`` in test_maptrv2_sync_elimination.py).
+_stubbed = _install_framework_stubs()
+try:
+    from turbo_physai.optimizations.models.bevformer import data
+finally:
+    for _name in _stubbed:
+        sys.modules.pop(_name, None)
 
 
 def test_worker_init_fn_sets_reproducible_numpy_and_python_seeds():

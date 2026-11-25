@@ -119,6 +119,34 @@ The complete PyTorch v2.7.1 license text is in [third_party/licenses/PyTorch-BSD
 
 The complete Sparse4D license text is in [third_party/licenses/Sparse4D-MIT.txt](third_party/licenses/Sparse4D-MIT.txt).
 
+### MapTRv2 / MapTR
+
+- Repository: <https://github.com/hustvl/MapTR>
+- Fixed commit: `e03f097abef19e1ba3fed5f471a8d80fbfa0a064` (`maptrv2` branch)
+- Direct-source repository license: MIT, copyright (c) 2022 Hust Vision Lab
+
+The files below adapt code from the fixed MapTR baseline. All paths in the
+upstream column are relative to `projects/mmdet3d_plugin/`. Existing OpenMMLab
+and BEVFormer attribution is retained. In particular, `data.py` and
+`grid_mask.py` retain their Apache-2.0 notices; the direct repository's MIT
+license does not replace inherited notices. No `NOTICE` file was found at
+the fixed MapTR baseline.
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/maptrv2/assigner.py` | `maptr/assigners/maptr_assigner.py`; `maptr/dense_heads/maptrv2_head.py` | Modified |
+| `turbo_physai/optimizations/models/maptrv2/bev_pool_fix.py` | `maptr/modules/encoder.py` | Modified |
+| `turbo_physai/optimizations/models/maptrv2/reference.py` | `maptr/modules/encoder.py`; `maptr/modules/transformer.py`; `maptr/dense_heads/maptrv2_head.py` | Modified |
+| `turbo_physai/optimizations/models/maptrv2/pv_mask.py` | `datasets/nuscenes_offlinemap_dataset.py` | Modified |
+| `turbo_physai/optimizations/models/maptrv2/eval_compat.py` | `datasets/map_utils/tpfp_chamfer.py` | Modified |
+| `turbo_physai/optimizations/models/maptrv2/match_cost.py` | `maptr/losses/map_loss.py` | Modified |
+| `turbo_physai/optimizations/models/maptrv2/dataset_vectorization.py` | `datasets/nuscenes_offlinemap_dataset.py` | Modified |
+| `turbo_physai/optimizations/models/maptrv2/sync_elimination.py` | `maptr/dense_heads/maptrv2_head.py`; `maptr/dense_heads/maptr_head.py`; `bevformer/dense_heads/bevformer_head.py`; `bevformer/modules/encoder.py` | Modified |
+| `turbo_physai/optimizations/models/maptrv2/data.py` | `datasets/builder.py` | Modified |
+| `turbo_physai/optimizations/models/maptrv2/grid_mask.py` | `models/utils/grid_mask.py` | Modified |
+
+The complete MapTR license text is in [third_party/licenses/MapTR-MIT.txt](third_party/licenses/MapTR-MIT.txt).
+
 ## Confirmed third-party dependencies
 
 The dependency below is installed from its published package; its source code is not copied into this repository.
