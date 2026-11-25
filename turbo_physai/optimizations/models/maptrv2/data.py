@@ -43,14 +43,6 @@ from mmcv.runner import get_dist_info
 from mmdet.datasets.samplers import GroupSampler
 from torch.utils.data import DataLoader
 
-from projects.mmdet3d_plugin.datasets.samplers.distributed_sampler import (
-    DistributedSampler,
-)
-from projects.mmdet3d_plugin.datasets.samplers.group_sampler import (
-    DistributedGroupSampler,
-)
-from projects.mmdet3d_plugin.datasets.samplers.sampler import build_sampler
-
 
 def _pin_memory_enabled():
     return os.getenv("TURBO_PHYSAI_PIN_MEMORY", "1") != "0"
@@ -104,6 +96,15 @@ def build_dataloader(dataset,
 
     rank, world_size = get_dist_info()
     if dist:
+        from projects.mmdet3d_plugin.datasets.samplers.distributed_sampler import (
+            DistributedSampler,  # noqa: F401
+        )
+        from projects.mmdet3d_plugin.datasets.samplers.group_sampler import (
+            DistributedGroupSampler,  # noqa: F401
+        )
+        from projects.mmdet3d_plugin.datasets.samplers.sampler import (
+            build_sampler,
+        )
         if shuffle:
             sampler = build_sampler(
                 shuffler_sampler if shuffler_sampler is not None
