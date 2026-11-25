@@ -116,8 +116,9 @@ The complete PyTorch v2.7.1 license text is in [third_party/licenses/PyTorch-BSD
 | Component | turbo_physai paths | Upstream repository and fixed commit | Upstream paths | License | NOTICE |
 | --- | --- | --- | --- | --- | --- |
 | Sparse4D | `turbo_physai/operators/deformable_aggregation.py`; `kernel/deformable_aggregation/DeformableAggregation.cu` | <https://github.com/HorizonRobotics/Sparse4D> @ `249ffbb695f4e9db628d953e2bf6d36de04bbb69` | `projects/mmdet3d_plugin/ops/deformable_aggregation.py`; `projects/mmdet3d_plugin/ops/src/deformable_aggregation_cuda.cu` | MIT | No `NOTICE` file identified at the fixed baseline. |
+| FastWAM | `turbo_physai/optimizations/models/fastwam/{action_dit,fastwam,fastwam_joint,fastwam_idm,fastwam_optional_idm,mot,wan_video_dit,wan22,loader,vae}.py`; `model_examples/FastWAM/configs/model/turbo_*.yaml` | <https://github.com/yuantianyuan01/FastWAM> @ `7faa71108368fbb3b6885649f112af607427a2d4` (baseline); `9f26b0d94cdb2593474af02e405eb2af3022c800` (optimized working-tree HEAD) | `src/fastwam/models/wan22/*.py`; `src/fastwam/models/wan22/helpers/loader.py`; `configs/model/*.yaml` | MIT | No `NOTICE` file identified at the fixed baseline. |
 
-The complete Sparse4D license text is in [third_party/licenses/Sparse4D-MIT.txt](third_party/licenses/Sparse4D-MIT.txt).
+The complete Sparse4D license text is in [third_party/licenses/Sparse4D-MIT.txt](third_party/licenses/Sparse4D-MIT.txt). The complete FastWAM license text is in [third_party/licenses/FastWAM-MIT.txt](third_party/licenses/FastWAM-MIT.txt).
 
 ## Confirmed third-party dependencies
 
