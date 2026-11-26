@@ -104,10 +104,10 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 
 | Local file | Direct upstream source | HYGON modification |
 | --- | --- | --- |
-| `turbo_physai/optimizations/models/groot/qwen_position.py` | [Transformers](https://github.com/huggingface/transformers) v4.57.3, commit `47b0e478f324b54f177ea7998a0791870fdd0324`, `src/transformers/models/qwen3_vl/modeling_qwen3_vl.py` (`Qwen3VLVisionModel.fast_pos_embed_interpolate` and `rot_pos_emb`) | Modified |
-| `turbo_physai/optimizations/models/groot/zero2_allgather.py` | [DeepSpeed](https://github.com/deepspeedai/DeepSpeed) v0.18.4, commit `b35d9eb01bc04e774cc05dc43713f2a41423da5c`, `deepspeed/runtime/zero/stage_1_and_2.py` (`DeepSpeedZeroOptimizer.step`) | Modified |
-| `turbo_physai/optimizations/models/groot/zero2_overlap.py` | DeepSpeed v0.18.4, commit `b35d9eb01bc04e774cc05dc43713f2a41423da5c`, `deepspeed/runtime/zero/stage_1_and_2.py` (`DeepSpeedZeroOptimizer.reduce_independent_p_g_buckets_and_remove_grads` and `average_tensor`) | Modified |
-| `turbo_physai/optimizations/models/groot/vl_padding_dropout.py` | [Isaac-GR00T](https://github.com/NVIDIA/Isaac-GR00T), commit `51d4c89f72fda44cbf77285c6a8114b52676b8a1`, `gr00t/model/gr00t_n1d7/gr00t_n1d7.py` and `gr00t/model/modules/dit.py` | Modified |
+| `turbo_physai/optimizations/models/groot_n1_7/qwen_position.py` | [Transformers](https://github.com/huggingface/transformers) v4.57.3, commit `47b0e478f324b54f177ea7998a0791870fdd0324`, `src/transformers/models/qwen3_vl/modeling_qwen3_vl.py` (`Qwen3VLVisionModel.fast_pos_embed_interpolate` and `rot_pos_emb`) | Modified |
+| `turbo_physai/optimizations/models/groot_n1_7/zero2_allgather.py` | [DeepSpeed](https://github.com/deepspeedai/DeepSpeed) v0.18.4, commit `b35d9eb01bc04e774cc05dc43713f2a41423da5c`, `deepspeed/runtime/zero/stage_1_and_2.py` (`DeepSpeedZeroOptimizer.step`) | Modified |
+| `turbo_physai/optimizations/models/groot_n1_7/zero2_overlap.py` | DeepSpeed v0.18.4, commit `b35d9eb01bc04e774cc05dc43713f2a41423da5c`, `deepspeed/runtime/zero/stage_1_and_2.py` (`DeepSpeedZeroOptimizer.reduce_independent_p_g_buckets_and_remove_grads` and `average_tensor`) | Modified |
+| `turbo_physai/optimizations/models/groot_n1_7/vl_padding_dropout.py` | [Isaac-GR00T](https://github.com/NVIDIA/Isaac-GR00T), commit `51d4c89f72fda44cbf77285c6a8114b52676b8a1`, `gr00t/model/gr00t_n1d7/gr00t_n1d7.py` and `gr00t/model/modules/dit.py` | Modified |
 
 These sources use Apache-2.0. The DeepSpeed version identifies the public API baseline. The integration is also checked against a DTK vendor build, whose separate source revision is not recorded here.
 

@@ -10,7 +10,7 @@ model:
   name: groot
 
 optimization_modules:
-  - turbo_physai.optimizations.models.groot.catalog
+  - turbo_physai.optimizations.models.groot_n1_7.catalog
 
 compatibility: {}
 

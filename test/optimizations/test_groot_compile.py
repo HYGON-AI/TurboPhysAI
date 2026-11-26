@@ -6,12 +6,12 @@ from types import SimpleNamespace
 import pytest
 import torch
 
-from turbo_physai.optimizations.models.groot.attention import (
+from turbo_physai.optimizations.models.groot_n1_7.attention import (
     flash_attn_dynamo_disable_wrapper,
 )
-from turbo_physai.optimizations.models.groot.compile import compile_method_wrapper
-from turbo_physai.optimizations.models.groot.compile_text import compile_text_wrapper
-from turbo_physai.optimizations.models.groot.kv_cache import disable_kv_cache_wrapper
+from turbo_physai.optimizations.models.groot_n1_7.compile import compile_method_wrapper
+from turbo_physai.optimizations.models.groot_n1_7.compile_text import compile_text_wrapper
+from turbo_physai.optimizations.models.groot_n1_7.kv_cache import disable_kv_cache_wrapper
 
 
 # Compile wrappers
@@ -87,7 +87,7 @@ def test_text_compile_preserves_outputs_and_gradients(monkeypatch):
 
 
 def test_text_compile_dependencies():
-    from turbo_physai.optimizations.models.groot.catalog import COMPILE_TEXT
+    from turbo_physai.optimizations.models.groot_n1_7.catalog import COMPILE_TEXT
     assert set(COMPILE_TEXT.definition.depends_on) == {
         "groot.qwen.flash_attn_dynamo_disable", "groot.qwen.disable_kv_cache"
     }

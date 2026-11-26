@@ -13,6 +13,6 @@ TurboPhysAI 不强制模型仓库停留在优化接入基线（[可以在优化�
 | BEVFormer | BEVFormer-base | R101-DCN | `66b65f3a1f58caf0507cb2a971b9c0e7f842376c` | [BEVFormer](../../../model_examples/BEVFormer/README.md) |
 | BEVFusion |   BEVFusion   |    —    | `326653dc06e0938edf1aae7d01efcd158ba83de5` | [BEVFusion](../../../model_examples/BEVFusion/README.md) |
 |  OpenVLA  |   OpenVLA-7B   | DINOv2+SigLIP | `c8f03f48af692657d3060c19588038c7220e9af9` | [OpenVLA](../../../model_examples/OpenVLA/README.md) |
-| GR00T | GR00T N1.7 3B | Cosmos Reason2 / Qwen3-VL | `51d4c89f72fda44cbf77285c6a8114b52676b8a1` | [GR00T](../../../model_examples/Groot/README.md) |
+| GR00T N1.7 | GR00T N1.7 3B | Cosmos Reason2 / Qwen3-VL | `51d4c89f72fda44cbf77285c6a8114b52676b8a1` | [Groot N1.7](../../../model_examples/Groot-N1.7/README.md) |
 
 **自动驾驶**、**具身智能**和**世界模型**等方向的模型适配工作持续推进中，请关注后续更新。

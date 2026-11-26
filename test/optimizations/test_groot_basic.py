@@ -10,14 +10,14 @@ import yaml
 
 from turbo_physai.engine.config.generation_record import verify_generated
 from turbo_physai.engine.execution.replacements import default_handlers
-from turbo_physai.optimizations.models.groot import catalog
+from turbo_physai.optimizations.models.groot_n1_7 import catalog
 
 
 # Catalog
 
 class CatalogTest(unittest.TestCase):
     def test_catalog_can_be_imported(self):
-        importlib.import_module("turbo_physai.optimizations.models.groot.catalog")
+        importlib.import_module("turbo_physai.optimizations.models.groot_n1_7.catalog")
 
 
 # Configuration
@@ -51,7 +51,7 @@ def test_all_groups_prepare_without_conflicts(tmp_path):
     for name in ("gr00t", "transformers", "deepspeed", "apex", "amp_C"):
         if importlib.util.find_spec(name) is None:
             pytest.skip(f"{name} is unavailable")
-    from turbo_physai.optimizations.models.groot import catalog  # noqa: F401
+    from turbo_physai.optimizations.models.groot_n1_7 import catalog  # noqa: F401
     from turbo_physai.engine.checking.context import detect_context
     from turbo_physai.engine.checking.ordering import Preparation
     from turbo_physai.engine.config.loader import load_optimization_config

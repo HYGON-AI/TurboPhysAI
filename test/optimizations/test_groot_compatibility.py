@@ -13,7 +13,7 @@ import pytest
 
 
 def compat():
-    return importlib.import_module("turbo_physai.optimizations.models.groot.compat")
+    return importlib.import_module("turbo_physai.optimizations.models.groot_n1_7.compat")
 
 
 @pytest.mark.parametrize("requested,available,expected", [
@@ -147,7 +147,7 @@ def test_real_entrypoint_aliases_apply_and_restore_in_subprocess(early_import):
         import runpy
         import sys
         from types import SimpleNamespace
-        from turbo_physai.optimizations.models.groot import catalog
+        from turbo_physai.optimizations.models.groot_n1_7 import catalog
         from turbo_physai.engine.execution.replacements import default_handlers
 
         early = EARLY_IMPORT

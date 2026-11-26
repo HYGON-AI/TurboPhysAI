@@ -9,14 +9,14 @@ import torch
 
 from turbo_physai.engine.contracts import Mechanism
 from turbo_physai.engine.execution.replacements import default_handlers
-from turbo_physai.optimizations.models.groot.catalog import DIT_HIP_MATH_SDPA
-from turbo_physai.optimizations.models.groot.optim import create_optimizer_apex_wrapper
-from turbo_physai.optimizations.models.groot.qwen_position import (
+from turbo_physai.optimizations.models.groot_n1_7.catalog import DIT_HIP_MATH_SDPA
+from turbo_physai.optimizations.models.groot_n1_7.optim import create_optimizer_apex_wrapper
+from turbo_physai.optimizations.models.groot_n1_7.qwen_position import (
     fast_pos_embed_interpolate,
     rope_index_wrapper,
     rot_pos_emb,
 )
-from turbo_physai.optimizations.models.groot.replacements import (
+from turbo_physai.optimizations.models.groot_n1_7.replacements import (
     dit_sdpa_context_wrapper,
 )
 

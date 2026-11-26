@@ -8,11 +8,11 @@ from types import SimpleNamespace
 import pytest
 import torch
 
-from turbo_physai.optimizations.models.groot.data import (
+from turbo_physai.optimizations.models.groot_n1_7.data import (
     Bf16PixelValuesCollator,
     trainer_init_bf16_wrapper,
 )
-from turbo_physai.optimizations.models.groot.fixed_padding import (
+from turbo_physai.optimizations.models.groot_n1_7.fixed_padding import (
     fixed_padding_wrapper,
     training_padding_wrapper,
 )

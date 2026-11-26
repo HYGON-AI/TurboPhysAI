@@ -10,11 +10,11 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
-from turbo_physai.optimizations.models.groot.zero2_overlap import (
+from turbo_physai.optimizations.models.groot_n1_7.zero2_overlap import (
     BucketEventScheduler,
     _runtime_state,
 )
-from turbo_physai.optimizations.models.groot.zero2_owner_reduce import (
+from turbo_physai.optimizations.models.groot_n1_7.zero2_owner_reduce import (
     _fill_window,
     _store_window,
     is_balanced,
@@ -53,7 +53,7 @@ def test_unsupported_optimizer_fails_or_falls_back():
 
 
 def test_wrappers_refuse_uninitialized_optimizer():
-    from turbo_physai.optimizations.models.groot.zero2_overlap import reduce_wrapper
+    from turbo_physai.optimizations.models.groot_n1_7.zero2_overlap import reduce_wrapper
     def original(self, param, i):
         return "original"
     with pytest.raises(RuntimeError, match="not initialized"):
@@ -61,7 +61,7 @@ def test_wrappers_refuse_uninitialized_optimizer():
 
 
 def test_layout_difference_across_ranks_fails_before_activation(monkeypatch):
-    from turbo_physai.optimizations.models.groot import zero2_overlap as z
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_overlap as z
     monkeypatch.setattr(z, "_unsupported_reasons", lambda obj: ["unsupported"])
     monkeypatch.setattr(z.dist, "is_available", lambda: True)
     monkeypatch.setattr(z.dist, "is_initialized", lambda: True)
@@ -75,7 +75,7 @@ def test_layout_difference_across_ranks_fails_before_activation(monkeypatch):
 
 def test_average_tensor_scales_and_dispatches_owner_slices(monkeypatch):
     from contextlib import nullcontext
-    from turbo_physai.optimizations.models.groot import zero2_overlap as z
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_overlap as z
 
     class FakeTensor:
         def __init__(self, values):
@@ -132,7 +132,7 @@ def test_empty_and_mismatched_owner_inputs():
 
 
 def test_reduce_scatter_windows_convert_dtype_and_reuse_staging(monkeypatch):
-    from turbo_physai.optimizations.models.groot import zero2_owner_reduce as module
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_owner_reduce as module
 
     calls = []
     def reduce_scatter(output, packed, group=None):
@@ -167,7 +167,7 @@ def test_owner_wrapper_preserves_other_calls(state, divide):
 
 
 def test_owner_wrapper_activates_and_keeps_optimizer_local_state(monkeypatch):
-    from turbo_physai.optimizations.models.groot import zero2_owner_reduce as module
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_owner_reduce as module
     fake_dist = SimpleNamespace(get_rank=lambda group: 0, get_world_size=lambda group: 2)
     monkeypatch.setattr(module, "dist", fake_dist)
     calls = []
@@ -188,7 +188,7 @@ def test_owner_wrapper_activates_and_keeps_optimizer_local_state(monkeypatch):
 
 def test_gro_average_flag_is_restored_on_error(monkeypatch):
     from contextlib import nullcontext
-    from turbo_physai.optimizations.models.groot import zero2_overlap as module
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_overlap as module
     monkeypatch.setattr(module, "build_rank_and_offsets", lambda optimizer, bucket: ([(0, 0, 1)], 1))
     monkeypatch.setattr(module.dist, "get_world_size", lambda group=None: 1)
     class Tensor:

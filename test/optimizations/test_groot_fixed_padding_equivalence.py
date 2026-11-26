@@ -98,7 +98,7 @@ def test_pad_156_preserves_native_width_vl_numerics(monkeypatch, compile_vl):
     from turbo_physai.engine.checking.conflicts import find_group_conflicts
     from turbo_physai.engine.definitions.registry import default_registry
     from turbo_physai.engine.execution.replacements import default_handlers
-    from turbo_physai.optimizations.models.groot import catalog
+    from turbo_physai.optimizations.models.groot_n1_7 import catalog
 
     declarations = [catalog.FIXED_PADDING]
     if compile_vl:

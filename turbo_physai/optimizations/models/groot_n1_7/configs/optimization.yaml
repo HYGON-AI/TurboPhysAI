@@ -143,12 +143,12 @@ optimization_groups:
     source_hashes:
       gr00t.model.modules.dit.SelfAttentionTransformer.forward:
       - source-v1:ff0449444c128c410fa1049e1212fc5b8b6316f442cbe3fe530a3390e1dc06db
-      turbo_physai.optimizations.models.groot.vl_padding_dropout.masked_vl_forward:
+      turbo_physai.optimizations.models.groot_n1_7.vl_padding_dropout.masked_vl_forward:
       - source-v1:79190c809536cdccf2755263508ac19d08b56661f3d8076aa2cb6c7883a63618
     ast_hashes:
       gr00t.model.modules.dit.SelfAttentionTransformer.forward:
       - ast-v1:3cfff3ecabe31d9bf77c4ac34f54f3eb6e1b113101574d4acaaba505d89c240d
-      turbo_physai.optimizations.models.groot.vl_padding_dropout.masked_vl_forward:
+      turbo_physai.optimizations.models.groot_n1_7.vl_padding_dropout.masked_vl_forward:
       - ast-v1:4e5f5a0870b93f82324162834ac03c47338105452f4e0dede53f96e114cec4bf
   accuracy_only: false
 - id: groot.data.pixel_values_bf16
@@ -252,4 +252,4 @@ optimization_groups:
   trust: {}
   accuracy_only: false
 optimization_modules:
-- turbo_physai.optimizations.models.groot.catalog
+- turbo_physai.optimizations.models.groot_n1_7.catalog

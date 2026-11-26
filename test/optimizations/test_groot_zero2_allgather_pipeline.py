@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 
-from turbo_physai.optimizations.models.groot.zero2_allgather import (
+from turbo_physai.optimizations.models.groot_n1_7.zero2_allgather import (
     GroupAllGatherPipeline,
     describe_partition_layout,
     launch_group_all_gather,
@@ -59,8 +59,8 @@ def test_fused_torch_adamw_is_rejected():
 
 
 def test_apex_selection_precedes_scheduler_regroup(monkeypatch):
-    from turbo_physai.optimizations.models.groot import zero2_allgather as module
-    from turbo_physai.optimizations.models.groot.optim import create_optimizer_apex_wrapper
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_allgather as module
+    from turbo_physai.optimizations.models.groot_n1_7.optim import create_optimizer_apex_wrapper
 
     class FakeFusedAdam(torch.optim.AdamW):
         adam_w_mode = 1
@@ -234,7 +234,7 @@ def _exercise_rank_mismatch_checkpoint(rank, directory, phase):
     import deepspeed
     from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer
 
-    from turbo_physai.optimizations.models.groot.zero2_allgather import _MANIFEST_KEY
+    from turbo_physai.optimizations.models.groot_n1_7.zero2_allgather import _MANIFEST_KEY
 
     torch.set_num_threads(1)
     os.environ.update(LOCAL_RANK=str(rank), RANK=str(rank), WORLD_SIZE="2")
@@ -343,7 +343,7 @@ def test_pipeline_waits_for_all_work_even_when_one_fails():
 
 
 def test_failed_async_work_is_retained_and_prevents_another_step():
-    from turbo_physai.optimizations.models.groot.zero2_allgather import _finish_allgathers
+    from turbo_physai.optimizations.models.groot_n1_7.zero2_allgather import _finish_allgathers
 
     class Work:
         def wait(self):
@@ -362,7 +362,7 @@ def test_failed_async_work_is_retained_and_prevents_another_step():
 
 
 def test_failed_partial_step_permanently_poisoned(monkeypatch):
-    from turbo_physai.optimizations.models.groot import zero2_allgather as module
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_allgather as module
 
     def fail_after_update(optimizer, closure=None):
         optimizer.updates += 1
@@ -391,7 +391,7 @@ def test_train_rejects_unsupported_configuration(settings):
 
 
 def test_step_rejects_rank_plan_mismatch(monkeypatch):
-    from turbo_physai.optimizations.models.groot import zero2_allgather as module
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_allgather as module
     monkeypatch.setattr(module, "_validate_local", lambda obj, world: {"plan": ["rank-0"]})
     monkeypatch.setattr(module.dist, "is_available", lambda: True)
     monkeypatch.setattr(module.dist, "is_initialized", lambda: True)
@@ -405,7 +405,7 @@ def test_step_rejects_rank_plan_mismatch(monkeypatch):
 
 
 def test_step_rejects_different_strict_options_across_ranks(monkeypatch):
-    from turbo_physai.optimizations.models.groot import zero2_allgather as module
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_allgather as module
     monkeypatch.setattr(module, "_validate_local", lambda obj, world: {"plan": []})
     monkeypatch.setattr(module.dist, "is_available", lambda: True)
     monkeypatch.setattr(module.dist, "is_initialized", lambda: True)
@@ -418,7 +418,7 @@ def test_step_rejects_different_strict_options_across_ranks(monkeypatch):
 
 
 def test_step_strict_false_falls_back_on_validation_failure(monkeypatch):
-    from turbo_physai.optimizations.models.groot import zero2_allgather as module
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_allgather as module
     def invalid(*args): raise RuntimeError("unsupported")
     monkeypatch.setattr(module, "_validate_local", invalid)
     monkeypatch.setattr(module.dist, "is_available", lambda: False)
@@ -434,7 +434,7 @@ def test_step_strict_false_falls_back_on_validation_failure(monkeypatch):
 def test_pipeline_overflow_clears_gradients_without_updating_or_gathering():
     from types import SimpleNamespace
 
-    from turbo_physai.optimizations.models.groot.zero2_allgather import _pipeline_zero2_step
+    from turbo_physai.optimizations.models.groot_n1_7.zero2_allgather import _pipeline_zero2_step
 
     events = []
     timer = SimpleNamespace(start=lambda: events.append("timer_start"),
@@ -724,7 +724,7 @@ def test_fused_optimizer_group_step_matches_full_step_and_restores_lists(monkeyp
     """Exercise real Apex Python step with its GPU kernel replaced by CPU math."""
     import torch
     from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer
-    from turbo_physai.optimizations.models.groot.zero2_allgather import _optimizer_step_for_group
+    from turbo_physai.optimizations.models.groot_n1_7.zero2_allgather import _optimizer_step_for_group
 
     def cpu_apply(_kernel, _overflow, tensors, lr, beta1, beta2, eps, step,
                   adam_w_mode, bias_correction, weight_decay):
@@ -789,7 +789,7 @@ def test_fused_optimizer_group_step_matches_full_step_and_restores_lists(monkeyp
 
 @pytest.mark.model_deps
 def test_fused_group_adapter_restores_lists_if_step_raises(apex_fused_adam):
-    from turbo_physai.optimizations.models.groot.zero2_allgather import _optimizer_step_for_group
+    from turbo_physai.optimizations.models.groot_n1_7.zero2_allgather import _optimizer_step_for_group
 
     param = torch.nn.Parameter(torch.ones(1))
     optimizer = apex_fused_adam.FusedAdam.__new__(apex_fused_adam.FusedAdam)
@@ -813,7 +813,7 @@ def test_fused_group_adapter_restores_lists_if_step_raises(apex_fused_adam):
 def test_plain_adamw_group_step_does_not_import_apex(monkeypatch):
     import builtins
     import torch
-    from turbo_physai.optimizations.models.groot.zero2_allgather import _optimizer_step_for_group
+    from turbo_physai.optimizations.models.groot_n1_7.zero2_allgather import _optimizer_step_for_group
 
     optimizer = torch.optim.AdamW([torch.nn.Parameter(torch.ones(1))])
     events = []

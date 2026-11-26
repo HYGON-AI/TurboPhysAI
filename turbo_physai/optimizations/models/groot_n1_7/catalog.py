@@ -12,7 +12,7 @@ TRAINING_CONFIG = group(
     wrap(
         target="gr00t.experiment.experiment.run",
         aliases=("gr00t.experiment.launch_finetune.run",),
-        replacement="turbo_physai.optimizations.models.groot.compat.training_config_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.compat.training_config_wrapper",
     ),
 )
 
@@ -21,7 +21,7 @@ OPENCV_VIDEO = group(
     wrap(
         target="gr00t.utils.video_utils.get_frames_by_indices",
         aliases=("gr00t.data.dataset.lerobot_episode_loader.get_frames_by_indices",),
-        replacement="turbo_physai.optimizations.models.groot.compat.opencv_video_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.compat.opencv_video_wrapper",
     ),
 )
 
@@ -30,12 +30,12 @@ DIT_HIP_MATH_SDPA = group(
     "groot.dit.hip_math_sdpa",
     wrap(
         target="gr00t.model.modules.dit._sdpa_context",
-        replacement="turbo_physai.optimizations.models.groot.replacements.dit_sdpa_context_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.replacements.dit_sdpa_context_wrapper",
     ),
 )
 
 _QWEN = "transformers.models.qwen3_vl.modeling_qwen3_vl"
-_POS = "turbo_physai.optimizations.models.groot.qwen_position"
+_POS = "turbo_physai.optimizations.models.groot_n1_7.qwen_position"
 
 QWEN_FAST_POS = group(
     "groot.qwen.fast_pos_embed_interpolate",
@@ -68,7 +68,7 @@ FLASH_DISABLE = group(
         aliases=(
             "transformers.modeling_utils.AttentionInterface._global_mapping.flash_attention_3",
         ),
-        replacement="turbo_physai.optimizations.models.groot.attention.flash_attn_dynamo_disable_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.attention.flash_attn_dynamo_disable_wrapper",
     ),
 )
 
@@ -76,12 +76,12 @@ DISABLE_KV_CACHE = group(
     "groot.qwen.disable_kv_cache",
     wrap(
         target=f"{_QWEN}.Qwen3VLTextModel.forward",
-        replacement="turbo_physai.optimizations.models.groot.kv_cache.disable_kv_cache_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.kv_cache.disable_kv_cache_wrapper",
     ),
 )
 
-_COMPILE = "turbo_physai.optimizations.models.groot.compile.compile_method_wrapper"
-_VL_DROPOUT = "turbo_physai.optimizations.models.groot.vl_padding_dropout"
+_COMPILE = "turbo_physai.optimizations.models.groot_n1_7.compile.compile_method_wrapper"
+_VL_DROPOUT = "turbo_physai.optimizations.models.groot_n1_7.vl_padding_dropout"
 
 COMPILE_VISION = group(
     "groot.compile.qwen_vision_block",
@@ -119,7 +119,7 @@ COMPILE_TEXT = group(
     "groot.compile.qwen_text_layer",
     wrap(
         target=f"{_QWEN}.Qwen3VLTextDecoderLayer.forward",
-        replacement="turbo_physai.optimizations.models.groot.compile_text.compile_text_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.compile_text.compile_text_wrapper",
     ),
     depends_on=("groot.qwen.flash_attn_dynamo_disable", "groot.qwen.disable_kv_cache"),
 )
@@ -128,11 +128,11 @@ PIXEL_VALUES_BF16 = group(
     "groot.data.pixel_values_bf16",
     wrap(
         target="gr00t.experiment.trainer.Gr00tTrainer.__init__",
-        replacement="turbo_physai.optimizations.models.groot.data.trainer_init_bf16_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.data.trainer_init_bf16_wrapper",
     ),
 )
 
-_FIXED_PADDING = "turbo_physai.optimizations.models.groot.fixed_padding"
+_FIXED_PADDING = "turbo_physai.optimizations.models.groot_n1_7.fixed_padding"
 
 FIXED_PADDING = group(
     "groot.data.pad_156",
@@ -158,9 +158,9 @@ APEX_FUSED_ADAM = group(
     "groot.optim.apex_fused_adam",
     wrap(
         target="gr00t.experiment.trainer.Gr00tTrainer.create_optimizer",
-        replacement="turbo_physai.optimizations.models.groot.optim.create_optimizer_apex_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.optim.create_optimizer_apex_wrapper",
     ),
-    compatibility_check="turbo_physai.optimizations.models.groot.optim.apex_available_check",
+    compatibility_check="turbo_physai.optimizations.models.groot_n1_7.optim.apex_available_check",
 )
 
 ZERO2_OVERLAP = group(
@@ -168,7 +168,7 @@ ZERO2_OVERLAP = group(
     *(
         wrap(
             target=f"deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.{method}",
-            replacement=f"turbo_physai.optimizations.models.groot.zero2_overlap.{wrapper}",
+            replacement=f"turbo_physai.optimizations.models.groot_n1_7.zero2_overlap.{wrapper}",
         )
         for method, wrapper in (
             ("__init__", "init_wrapper"),
@@ -177,40 +177,40 @@ ZERO2_OVERLAP = group(
             ("average_tensor", "average_wrapper"),
         )
     ),
-    compatibility_check="turbo_physai.optimizations.models.groot.zero2_overlap.vendor_helpers_check",
+    compatibility_check="turbo_physai.optimizations.models.groot_n1_7.zero2_overlap.vendor_helpers_check",
 )
 
 ZERO2_OWNER_REDUCE = group(
     "groot.zero2.owner_reduce",
     wrap(
         target="deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.allreduce_and_scatter",
-        replacement="turbo_physai.optimizations.models.groot.zero2_owner_reduce.owner_reduce_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.zero2_owner_reduce.owner_reduce_wrapper",
     ),
     depends_on=("groot.zero2.grad_reduce_overlap",),
-    compatibility_check="turbo_physai.optimizations.models.groot.zero2_owner_reduce.owner_reduce_compatibility",
+    compatibility_check="turbo_physai.optimizations.models.groot_n1_7.zero2_owner_reduce.owner_reduce_compatibility",
 )
 
 ZERO2_ALLGATHER = group(
     "groot.zero2.allgather_pipeline",
     wrap(
         target="transformers.trainer.Trainer.create_scheduler",
-        replacement="turbo_physai.optimizations.models.groot.zero2_allgather.scheduler_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.zero2_allgather.scheduler_wrapper",
     ),
     wrap(
         target="gr00t.experiment.trainer.Gr00tTrainer.train",
-        replacement="turbo_physai.optimizations.models.groot.zero2_allgather.train_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.zero2_allgather.train_wrapper",
     ),
     wrap(
         target="deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.step",
-        replacement="turbo_physai.optimizations.models.groot.zero2_allgather.step_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.zero2_allgather.step_wrapper",
     ),
     wrap(
         target="deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.state_dict",
-        replacement="turbo_physai.optimizations.models.groot.zero2_allgather.state_dict_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.zero2_allgather.state_dict_wrapper",
     ),
     wrap(
         target="deepspeed.runtime.zero.stage_1_and_2.DeepSpeedZeroOptimizer.load_state_dict",
-        replacement="turbo_physai.optimizations.models.groot.zero2_allgather.load_state_dict_wrapper",
+        replacement="turbo_physai.optimizations.models.groot_n1_7.zero2_allgather.load_state_dict_wrapper",
     ),
-    compatibility_check="turbo_physai.optimizations.models.groot.zero2_allgather.allgather_compatibility",
+    compatibility_check="turbo_physai.optimizations.models.groot_n1_7.zero2_allgather.allgather_compatibility",
 )

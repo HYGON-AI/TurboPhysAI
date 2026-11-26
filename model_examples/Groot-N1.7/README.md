@@ -1,4 +1,4 @@
-# GR00T 应用说明
+# Groot N1.7 应用说明
 
 ## 1. 模型简介
 
@@ -20,7 +20,7 @@ TurboPhysAI 的 GR00T 优化以 Isaac-GR00T 官方提交 `51d4c89f72fda44cbf7728
 
 ```bash
 export PHYS_ROOT=/workspace/TurboPhysAI
-export GROOT_OPT="$PHYS_ROOT/turbo_physai/optimizations/models/groot"
+export GROOT_OPT="$PHYS_ROOT/turbo_physai/optimizations/models/groot_n1_7"
 export GROOT_MODEL="$PHYS_ROOT/model/Isaac-GR00T-official"
 export DATA_ROOT=/workspace/data
 export DATASET_SOURCE="$DATA_ROOT/libero_10_no_noops_1.0.0_lerobot_h264_source"
@@ -47,11 +47,11 @@ for name in ("torch", "torchvision", "torchaudio", "deepspeed", "apex", "flash-a
 PY
 
 python3 -m pip install --dry-run \
-  -r "$PHYS_ROOT/model_examples/Groot/requirements.txt" \
+  -r "$PHYS_ROOT/model_examples/Groot-N1.7/requirements.txt" \
   -c "$GROOT_CONFIG_DIR/vendor-constraints.txt"
 # 确认安装计划不会替换上述厂商加速包后执行
 python3 -m pip install \
-  -r "$PHYS_ROOT/model_examples/Groot/requirements.txt" \
+  -r "$PHYS_ROOT/model_examples/Groot-N1.7/requirements.txt" \
   -c "$GROOT_CONFIG_DIR/vendor-constraints.txt"
 
 # 在源码目录编译扩展，并让训练进程使用同一份源码

@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.hcu, pytest.mark.skipif(
 def _engines(monkeypatch, *, owner=False, allgather=False):
     import deepspeed
     from deepspeed.runtime.zero.stage_1_and_2 import DeepSpeedZeroOptimizer as Zero
-    from turbo_physai.optimizations.models.groot import zero2_overlap as gro, zero2_owner_reduce as obr, zero2_allgather as ag
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_overlap as gro, zero2_owner_reduce as obr, zero2_allgather as ag
 
     rank, world = int(os.environ["RANK"]), int(os.environ["WORLD_SIZE"])
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
@@ -93,7 +93,7 @@ def test_zero2_optimized_matches_reference(monkeypatch, kind):
 
 
 def test_allgather_overflow_and_inflight_exception(monkeypatch):
-    from turbo_physai.optimizations.models.groot import zero2_allgather as ag
+    from turbo_physai.optimizations.models.groot_n1_7 import zero2_allgather as ag
 
     if int(os.environ["WORLD_SIZE"]) != 8:
         pytest.skip("AllGather integration gate requires eight ranks")
