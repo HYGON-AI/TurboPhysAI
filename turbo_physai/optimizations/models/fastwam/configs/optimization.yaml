@@ -1,0 +1,73 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.fastwam.base
+  version: 1.0.0
+  description: FastWAM optimized DiT, MoT, VAE and inference integration
+model:
+  name: FastWAM
+compatibility:
+  commits:
+  - 7faa71108368fbb3b6885649f112af607427a2d4
+optimization_groups:
+- id: fastwam.vae
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      fastwam.models.wan22.wan_video_vae.WanVideoVAE.encode:
+      - source-v1:6daa1c6a4777f90dda7260529ca4bf031eb8c64e902f04edcb0d3fef4fec6087
+      fastwam.models.wan22.wan_video_vae.VideoVAE38_.encode:
+      - source-v1:c1a56e2b990d656bfee8fde3021971547e8c2a8752fe74dd07872e2a8fa6b020
+    ast_hashes:
+      fastwam.models.wan22.wan_video_vae.WanVideoVAE.encode:
+      - ast-v1:6cbe91f569e55ca6f9524b4cba0ca55727ad6de69104aff404a3990310309733
+      fastwam.models.wan22.wan_video_vae.VideoVAE38_.encode:
+      - ast-v1:8aa23b85b0dfbbb7c205b780c6db241bccc26d2cdbb70441a18d92c657ebd108
+- id: fastwam.model
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      fastwam.models.wan22.wan_video_dit.WanVideoDiT:
+      - source-v1:17b626ed200a06ec10b008dc071186bfe18ac371f7e70a7da93a866890e64889
+      fastwam.models.wan22.action_dit.ActionDiT:
+      - source-v1:6e2e007fa46d479d02e741bab00beefbd4e46e4e0cea34e0a3ae3b2bd9a07a11
+      fastwam.models.wan22.mot.MoT:
+      - source-v1:81a2f15aaec08132d73d93fcc5c4b9c07b7aeb7f0db9f20b0d84391533bb1f0f
+      fastwam.models.wan22.fastwam.FastWAM:
+      - source-v1:83546420f6206bfc59486a64fc33c471c394cd9278007af2bb268ac1be11905a
+      fastwam.models.wan22.fastwam_joint.FastWAMJoint:
+      - source-v1:496034c9e8dce6ef2d015d7d634cfea44bea3ec949524e905a78f4ed79e89917
+      fastwam.models.wan22.fastwam_idm.FastWAMIDM:
+      - source-v1:1bd675c92bc7b2d7ef6ee0eb81749af43fd7906538e02dc94ccbedc38b82c4dc
+      fastwam.models.wan22.fastwam_optional_idm.FastWAMOptionalIDM:
+      - source-v1:8cd01dcc6d238421ef7429fc974b22275ee9ef417072c27062bc542c2f654b01
+      fastwam.models.wan22.wan22.Wan22Core:
+      - source-v1:542920b317ace84c48fbe04cb49b18afa6e2c39a0a027d52a8a08eff347e79c5
+      fastwam.models.wan22.helpers.loader.load_wan22_ti2v_5b_components:
+      - source-v1:3f3ebfe9742ff95cb11fba796d65c24e12c7bd8efe448ebd42b4372ec442770c
+    ast_hashes:
+      fastwam.models.wan22.wan_video_dit.WanVideoDiT:
+      - ast-v1:564eb3bae0abc694448dcda22a4c69fc5c7c032d758f277751422d1824c26187
+      fastwam.models.wan22.action_dit.ActionDiT:
+      - ast-v1:11ca7041c34053c10409b67b37bd77dcc380df8bf9441235e02090dd206c0eb4
+      fastwam.models.wan22.mot.MoT:
+      - ast-v1:d4e39b21120e12cbc29d5c22fec93d72cbf6b37fe04065cf549b59dc393223fd
+      fastwam.models.wan22.fastwam.FastWAM:
+      - ast-v1:e297a23c0dcd37f8037487e8f0a81c72ff0c099fe8136c3bebf667211a716b6d
+      fastwam.models.wan22.fastwam_joint.FastWAMJoint:
+      - ast-v1:ee26a94bfd816dfe7466c25b86befaa887d4c95288d9547dc344134d3451ddce
+      fastwam.models.wan22.fastwam_idm.FastWAMIDM:
+      - ast-v1:d42fc71cc46a95a238d1747f9472974f0ebd9a7025834ff83db790f56257dfa4
+      fastwam.models.wan22.fastwam_optional_idm.FastWAMOptionalIDM:
+      - ast-v1:7c1e4b57191577e9831024770468c33e7717c933793900f0d699c6dcc5b83449
+      fastwam.models.wan22.wan22.Wan22Core:
+      - ast-v1:0f826debf48d5da23994ef3108ff97c9fb35a9ee905faaa88e6b2a2739d46dfd
+      fastwam.models.wan22.helpers.loader.load_wan22_ti2v_5b_components:
+      - ast-v1:bc46ad319994c99781fa4d61033c07bf406304e155d6b0355ba4e3a2d3a2cfd9
+optimization_modules:
+- turbo_physai.optimizations.models.fastwam.catalog

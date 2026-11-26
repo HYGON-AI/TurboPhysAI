@@ -19,6 +19,14 @@ APACHE_FILES = {
     },
 }
 APACHE_DIRECTORIES = ("kernel/bev_pool", "kernel/voxelization")
+FASTWAM_MIT_FILES = {
+    f"turbo_physai/optimizations/models/fastwam/{name}.py"
+    for name in ("action_dit", "fastwam", "fastwam_joint", "fastwam_idm",
+                 "fastwam_optional_idm", "mot", "wan_video_dit", "wan22", "loader", "vae")
+} | {
+    f"model_examples/FastWAM/configs/model/turbo_{name}.yaml"
+    for name in ("fastwam", "fastwam_joint", "fastwam_idm")
+}
 
 
 
@@ -40,6 +48,8 @@ def requires_hygon_bsd_header(path: Path) -> bool:
     if requires_apache_notice(path):
         return False
     rel = path.relative_to(ROOT).as_posix()
+    if rel in FASTWAM_MIT_FILES:
+        return False
     return (
         rel.startswith("turbo_physai/csrc/")
         or rel == "turbo_physai/operators/__init__.py"
@@ -52,6 +62,16 @@ def requires_hygon_bsd_header(path: Path) -> bool:
 def main() -> int:
     required = [ROOT / "LICENSE", ROOT / "NOTICE", ROOT / "THIRD_PARTY_NOTICES.md", ROOT / "third_party/licenses/Apache-2.0.txt"]
     failures = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
+    if not (ROOT / "third_party/licenses/FastWAM-MIT.txt").is_file():
+        failures.append("third_party/licenses/FastWAM-MIT.txt")
+    for name in sorted(FASTWAM_MIT_FILES):
+        path = ROOT / name
+        text = path.read_text(encoding="utf-8-sig") if path.is_file() else ""
+        if (
+            "Copyright (c) 2026 The FastWAM Authors" not in text
+            or "SPDX-License-Identifier: MIT" not in text
+        ):
+            failures.append(name)
     for path in ROOT.rglob("*"):
         if not path.is_file() or not is_source(path) or not requires_apache_notice(path):
             continue

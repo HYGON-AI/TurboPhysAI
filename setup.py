@@ -446,6 +446,7 @@ setup(
     version=VERSION,
     description="Model training performance optimization for the DAS software stack",
     packages=find_packages(),
+    license_files=["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "third_party/licenses/*.txt"],
     include_package_data=True,
     package_data={
         "turbo_physai": [
