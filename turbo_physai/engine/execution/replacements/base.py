@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import importlib
 import functools
+import sys
 from collections.abc import Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, List, Optional, Sequence, Tuple
 
@@ -14,6 +17,27 @@ from ...contracts import Mechanism, ReplacementSpec, RestoreResult, RestoreStatu
 
 class HandlerError(RuntimeError):
     pass
+
+
+_entry_modules = ContextVar("entry_modules", default={})
+
+
+@contextmanager
+def bind_entry_module(names, module):
+    """Resolve the matched import names against the live script namespace."""
+    token = _entry_modules.set(dict.fromkeys(names, module))
+    # Factories can import helpers directly from a top-level script module
+    # (e.g. LingBot imports logger from train while loading its wrapper).
+    aliases = [name for name in names if "." not in name and name not in sys.modules]
+    try:
+        for name in aliases:
+            sys.modules[name] = module
+        yield
+    finally:
+        for name in aliases:
+            if sys.modules.get(name) is module:
+                del sys.modules[name]
+        _entry_modules.reset(token)
 
 
 @dataclass(frozen=True)
@@ -45,8 +69,14 @@ def resolve_attribute(path: str, *, import_missing: bool = True) -> ResolvedAttr
 
     module = None
     module_length = 0
-    for index in range(len(parts) - 1, 0, -1):
-        module_name = ".".join(parts[:index])
+    prefixes = [(index, ".".join(parts[:index])) for index in range(len(parts) - 1, 0, -1)]
+    entry_modules = _entry_modules.get()
+    for index, module_name in prefixes:
+        if module_name in entry_modules:
+            module = entry_modules[module_name]
+            module_length = index
+            break
+    for index, module_name in prefixes if module is None else ():
         try:
             module = (
                 importlib.import_module(module_name)

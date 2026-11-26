@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, List, Sequence, Tuple
+from typing import Callable, Iterable, List, Sequence, Tuple
 
 from ..contracts import Conflict, ReplacementSpec
 from ..definitions.registry import Registry
@@ -21,6 +21,8 @@ def _targets_overlap(left: str, right: str, left_kind: str, right_kind: str) -> 
 
 def find_target_conflicts(
     groups: Iterable[Tuple[str, Sequence[ReplacementSpec]]],
+    *,
+    target_key: Callable[[str], str] | None = None,
 ) -> List[Conflict]:
     """Find duplicate or incompatible target replacements between Groups."""
 
@@ -36,6 +38,7 @@ def find_target_conflicts(
                         target,
                         spec.replacement,
                         spec.runtime_condition,
+                        target_key(target) if target_key else target,
                     )
                 )
 
@@ -46,8 +49,8 @@ def find_target_conflicts(
             if left[0] == right[0] and left[1] == right[1]:
                 continue
             if not _targets_overlap(
-                left[3],
-                right[3],
+                left[6],
+                right[6],
                 left[2],
                 right[2],
             ):
@@ -109,11 +112,15 @@ def find_target_conflicts(
 
 
 def find_group_conflicts(
-    registry: Registry, enabled_ids: Sequence[str]
+    registry: Registry,
+    enabled_ids: Sequence[str],
+    *,
+    available_dependencies: Iterable[str] = (),
+    target_key: Callable[[str], str] | None = None,
 ) -> List[Conflict]:
     """Find all conflicts for the enabled Group composition."""
 
-    enabled = set(enabled_ids)
+    enabled = set(enabled_ids).union(available_dependencies)
     conflicts: List[Conflict] = []
     grouped_specs = []
 
@@ -144,7 +151,7 @@ def find_group_conflicts(
             )
         )
 
-    conflicts.extend(find_target_conflicts(grouped_specs))
+    conflicts.extend(find_target_conflicts(grouped_specs, target_key=target_key))
     return conflicts
 
 

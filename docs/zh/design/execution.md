@@ -10,6 +10,12 @@
 
 直接替换根据真实 target 判断 callable、class 或 property，并要求 Replacement 具有对应类型。Wrapper 构造函数接收原对象和 Group options，返回最终 callable。
 
+### 训练入口中的目标
+
+以脚本路径或 `python -m` 启动训练时，引擎按源文件匹配入口中的 target 和 alias，并在实际运行的 `__main__` 中解析它们。
+
+进入唯一的顶层 `if __name__ == "__main__":` 块时，引擎应用涉及入口对象的 Group 及依赖它们的 Group。此时目标须已定义。此前已发生的调用不受这次替换影响。
+
 ## 2. 检查
 
 检查分为 OptimizationConfig 级和 Group 级。OptimizationConfig 级检查对当前运行环境执行一次，包括：

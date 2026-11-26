@@ -31,11 +31,12 @@ class Executor:
         prepared_execution: PreparedExecution,
         *,
         prepared_groups: Mapping,
+        previous_results: Sequence[GroupExecutionResult] = (),
     ) -> ExecutionOutcome:
         prepared_groups_by_id = {
             group.group_id: group for group in prepared_execution.groups
         }
-        completed_groups = {}
+        completed_groups = {result.group_id: result for result in previous_results}
         results: List[GroupExecutionResult] = []
         terminal_error = None
         rollback_failed = False

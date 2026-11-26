@@ -16,7 +16,7 @@ from .errors import (
     OptimizationRollbackError,
     OptimizationConfigError,
 )
-from .execution.executor import ExecutionOutcome, Executor
+from .execution.executor import Executor
 from .contracts import (
     CheckResult,
     CheckStatus,
@@ -182,189 +182,186 @@ def _apply_group_overrides(
     return effective, forced, disabled_reasons
 
 
-def _resolve(
-    *,
-    optimization_config_path: Optional[PathLike],
-    registry: Optional[Registry],
-    catalog: Optional[OptimizationConfigCatalog],
-    model: Optional[str],
-    force_groups: Sequence[str],
-    disable_groups: Sequence[str],
-    accuracy_mode: bool = False,
-) -> Tuple[
-    OptimizationConfig,
-    PreparedExecution,
-    dict,
-    Path,
-    ExecutionOutcome,
-    PreparedExecution,
-]:
-    resolved_config_path = resolve_optimization_config_path(
-        optimization_config_path,
-        model=model,
-    )
-    config = load_optimization_config(resolved_config_path, catalog=catalog)
-    dependencies = config.compatibility.get("dependencies", {})
-    dependency_names = dependencies.keys() if hasattr(dependencies, "keys") else ()
-    context = detect_context(dependency_names=dependency_names)
-    active_registry = registry or _default_registry
-    handlers = default_handlers()
-    config, forced, disabled_reasons = _apply_group_overrides(
-        config,
-        active_registry,
-        force_groups,
-        disable_groups,
-        accuracy_mode,
-    )
-    compatibility_outcome = ExecutionOutcome(())
-    run_id = _resolve_run_id()
-    compatibility_entries = []
-    regular_entries = []
-    compatibility_ids = set()
-    for entry in config.optimization_groups:
-        group_definition = active_registry.get_group(entry.id)
-        mechanisms = {
-            active_registry.get_spec(member).mechanism.value
-            for member in (group_definition.members if group_definition else ())
-            if active_registry.get_spec(member) is not None
-        }
-        compatibility = bool(mechanisms & _IMPORT_COMPATIBILITY_MECHANISMS)
-        if compatibility and not mechanisms.issubset(
-            _IMPORT_COMPATIBILITY_MECHANISMS
-        ):
-            raise OptimizationConfigError(
-                "import compatibility and runtime replacements must use "
-                f"separate OptimizationGroups: {entry.id}"
+class _Application:
+    """One apply attempt, with optional separation at a script's entry guard."""
+
+    def __init__(
+        self,
+        *,
+        optimization_config_path=None,
+        registry=None,
+        catalog=None,
+        model=None,
+        force_groups=(),
+        disable_groups=(),
+        accuracy_mode=False,
+    ):
+        _claim_apply()
+        self.config_path = resolve_optimization_config_path(
+            optimization_config_path, model=model
+        )
+        config = load_optimization_config(self.config_path, catalog=catalog)
+        self.registry = registry or _default_registry
+        self.config, self.forced, self.disabled_reasons = _apply_group_overrides(
+            config, self.registry, force_groups, disable_groups, accuracy_mode
+        )
+        self.run_id = _resolve_run_id()
+        self.handlers = default_handlers()
+        self.executor = Executor()
+        self.prepared = []
+        self.results = []
+        self.terminal_error = None
+
+        compatibility_entries = []
+        regular_entries = []
+        for entry in self.config.optimization_groups:
+            definition = self.registry.get_group(entry.id)
+            mechanisms = {
+                spec.mechanism.value
+                for member in (definition.members if definition else ())
+                if (spec := self.registry.get_spec(member)) is not None
+            }
+            if mechanisms & _IMPORT_COMPATIBILITY_MECHANISMS:
+                if not mechanisms.issubset(_IMPORT_COMPATIBILITY_MECHANISMS):
+                    raise OptimizationConfigError(
+                        "import compatibility and runtime replacements must use "
+                        f"separate OptimizationGroups: {entry.id}"
+                    )
+                compatibility_entries.append(entry)
+            else:
+                regular_entries.append(entry)
+
+        compatibility_ids = {entry.id for entry in compatibility_entries}
+        for entry in compatibility_entries:
+            definition = self.registry.get_group(entry.id)
+            invalid = tuple(
+                group_id for group_id in definition.depends_on
+                if group_id not in compatibility_ids
             )
-        if compatibility:
-            compatibility_entries.append(entry)
-            compatibility_ids.add(entry.id)
-        else:
-            regular_entries.append(entry)
-
-    for group_id in compatibility_ids:
-        definition = active_registry.get_group(group_id)
-        invalid = tuple(
-            dependency
-            for dependency in definition.depends_on
-            if dependency not in compatibility_ids
-        )
-        if invalid:
-            raise OptimizationConfigError(
-                "import compatibility Group dependencies must also be import "
-                f"compatibility Groups: {group_id}: {', '.join(invalid)}"
-            )
-
-    compatibility_prepared = None
-    compatibility_runtime = {}
-    if compatibility_entries:
-        compatibility_config = dataclass_replace(
-            config, optimization_groups=tuple(compatibility_entries)
-        )
-        compatibility_preparation = Preparation(active_registry, handlers)
-        compatibility_prepared = compatibility_preparation.prepare(
-            run_id=run_id,
-            config=compatibility_config,
-            environment=context,
-            force_groups=tuple(
-                group_id for group_id in forced if group_id in compatibility_ids
-            ),
-            disabled_reasons=disabled_reasons,
-            import_missing=True,
-        )
-        compatibility_runtime = compatibility_preparation.prepared_groups
-        compatibility_outcome = Executor().execute(
-            compatibility_prepared,
-            prepared_groups=compatibility_runtime,
-        )
-
-    compatibility_checks_ok = all(
-        group.decision in {Decision.APPLY, Decision.SKIP}
-        for group in (
-            compatibility_prepared.groups if compatibility_prepared else ()
-        )
-    )
-    compatibility_ok = compatibility_checks_ok and all(
-        item.status == ExecutionStatus.APPLIED
-        for item in compatibility_outcome.groups
-    ) and not compatibility_outcome.terminal_error
-
-    regular_config = dataclass_replace(
-        config, optimization_groups=tuple(regular_entries)
-    )
-    preparation = Preparation(active_registry, handlers)
-    if not compatibility_entries or compatibility_ok:
-        regular_prepared = preparation.prepare(
-            run_id=run_id,
-            config=regular_config,
-            environment=context,
-            force_groups=tuple(
-                group_id for group_id in forced if group_id not in compatibility_ids
-            ),
-            disabled_reasons=disabled_reasons,
-            import_missing=True,
-        )
-    else:
-        blocked_groups = []
-        for entry in regular_entries:
-            definition = active_registry.get_group(entry.id)
-            check_result = CheckResult(
-                "import_compatibility.blocked",
-                CheckStatus.FAIL,
-                expected="all import compatibility Groups applied",
-                actual="import compatibility application failed",
-            )
-            blocked_groups.append(
-                PreparedGroup(
-                    entry.id,
-                    definition.depends_on if definition else (),
-                    definition.members if definition else (),
-                    (check_result,),
-                    Decision.BLOCK,
-                    "import_compatibility_blocked",
+            if invalid:
+                raise OptimizationConfigError(
+                    "import compatibility Group dependencies must also be import "
+                    f"compatibility Groups: {entry.id}: {', '.join(invalid)}"
                 )
-            )
-        regular_prepared = PreparedExecution(
-            run_id,
-            context,
-            tuple(blocked_groups),
-            (),
-            (),
+        self.compatibility = dataclass_replace(
+            self.config, optimization_groups=tuple(compatibility_entries)
+        )
+        self.regular = dataclass_replace(
+            self.config, optimization_groups=tuple(regular_entries)
         )
 
-    prepared_by_id = {
-        group.group_id: group
-        for group in (
-            (compatibility_prepared.groups if compatibility_prepared else ())
-            + regular_prepared.groups
+    def _prepare_and_apply(self, config, **kwargs):
+        preparation = Preparation(self.registry, self.handlers)
+        prepared = preparation.prepare(
+            run_id=self.run_id,
+            config=config,
+            environment=self.environment,
+            force_groups=self.forced,
+            disabled_reasons=self.disabled_reasons,
+            **kwargs,
         )
-    }
-    prepared_execution = PreparedExecution(
-        run_id,
-        context,
-        tuple(
-            prepared_by_id[entry.id]
-            for entry in config.optimization_groups
-            if entry.id in prepared_by_id
-        ),
-        (
-            (compatibility_prepared.conflicts if compatibility_prepared else ())
-            + regular_prepared.conflicts
-        ),
-        (
-            (compatibility_prepared.execution_order if compatibility_prepared else ())
-            + regular_prepared.execution_order
-        ),
-        regular_prepared.checks,
-    )
-    return (
-        config,
-        prepared_execution,
-        preparation.prepared_groups,
-        resolved_config_path,
-        compatibility_outcome,
-        regular_prepared,
-    )
+        self.prepared.append(prepared)
+        outcome = self.executor.execute(
+            prepared,
+            prepared_groups=preparation.prepared_groups,
+            previous_results=self.results,
+        )
+        self.results.extend(outcome.groups)
+        self.terminal_error = outcome.terminal_error
+        return prepared, outcome
+
+    def apply_compatibility(self):
+        dependencies = self.config.compatibility.get("dependencies", {})
+        names = dependencies.keys() if hasattr(dependencies, "keys") else ()
+        self.environment = detect_context(dependency_names=names)
+        self.compatibility_ok = True
+        if self.compatibility.optimization_groups:
+            prepared, outcome = self._prepare_and_apply(self.compatibility)
+            self.compatibility_ok = all(
+                group.decision in {Decision.APPLY, Decision.SKIP}
+                for group in prepared.groups
+            ) and all(
+                item.status == ExecutionStatus.APPLIED for item in outcome.groups
+            ) and not self.terminal_error
+
+    def apply_regular(self, *, group_ids=None, blocked_groups=None, target_key=None):
+        if not self.compatibility_ok:
+            self._block_regular(
+                CheckResult(
+                    "import_compatibility.blocked",
+                    CheckStatus.FAIL,
+                    expected="all import compatibility Groups applied",
+                    actual="import compatibility application failed",
+                ),
+                "import_compatibility_blocked",
+            )
+        elif not self.terminal_error:
+            self._prepare_and_apply(
+                self.regular,
+                group_ids=group_ids,
+                previous_groups={
+                    group.group_id: group
+                    for stage in self.prepared for group in stage.groups
+                },
+                blocked_groups=blocked_groups,
+                target_key=target_key,
+            )
+
+    def _block_regular(self, check, reason, *, group_ids=None, checks=()):
+        groups = []
+        for entry in self.regular.optimization_groups:
+            if group_ids is not None and entry.id not in group_ids:
+                continue
+            definition = self.registry.get_group(entry.id)
+            groups.append(PreparedGroup(
+                entry.id,
+                definition.depends_on if definition else (),
+                definition.members if definition else (),
+                (check,),
+                Decision.BLOCK,
+                reason,
+            ))
+        self.prepared.append(PreparedExecution(
+            self.run_id, self.environment, tuple(groups), (), (), checks
+        ))
+
+    def block_pending_after_failure(self, group_ids):
+        self._block_regular(
+            CheckResult("entrypoint.startup_failed", CheckStatus.FAIL, detail=self.terminal_error),
+            "entrypoint_startup_failed",
+            group_ids=group_ids,
+            checks=self.prepared[-1].checks,
+        )
+
+    def report(self, *, log_report):
+        prepared = {
+            group.group_id: group
+            for stage in self.prepared for group in stage.groups
+        }
+        results = {item.group_id: item for item in self.results}
+        ids = [entry.id for entry in self.config.optimization_groups]
+        prepared_execution = PreparedExecution(
+            self.run_id,
+            self.environment,
+            tuple(prepared[group_id] for group_id in ids if group_id in prepared),
+            tuple(dict.fromkeys(
+                conflict for stage in self.prepared for conflict in stage.conflicts
+            )),
+            tuple(group_id for stage in self.prepared for group_id in stage.execution_order),
+            self.prepared[-1].checks,
+        )
+        report = build_report(
+            self.config,
+            prepared_execution,
+            (results[group_id] for group_id in ids if group_id in results),
+            optimization_config_path=str(self.config_path),
+            runtime_config_path=os.environ.get("TURBO_PHYSAI_RUNTIME_CONFIG_PATH"),
+        )
+        if log_report and self.environment.rank == 0:
+            emit_report(report)
+        if self.terminal_error:
+            raise OptimizationRollbackError(self.terminal_error, report=report)
+        return report
 
 
 def apply(
@@ -393,16 +390,7 @@ def apply(
     their dependents are skipped for this call.
     """
 
-    _claim_apply()
-
-    (
-        config,
-        prepared_execution,
-        prepared_groups,
-        resolved_config_path,
-        compatibility_outcome,
-        regular_prepared,
-    ) = _resolve(
+    application = _Application(
         optimization_config_path=optimization_config_path,
         registry=registry,
         catalog=catalog,
@@ -411,31 +399,9 @@ def apply(
         disable_groups=disable_groups,
         accuracy_mode=accuracy_mode,
     )
-    regular_outcome: ExecutionOutcome = Executor().execute(
-        regular_prepared, prepared_groups=prepared_groups
-    )
-    results_by_id = {
-        item.group_id: item
-        for item in compatibility_outcome.groups + regular_outcome.groups
-    }
-    execution = tuple(
-        results_by_id[entry.id]
-        for entry in config.optimization_groups
-        if entry.id in results_by_id
-    )
-    report = build_report(
-        config,
-        prepared_execution,
-        execution,
-        optimization_config_path=str(resolved_config_path),
-        runtime_config_path=os.environ.get("TURBO_PHYSAI_RUNTIME_CONFIG_PATH"),
-    )
-    if log_report and prepared_execution.environment.rank == 0:
-        emit_report(report)
-    terminal_error = compatibility_outcome.terminal_error or regular_outcome.terminal_error
-    if terminal_error:
-        raise OptimizationRollbackError(terminal_error, report=report)
-    return report
+    application.apply_compatibility()
+    application.apply_regular()
+    return application.report(log_report=log_report)
 
 
 __all__ = [
