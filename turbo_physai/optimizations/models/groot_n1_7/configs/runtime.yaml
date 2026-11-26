@@ -1,0 +1,25 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+environment:
+  set:
+    HF_HUB_OFFLINE: "1"
+    TRANSFORMERS_OFFLINE: "1"
+    USE_WANDB: "0"
+
+    # Use MIOpen find mode to avoid runtime kernel search and improve performance.
+    MIOPEN_FIND_MODE: "1"
+    # Use NHWC layout for MIOpen kernels to match the reference launcher's torchcodec and default compiler-cache setup.
+    PYTORCH_MIOPEN_SUGGEST_NHWC: "1"
+    # MIOPEN_PRECISION_FP32_FP32_FP32_TF32_FP32: "1"
+    # DISABLE_ADDMM_CUDA_LT: "1"
+  # Match the reference launcher's torchcodec and default compiler-cache setup.
+
+# The reference training command does not request PhysAI NUMA binding.
+# NUMA placement, visible devices, rank count and training parameters are
+# deployment-specific and should be configured by the launcher.
+process:
+  numa: false
