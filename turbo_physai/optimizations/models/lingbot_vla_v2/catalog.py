@@ -214,6 +214,19 @@ MOGE_DEPTH_ONLY = group(
     depends_on=("lingbot-vla-v2.compile-teacher",),
 )
 
+# --- MoGe: focal/shift 求解搬到 GPU --------------
+# 上游逐样本调用 scipy.optimize.least_squares(method='lm')，这里用 MINPACK
+# lmdif 的 batched torch 移植替换，语义与上游一致。
+MOGE_FOCAL_GPU = group(
+    "lingbot-vla-v2.moge-focal-gpu",
+    replace(
+        target="moge.model.v2.recover_focal_shift",
+        replacement=(
+            "turbo_physai.optimizations.models.lingbot_vla_v2.moge_focal_gpu.recover_focal_shift"
+        ),
+    ),
+)
+
 # --- 编译teacher网络 -------------------------
 TEACHER_COMPILE = group(
     "lingbot-vla-v2.compile-teacher",

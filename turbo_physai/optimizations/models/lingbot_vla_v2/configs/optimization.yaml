@@ -209,6 +209,16 @@ optimization_groups:
     ast_hashes:
       lingbotvla.models.vla.vision_models.module_utils.v2.infer:
       - ast-v1:e9d1e2cb3fd2fc4e6c8e6543efde88e6750e929a3e8645755c0a87f2ae99878a
+- id: lingbot-vla-v2.moge-focal-gpu
+  enabled: true
+  options: {}
+  trust:
+    source_hashes:
+      moge.model.v2.recover_focal_shift:
+      - source-v1:8ae3d686917cf1996ec21870147269cc9a424d0bd6fda06bcc6c39394b1865aa
+    ast_hashes:
+      moge.model.v2.recover_focal_shift:
+      - ast-v1:e84ecc4b659ae16f5f6bc5a145b72e2edbdcef6e9f2acf01040a8f002580340c
 - id: lingbot-vla-v2.fast-hf-query
   enabled: true
   options: {}

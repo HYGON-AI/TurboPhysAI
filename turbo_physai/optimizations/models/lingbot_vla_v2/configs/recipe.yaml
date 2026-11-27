@@ -69,6 +69,9 @@ optimization_groups:
   - id: lingbot-vla-v2.moge-depth-only
     enabled: true
 
+  - id: lingbot-vla-v2.moge-focal-gpu
+    enabled: true
+
   - id: lingbot-vla-v2.fast-hf-query
     enabled: true
 
