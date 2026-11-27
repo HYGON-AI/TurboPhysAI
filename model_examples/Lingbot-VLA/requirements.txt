@@ -3,7 +3,6 @@
 # VLA 配套镜像已提供 DTK 版 torch / torchvision 等基础包，这里只列 LingBot-VLA 训练还需要补装的包。
 #
 # 完整安装步骤见 model_examples/Lingbot-VLA/README.md 第 3.2 节；
-# lerobot、utils3d 与 flash-attn 的安装参数不同，单独用命令安装，不在本文件里。
 
 datasets==3.6.0
 transformers==4.51.3
@@ -19,7 +18,6 @@ ipdb==0.13.13
 huggingface-hub==0.34.3
 safetensors==0.5.3
 qwen-vl-utils==0.0.11
-peft==0.15.2
 scipy==1.13.1
 pandas==2.3.1
 pyarrow==21.0.0
@@ -47,3 +45,8 @@ omegaconf==2.3.0
 pytest
 torchdata
 opencv-python
+draccus==0.11.6
+diffusers==0.35.1
+deepdiff
+accelerate==1.15.0
+pyserial==3.5
