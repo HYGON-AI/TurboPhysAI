@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Dict, List, Mapping, Sequence, Set, Tuple
+from typing import Callable, Collection, Dict, List, Mapping, Sequence, Set, Tuple
 
 from .checker import Checker
 from .conflicts import find_group_conflicts
@@ -69,6 +69,10 @@ class Preparation:
         force_groups: Sequence[str] = (),
         disabled_reasons: Mapping[str, str] | None = None,
         import_missing: bool = True,
+        group_ids: Collection[str] | None = None,
+        previous_groups: Mapping[str, PreparedGroup] | None = None,
+        blocked_groups: Mapping[str, CheckResult] | None = None,
+        target_key: Callable[[str], str] | None = None,
     ) -> PreparedExecution:
         self.checker.prepared_groups.clear()
         forced = frozenset(force_groups)
@@ -77,7 +81,15 @@ class Preparation:
             environment, config.compatibility
         )
         enabled_ids = [entry.id for entry in config.optimization_groups if entry.enabled]
-        conflicts = find_group_conflicts(self.registry, enabled_ids)
+        previous_groups = previous_groups or {}
+        blocked_groups = blocked_groups or {}
+        conflicts = find_group_conflicts(
+            self.registry, enabled_ids, target_key=target_key,
+            available_dependencies=(
+                group_id for group_id, group in previous_groups.items()
+                if group.decision == Decision.APPLY
+            ),
+        )
         conflict_by_group: Dict[str, List[Conflict]] = defaultdict(list)
         for conflict in conflicts:
             for group_id in conflict.groups:
@@ -96,6 +108,8 @@ class Preparation:
 
         prepared_groups: Dict[str, PreparedGroup] = {}
         for entry in config.optimization_groups:
+            if group_ids is not None and entry.id not in group_ids:
+                continue
             group = self.registry.get_group(entry.id)
             if not entry.enabled:
                 prepared_groups[entry.id] = PreparedGroup(
@@ -123,14 +137,17 @@ class Preparation:
                     "group_missing",
                 )
                 continue
-            checks = list(
-                self.checker.check_group(
-                    group,
-                    entry,
-                    environment,
-                    import_missing=import_missing,
+            if entry.id in blocked_groups:
+                checks = [blocked_groups[entry.id]]
+            else:
+                checks = list(
+                    self.checker.check_group(
+                        group,
+                        entry,
+                        environment,
+                        import_missing=import_missing,
+                    )
                 )
-            )
             for conflict in conflict_by_group.get(group.group_id, ()):
                 checks.append(
                     CheckResult(
@@ -161,6 +178,7 @@ class Preparation:
             )
 
         # A selected group cannot execute when one of its required dependencies is blocked.
+        available_groups = {**previous_groups, **prepared_groups}
         changed = True
         while changed:
             changed = False
@@ -176,8 +194,8 @@ class Preparation:
                 blocked_dependencies = [
                     dependency
                     for dependency in group.depends_on
-                    if dependency not in prepared_groups
-                    or prepared_groups[dependency].decision != Decision.APPLY
+                    if dependency not in available_groups
+                    or available_groups[dependency].decision != Decision.APPLY
                 ]
                 if blocked_dependencies:
                     dependency_check = CheckResult(
@@ -196,10 +214,12 @@ class Preparation:
                         "dependency_blocked",
                         current.forced,
                     )
+                    available_groups[group_id] = prepared_groups[group_id]
                     changed = True
 
         stable_groups = tuple(
             prepared_groups[entry.id] for entry in config.optimization_groups
+            if entry.id in prepared_groups
         )
         execution_order = tuple(
             group_id

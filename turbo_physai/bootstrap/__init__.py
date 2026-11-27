@@ -60,6 +60,7 @@ _LAUNCHER_MODULES = frozenset(
         "deepspeed.launcher.runner",
         "accelerate.commands.launch",
         "torchpack.launch",
+        "turbo_physai.bootstrap.script_entry",
     }
 )
 
@@ -80,7 +81,7 @@ def command_line() -> tuple[str, ...]:
     try:
         raw = Path("/proc/self/cmdline").read_bytes()
     except OSError:
-        return (sys.executable, *sys.argv)
+        return tuple(getattr(sys, "orig_argv", (sys.executable, *sys.argv)))
     parts = raw.decode("utf-8", "surrogateescape").split("\0")
     if parts and parts[-1] == "":
         parts.pop()
@@ -106,23 +107,17 @@ def isolation_flags(command: Sequence[str]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(found))
 
 
-def _entry_is_launcher(command: Sequence[str]) -> bool:
-    arguments = list(command[1:])
-    while arguments:
-        argument = arguments[0]
-        if argument == "-m":
-            module = arguments[1] if len(arguments) > 1 else ""
-            return module in _LAUNCHER_MODULES
-        if argument == "-c":
-            return False
-        if argument.startswith("-"):
-            arguments.pop(0)
-            continue
-        name = Path(argument).name
-        if name.endswith(".py"):
-            name = name[: -len(".py")]
-        return name in _LAUNCHER_COMMANDS
-    return False
+def _python_entry_index(arguments: Sequence[str]) -> int:
+    """Locate the entry after Python flags, including flags with a value."""
+    index = 0
+    while index < len(arguments):
+        option = arguments[index]
+        if option == "--":
+            return index + 1
+        if option == "-" or option.startswith(("-m", "-c")) or not option.startswith("-"):
+            break
+        index += 2 if option in {"-W", "-X", "--check-hash-based-pycs"} else 1
+    return index
 
 
 def should_activate(command: Sequence[str], environment: Mapping[str, str]) -> bool:
@@ -130,17 +125,18 @@ def should_activate(command: Sequence[str], environment: Mapping[str, str]) -> b
 
     if environment.get(BOOTSTRAP_FLAG) != "1":
         return False
-    arguments = list(command[1:])
-    while arguments and arguments[0].startswith("-") and arguments[0] not in {"-m", "-c"}:
-        arguments.pop(0)
-    if arguments[:1] == ["-c"]:
+    arguments = command[1:]
+    arguments = arguments[_python_entry_index(arguments):]
+    if not arguments or arguments[0] == "-":
+        return False
+    if arguments[0].startswith("-c"):
         # ``python -c`` is how multiprocessing spawns helpers; they inherit an
         # already-patched parent's environment but not its patched modules.
         return False
-    if not arguments:
-        # An interactive interpreter, not a training entry point.
-        return False
-    return not _entry_is_launcher(command)
+    if arguments[0].startswith("-m"):
+        module = arguments[0][2:] or (arguments[1] if len(arguments) > 1 else "")
+        return module not in _LAUNCHER_MODULES
+    return Path(arguments[0]).name.removesuffix(".py") not in _LAUNCHER_COMMANDS
 
 
 def bootstrap_environment(
@@ -183,7 +179,7 @@ def bootstrap_environment(
     return prepared
 
 
-def _activate() -> None:
+def _add_working_directory() -> None:
     # A script launched as ``python tools/train.py`` normally places
     # ``tools/`` rather than the repository root at ``sys.path[0]``. Model
     # repositories commonly expose project modules from that root, and
@@ -196,32 +192,71 @@ def _activate() -> None:
     ]
     sys.path.insert(0, working_directory)
 
-    from .. import apply
-    from ..runner import (
-        _print_optimization_result,
-        _set_rank_affinity,
-        _set_rank_numa_binding,
-    )
 
-    # Re-execs through numactl when this rank needs NUMA binding; the call does
-    # not return in that case. The original command line is replayed verbatim.
-    _set_rank_numa_binding(reexec_command=command_line())
-    _set_rank_affinity()
+def _new_application():
+    from ..engine import _Application
 
     raw_groups = os.environ.get(FORCE_GROUPS, "")
     raw_disabled_groups = os.environ.get(DISABLE_GROUPS, "")
     raw_accuracy_mode = os.environ.get(ACCURACY_MODE, "")
-    report = apply(
+    return _Application(
         optimization_config_path=os.environ.get(OPTIMIZATION_CONFIG) or None,
-        log_report=os.environ.get(LOG_REPORT) == "1",
         force_groups=tuple(group for group in raw_groups.split(os.pathsep) if group),
         disable_groups=tuple(
             group for group in raw_disabled_groups.split(os.pathsep) if group
         ),
         accuracy_mode=raw_accuracy_mode == "1",
     )
+
+
+def _report_application(application):
+    from ..runner import _print_optimization_result
+
+    report = application.report(log_report=os.environ.get(LOG_REPORT) == "1")
     if os.environ.get(LOG_REPORT) == "1":
         _print_optimization_result(report)
+
+
+def _activate() -> None:
+    from ..runner import _set_rank_affinity, _set_rank_numa_binding
+    from .script_entry import find_entry, find_entry_groups, read_entry, reexec_entry
+
+    _add_working_directory()
+    command = command_line()
+    # Complete NUMA re-exec before considering the Python entry re-exec.
+    _set_rank_numa_binding(reexec_command=command)
+    _set_rank_affinity()
+    application = _new_application()
+    entry = find_entry(command[1:])
+    blocked = None
+    if entry is not None:
+        groups = find_entry_groups(entry, application)
+        if groups.direct:
+            try:
+                _, guard = read_entry(entry)
+            except (OSError, SyntaxError, UnicodeError) as error:
+                blocked = groups.block(f"cannot inspect the training entry: {error}")
+            else:
+                if guard is not None:
+                    reexec_entry(command, entry)
+                blocked = groups.block("no unique top-level __main__ guard")
+    application.apply_compatibility()
+    application.apply_regular(blocked_groups=blocked)
+    _report_application(application)
+
+
+def _abort_activation(error) -> None:
+    import traceback
+
+    traceback.print_exc()
+    print(
+        f"turbo-physai: rank failed to apply its OptimizationConfig ({error}); "
+        "aborting instead of training unoptimized",
+        file=sys.stderr,
+        flush=True,
+    )
+    # site.execsitecustomize() would swallow a raised startup exception.
+    os._exit(ACTIVATION_FAILURE_EXIT_CODE)
 
 
 def activate() -> None:
@@ -231,18 +266,5 @@ def activate() -> None:
         return
     try:
         _activate()
-    except BaseException as error:  # noqa: BLE001 - see the comment below
-        import traceback
-
-        traceback.print_exc()
-        print(
-            f"turbo-physai: rank failed to apply its OptimizationConfig ({error}); "
-            "aborting instead of training unoptimized",
-            file=sys.stderr,
-            flush=True,
-        )
-        # site.execsitecustomize() catches and merely prints exceptions raised
-        # from sitecustomize, so raising here would let training continue
-        # unoptimized and exit 0. os._exit bypasses that except clause.
-        sys.stderr.flush()
-        os._exit(ACTIVATION_FAILURE_EXIT_CODE)
+    except BaseException as error:  # noqa: BLE001 - abort even if a startup hook exits
+        _abort_activation(error)

@@ -98,6 +98,7 @@ def format_report(report: OptimizationReport) -> str:
                 f"    check {check.code}: status={check.status.value} "
                 f"expected={_log_value(check.expected)} "
                 f"actual={_log_value(check.actual)}"
+                + (f" detail={_log_value(check.detail)}" if check.detail else "")
             )
 
     lines.append("Execution:")
