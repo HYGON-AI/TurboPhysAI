@@ -102,19 +102,48 @@ The bundled `kernel/sparse_conv/include/prettyprint.h` file is registered separa
 
 The full Apache-2.0 text is in [third_party/licenses/Apache-2.0.txt](third_party/licenses/Apache-2.0.txt).
 
+### LingBot-VLA
+
+- Repository: <https://github.com/Robbyant/lingbot-vla>
+- Fixed commit: `4eb34b7693a0565c67433f8fac9c59a2e67eb60b`
+- License: Apache-2.0
+
+| Local file | Upstream file | HYGON modification |
+| --- | --- | --- |
+| `turbo_physai/optimizations/models/lingbot_vla/profiling.py` | `lingbotvla/utils/helper.py` (`create_profiler`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/fast_hf_query.py` | `lingbotvla/data/vla_data/base_dataset.py` (`_query_hf_dataset`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/rope_cache.py` | `lingbotvla/models/vla/pi0/utils.py` (`apply_rope`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/gradient_checkpointing.py` | `lingbotvla/models/vla/pi0/modeling_lingbot_vla.py` (`QwenvlWithExpertModel.forward`, `AdaRMSNorm.forward`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/qkv_fused.py` | `lingbotvla/models/vla/pi0/modeling_lingbot_vla.py` (`Qwen2DecoderLayer.forward`); `lingbotvla/models/vla/pi0/qwenvl_in_vla.py` (`Qwen2_5_VLDecoderLayer.forward`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/vision_fa2.py` | `lingbotvla/models/vla/pi0/qwenvl_in_vla.py` (`Qwen2_5_VLVisionFlashAttention2.forward`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/vision_rope.py` | `lingbotvla/models/vla/pi0/qwenvl_in_vla.py` (`apply_rotary_pos_emb_flashatt`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/grid_thw_cpu.py` | `lingbotvla/models/vla/pi0/modeling_lingbot_vla.py` (`embed_image`); `lingbotvla/models/vla/pi0/qwenvl_in_vla.py` (`preprcess_grid_thw`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/patch_embed_matmul.py` | `lingbotvla/models/vla/pi0/qwenvl_in_vla.py` (`Qwen2_5_VisionPatchEmbed.forward`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/conv3d_channel_last.py` | `lingbotvla/models/vla/pi0/qwenvl_in_vla.py` (`Qwen2_5_VisionPatchEmbed.forward`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/moge_depth_only.py` | `lingbotvla/models/vla/vision_models/module_utils.py` (`get_depth_target`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/pos_embed_cache.py` | `lingbotvla/models/vla/vision_models/lingbot-depth/mdm/model/dinov2_rgbd/models/vision_transformer.py` (`DinoVisionTransformer.interpolate_pos_encoding_without_cls`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/moge_resampler.py` | `lingbotvla/models/vla/vision_models/lingbot-depth/mdm/model/modules_decoder.py` (`Resampler`) | Modified |
+| `turbo_physai/optimizations/models/lingbot_vla/flex_attn.py` | `lingbotvla/models/vla/pi0/flex_attention.py` (`flex_attention_forward`) | Modified |
+
 ## Confirmed BSD-3-Clause derivations
 
 | Component | turbo_physai paths | Upstream repository and fixed commit | Upstream paths | License | NOTICE |
 | --- | --- | --- | --- | --- | --- |
 | PyTorch | `turbo_physai/operators/{grid_sample,upsample_bilinear_2d}.py`; `kernel/grid_sample/{GridSampler.cu,GridSampler.cuh}`; `kernel/upsample_bilinear_2d/UpSampleBilinear2d.cu` | <https://github.com/pytorch/pytorch> @ `e2d141dbde55c2a4370fac5165b0561b6af4798b` (v2.7.1) | `torch/nn/functional.py` (`grid_sample`, `interpolate`); `aten/src/ATen/native/cuda/{GridSampler.cu,GridSampler.cuh,UpSampleBilinear2d.cu}` | BSD-3-Clause | No `NOTICE` file identified at the fixed baseline. |
 | PyTorch | `kernel/common/utils.h` | <https://github.com/pytorch/pytorch> @ `49444c3e546bf240bed24a101e747422d1f8a0ee` (v1.13.1) | `aten/src/ATen/native/UpSample.h` | BSD-3-Clause | No `NOTICE` file identified at the fixed baseline. |
+| flash-attention | `turbo_physai/optimizations/models/lingbot_vla/vision_rope.py` | <https://github.com/Dao-AILab/flash-attention> @ `060c9188beec3a8b62b33a3bfa6d5d2d44975fab` (v2.8.3) | `flash_attn/ops/triton/rotary.py` (`rotary_kernel`, `apply_rotary`) | BSD-3-Clause | No `NOTICE` file identified at the fixed baseline. |
 
 The complete PyTorch v2.7.1 license text is in [third_party/licenses/PyTorch-BSD-3-Clause.txt](third_party/licenses/PyTorch-BSD-3-Clause.txt). `UpSampleBilinear2d.cu` also retains its inherited Caffe contributor attribution.
+
+The complete flash-attention license text is in [third_party/licenses/flash-attention-BSD-3-Clause.txt](third_party/licenses/flash-attention-BSD-3-Clause.txt).
 
 ## Confirmed MIT derivations
 
 | Component | turbo_physai paths | Upstream repository and fixed commit | Upstream paths | License | NOTICE |
 | --- | --- | --- | --- | --- | --- |
+| MoGe | `turbo_physai/optimizations/models/lingbot_vla/moge_depth_only.py` | <https://github.com/microsoft/moge> @ `b942f00bdc2a2a23ebb474fbe034d487e6dcceec`, vendored in <https://github.com/Robbyant/lingbot-vla> @ `4eb34b7693a0565c67433f8fac9c59a2e67eb60b` | `moge/model/v2.py` (`MoGeModel.forward`) | MIT | No `NOTICE` file identified at the fixed baseline. |
+| MoGe | `turbo_physai/optimizations/models/lingbot_vla/moge_focal_gpu.py` | <https://github.com/microsoft/moge> @ `b942f00bdc2a2a23ebb474fbe034d487e6dcceec`, vendored in <https://github.com/Robbyant/lingbot-vla> @ `4eb34b7693a0565c67433f8fac9c59a2e67eb60b` | `moge/utils/geometry_numpy.py` (`solve_optimal_focal_shift`, `recover_focal_shift_numpy`) | MIT | No `NOTICE` file identified at the fixed baseline. |
+| MoGe | `turbo_physai/optimizations/models/lingbot_vla/moge_resampler.py` | <https://github.com/microsoft/moge> @ `b942f00bdc2a2a23ebb474fbe034d487e6dcceec`, vendored in <https://github.com/Robbyant/lingbot-vla> @ `4eb34b7693a0565c67433f8fac9c59a2e67eb60b` | `moge/model/modules.py` (`Resampler`) | MIT | No `NOTICE` file identified at the fixed baseline. |
 | Sparse4D | `turbo_physai/operators/deformable_aggregation.py`; `kernel/deformable_aggregation/DeformableAggregation.cu` | <https://github.com/HorizonRobotics/Sparse4D> @ `249ffbb695f4e9db628d953e2bf6d36de04bbb69` | `projects/mmdet3d_plugin/ops/deformable_aggregation.py`; `projects/mmdet3d_plugin/ops/src/deformable_aggregation_cuda.cu` | MIT | No `NOTICE` file identified at the fixed baseline. |
 
 The complete Sparse4D license text is in [third_party/licenses/Sparse4D-MIT.txt](third_party/licenses/Sparse4D-MIT.txt).

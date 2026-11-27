@@ -1,0 +1,63 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/optimization-config/v1
+kind: OptimizationConfig
+metadata:
+  id: model.lingbot_vla.base.hcu
+  version: "0.1.0"
+  description: HCU optimization recipe for LingBot-VLA
+
+model:
+  name: lingbot_vla
+
+optimization_modules:
+  - turbo_physai.optimizations.models.lingbot_vla.catalog
+
+extends: []
+
+compatibility: {}
+
+optimization_groups:
+  - id: lingbot-vla.profiling
+    enabled: true
+  - id: lingbot-vla.gradient-checkpointing
+    enabled: true
+    options:
+      num_layers: 0
+      vl_layers: 2
+      expert_layers: 0
+  - id: lingbot-vla.per-layer-compile
+    enabled: true
+  - id: lingbot-vla.teacher-compile
+    enabled: true
+  - id: lingbot-vla.flex-attn
+    enabled: true
+  - id: lingbot-vla.fast-hf-query
+    enabled: true
+  - id: lingbot-vla.moge-depth-only
+    enabled: true
+  - id: lingbot-vla.vision-fa2-fixed
+    enabled: true
+  - id: lingbot-vla.moge-focal-gpu
+    enabled: true
+  - id: lingbot-vla.patch-embed-matmul
+    enabled: true
+  - id: lingbot-vla.gc-freeze
+    enabled: true
+  - id: lingbot-vla.qkv-fused
+    enabled: true
+  - id: lingbot-vla.pos-embed-cache
+    enabled: true
+  - id: lingbot-vla.rope-cache
+    enabled: true
+  - id: lingbot-vla.vision-rope-fused
+    enabled: true
+  - id: lingbot-vla.grid-thw-cpu
+    enabled: true
+  - id: lingbot-vla.param-device
+    enabled: true
+  - id: lingbot-vla.fused-adamw
+    enabled: true
+  - id: lingbot-vla.moge-resampler
+    enabled: true
