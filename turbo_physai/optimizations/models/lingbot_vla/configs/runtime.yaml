@@ -1,0 +1,26 @@
+# Copyright 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+
+schema_version: turbophysai/runtime-config/v1
+kind: RuntimeConfig
+
+# Model-agnostic HCU runtime knobs only.  Anything model specific (for example
+# a rocBLAS tuning library produced for one model/precision combination) must
+# NOT be copied from another model's runtime config.
+environment:
+  set:
+    TORCHINDUCTOR_FORCE_LAYOUT_OPT: "1"
+    GPU_MAX_HW_QUEUES: "16"
+    HIP_BUFFER_EXTRA_SIZE: "0"
+    TRITON_F32_DEFAULT: "tf32"
+    TORCH_ALLOW_TF32_CUBLAS_OVERRIDE: "1"
+  unset: []
+
+# Not set here on purpose: ROCBLAS_TENSILE_LIBPATH.  The rocBLAS tuning library
+# is generated per node by `rocblas-tensile` for that node's device and driver,
+# so it cannot ship as a packaged default.  Deployers who have tuned a node
+# override it on the command line:
+#   turbo-physai run --set ROCBLAS_TENSILE_LIBPATH=<tuned library directory> ...
+
+process:
+  numa: true
